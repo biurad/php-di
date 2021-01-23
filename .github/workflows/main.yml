@@ -10,17 +10,7 @@ jobs:
         php-versions: ['7.4', '8.0']
         coverage: ["true"]
         composer-flags: [""]
-        static-tests: ["true"]
         include:
-          - php-versions: "7.2"
-            static-tests: "false"
-
-          - php-versions: "7.3"
-            static-tests: "false"
-
-          - php-versions: "8.0"
-            composer-flags: "--ignore-platform-req=php"
-
           - php-versions: "8.1"
             coverage: "false"
             composer-flags: "--ignore-platform-req=php"
@@ -67,13 +57,7 @@ jobs:
           fi
 
       - name: Test with Phpstan
-        run: |
-          if [ "${{ matrix.static-tests }}" == "true" ]; then
-            vendor/bin/phpstan analyse
-          fi
+        run: vendor/bin/phpstan analyse
 
       - name: Test with Psalm
-        run: |
-          if [ "${{ matrix.static-tests }}" == "true" ]; then
-            vendor/bin/psalm --output-format=github
-          fi
+        run: vendor/bin/psalm --output-format=github

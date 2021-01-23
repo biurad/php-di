@@ -1,28 +1,28 @@
 {
-    "name": "biurad/php-starter",
-    "description": "A PHP package template repository.",
+    "name": "divineniiquaye/rade-di",
+    "description": "A simple and smart dependency injection for PHP",
     "type": "library",
-    "keywords": ["biurad","biuradphp","php"],
-    "homepage": "https://www.biurad.com",
+    "keywords": ["biurad","biuradphp","php","container","di","dependency-injection"],
+    "homepage": "https://www.divinenii.com",
     "license": "BSD-3-Clause",
     "authors": [
         {
             "name": "Divine Niiquaye Ibok",
             "email": "divineibok@gmail.com"
-        },
-        {
-            "name": "Biurad Lap Community",
-            "homepage": "https://biurad.com/projects/contributors"
         }
     ],
     "support": {
-        "docs": "https://docs.biurad.com/php-starter/",
-        "issues": "https://github.com/biurad/php-starter/issues",
-        "rss": "https://github.com/biurad/php-starter/releases.atom",
-        "source": "https://github.com/biurad/php-starter"
+        "docs": "https://docs.divinenii.com/rade-di/",
+        "issues": "https://github.com/divineniiquaye/rade-di/issues",
+        "rss": "https://github.com/divineniiquaye/rade-di/releases.atom",
+        "source": "https://github.com/divineniiquaye/rade-di"
     },
     "require": {
-        "php": "^7.1 || ^8.0"
+        "php": "^7.4 || ^8.0",
+        "divineniiquaye/php-invoker": "^0.9",
+        "nette/utils": "^3.2",
+        "psr/container": "^1.0",
+        "symfony/config": "^5.2"
     },
     "require-dev": {
         "composer/package-versions-deprecated": "^1.11",
@@ -34,12 +34,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Biurad\\Package\\": "src/"
+            "Rade\\DI\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Biurad\\Package\\Tests\\": "tests/"
+            "Rade\\DI\\Tests\\": "tests/"
         }
     },
     "scripts": {

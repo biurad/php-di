@@ -12,4 +12,4 @@ Updates should follow the [Keep a CHANGELOG](https://keepachangelog.com/) princi
 
 ### Removed
 
-[unreleased]: https://github.com/biurad/php-starter/compare/v0.19.20...master
+[unreleased]: https://github.com/divineniiquaye/rade-di/compare/v0.1.0...master

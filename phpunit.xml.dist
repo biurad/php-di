@@ -13,7 +13,7 @@
          executionOrder="default"
 >
     <testsuites>
-        <testsuite name="PHP Library Starter Test Suite">
+        <testsuite name="PHP Rade DI Test Suite">
             <directory>./tests/</directory>
         </testsuite>
     </testsuites>

@@ -9,5 +9,5 @@ assignees: ''
 
 ## Question
 
-- Have you tried checking the documentation first? https://docs.biurad.com/php-starter
+- Have you tried checking the documentation first? https://docs.divinenii.com/rade-di
 - Replace this with your question
