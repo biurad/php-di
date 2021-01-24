@@ -25,6 +25,7 @@ use DivineNii\Invoker\Interfaces\ArgumentResolverInterface;
 use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
+use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
@@ -123,31 +124,31 @@ class Container implements \ArrayAccess, ContainerInterface
     public function offsetGet($offset)
     {
         if (!isset($this->keys[$offset])) {
-            throw new NotFoundServiceException($offset);
+            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $offset));
         }
 
         if (!\is_object($service = $this->values[$offset])) {
             return $service;
         }
 
-
-        if (isset($this->factories[$service])) {
-            return $this->callMethod($service);
-        }
-
-        if (\is_callable($service)) {
-            $service = $this->callMethod($service);
-        }
-
         if (isset($this->creating[$offset])) {
-            throw new ContainerResolutionException(
+            throw new CircularReferenceException(
                 \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->creating)))
             );
         }
 
         try {
-            $this->frozen[$offset]   = true;
             $this->creating[$offset] = true;
+
+            if (isset($this->factories[$service])) {
+                return $this->callMethod($service);
+            }
+
+            $this->frozen[$offset] = true;
+
+            if (\is_callable($service)) {
+                $service = $this->callMethod($service);
+            }
 
             return $this->values[$offset] = $service;
         } finally {
@@ -192,7 +193,7 @@ class Container implements \ArrayAccess, ContainerInterface
      *
      * @return callable The passed callable
      */
-    public function factory(callable $callable)
+    public function factory($callable)
     {
         if (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
             throw new ContainerResolutionException('Service definition is not a Closure or invokable object.');
@@ -209,32 +210,32 @@ class Container implements \ArrayAccess, ContainerInterface
      * Useful when you want to extend an existing object definition,
      * without necessarily loading that object.
      *
-     * @param string $id    The unique identifier for the object
-     * @param mixed  $scope A service definition to extend the original
+     * @param string   $id    The unique identifier for the object
+     * @param callable $scope A service definition to extend the original
      *
      * @throws NotFoundServiceException If the identifier is not defined
      * @throws FrozenServiceException   If the service is frozen
      *
      * @return mixed The wrapped scope
      */
-    public function extend($id, $scope)
+    public function extend($id, callable $scope)
     {
         if (!isset($this->keys[$id])) {
-            throw new NotFoundServiceException($id);
+            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
         }
 
         if (isset($this->frozen[$id])) {
             throw new FrozenServiceException($id);
         }
 
-        if (\is_callable($factory = $this->values[$id])) {
+        if (\is_callable($factory = $service = $this->values[$id])) {
             $factory = $this->callMethod($factory);
         }
 
         $extended = $scope(...[$factory, $this]);
 
-        if (isset($this->factories[$factory])) {
-            $this->factories->detach($factory);
+        if (is_object($service) && isset($this->factories[$service])) {
+            $this->factories->detach($service);
             $this->factories->attach(fn () => $extended);
         }
 

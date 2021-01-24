@@ -52,7 +52,7 @@ class ServiceLocator implements ContainerInterface
     public function get($id)
     {
         if (!isset($this->aliases[$id])) {
-            throw new NotFoundServiceException($id);
+            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
         }
 
         return $this->container[$this->aliases[$id]];

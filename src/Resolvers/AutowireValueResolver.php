@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
+use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
 use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use Nette\SmartObject;
 use Nette\Utils\Reflection;
@@ -27,6 +28,9 @@ use Rade\DI\Exceptions\NotFoundServiceException;
 class AutowireValueResolver implements ArgumentValueResolverInterface
 {
     use SmartObject;
+
+    /** a unique identifier for not found parameter value */
+    private const NONE = '\/\/:oxo:\/\/';
 
     /** @var array<string,mixed[]> type => level => services */
     protected $wiring = [];
@@ -135,7 +139,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             } catch (NotFoundServiceException $e) {
                 $res = null;
             } catch (ContainerResolutionException $e) {
-                if (false !== $res = $this->findByMethod($parameter, true, $getter, true)) {
+                if (self::NONE !== $res = $this->findByMethod($parameter, true, $getter, true)) {
                     return $res;
                 }
 
@@ -148,9 +152,11 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         if (null !== $type) {
             $result = $this->findByMethod($parameter, $type->getName() === 'array', $getter);
 
-            if (false !== $result) {
+            if (self::NONE !== $result) {
                 return $result;
             }
+        } elseif (self::NONE !== $default = $this->getDefaultValue($parameter)) {
+            return $default;
         }
 
         throw new ContainerResolutionException(
@@ -159,7 +165,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     }
 
     /**
-     * Parses a methods doc comments or return deafult value
+     * Parses a methods doc comments or return default value
      *
      * @param \ReflectionParameter $parameter
      * @param bool                 $type
@@ -245,7 +251,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     private function getNullable(\ReflectionParameter $parameter, string $type, $res, string $desc)
     {
         if ($res !== null || $parameter->allowsNull()) {
-            return $res;
+            return null === $res ? DefaultValueResolver::class : $res;
         }
 
         if ($this->isValidType($type)) {
@@ -266,16 +272,17 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     private function getDefaultValue(\ReflectionParameter $parameter)
     {
-        if (
-            (null !== $parameter->getType() && $parameter->allowsNull())
-            || $parameter->isOptional()
-            || $parameter->isDefaultValueAvailable()
-        ) {
+        $value = self::NONE;
+
+        if ($parameter->isOptional() || $parameter->isDefaultValueAvailable()) {
             // optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
-            return $parameter->isDefaultValueAvailable() ? Reflection::getParameterDefaultValue($parameter) : null;
+            $value = $parameter->isDefaultValueAvailable()
+                ? Reflection::getParameterDefaultValue($parameter) : null;
+        } elseif ($parameter->allowsNull()) {
+            $value = null;
         }
 
-        return false;
+        return null === $value ? DefaultValueResolver::class : $value;
     }
 
     /**
