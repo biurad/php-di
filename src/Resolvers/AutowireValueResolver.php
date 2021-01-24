@@ -108,14 +108,14 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     public function addExcludedType(string $type): void
     {
-        $this->excluded[$type] = true;
+        $this->excluded[] = $type;
     }
 
     /**
      * Resolves missing argument using autowiring.
      *
-     * @param ReflectionParameter $parameter
-     * @param (callable(string $type, bool $single): object|object[]|null) $getter
+     * @param \ReflectionParameter $parameter
+     * @param callable $getter
      *
      * @throws ContainerResolutionException
      *
@@ -124,10 +124,12 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     private function autowireArgument(\ReflectionParameter $parameter, callable $getter)
     {
         /** @var null|\ReflectionNamedType $type */
-        $typeName = null !== ($type = $parameter->getType()) ? $type->getName() : null;
-        $desc     = Reflection::toString($parameter);
+        $type = $parameter->getType();
+        $desc = Reflection::toString($parameter);
 
-        if (null !== $typeName && !$type->isBuiltin()) {
+        if (null !== $type && !$type->isBuiltin()) {
+            $typeName = $type->getName();
+
             try {
                 $res = $getter($typeName, true);
             } catch (NotFoundServiceException $e) {
@@ -143,8 +145,12 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             return $this->getNullable($parameter, $typeName, $res, $desc);
         }
 
-        if (false !== $res = $this->findByMethod($parameter, $typeName === 'array', $getter)) {
-            return $res;
+        if (null !== $type) {
+            $result = $this->findByMethod($parameter, $type->getName() === 'array', $getter);
+
+            if (false !== $result) {
+                return $result;
+            }
         }
 
         throw new ContainerResolutionException(
@@ -256,7 +262,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      *
      * @param \ReflectionParameter $parameter
      *
-     * @return mixed;
+     * @return mixed
      */
     private function getDefaultValue(\ReflectionParameter $parameter)
     {
@@ -272,6 +278,11 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         return false;
     }
 
+    /**
+     * @param mixed $type
+     *
+     * @return bool
+     */
     private function isValidType($type): bool
     {
         return \is_string($type) && (\class_exists($type) || \interface_exists($type));

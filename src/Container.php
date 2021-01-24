@@ -67,9 +67,9 @@ class Container implements \ArrayAccess, ContainerInterface
      *
      * Objects and parameters can be passed as argument to the constructor.
      *
-     * @param iterable<ArgumentValueResolverInterface> $resolvers
+     * @param ArgumentValueResolverInterface[] $resolvers
      */
-    public function __construct(iterable $resolvers = [])
+    public function __construct(array $resolvers = [])
     {
         $this->factories = new \SplObjectStorage();
         $this->process   = new Processor();
@@ -81,23 +81,17 @@ class Container implements \ArrayAccess, ContainerInterface
     }
 
     /**
-     * Sets a parameter or an object.
+     * Sets a new service to a unique identifier.
      *
-     * Objects must be defined as Closures.
-     *
-     * Allowing any PHP callable leads to difficult to debug problems
-     * as function names (strings) are callable (creating a function with
-     * the same name as an existing parameter would break your container).
-     *
-     * @param string $id    The unique identifier for the parameter or object
-     * @param mixed  $value The value of the parameter or a closure to define an object
+     * @param string $offset The unique identifier for the parameter or object
+     * @param mixed  $value  The value of the service assign to the $offset
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      */
-    public function offsetSet($id, $value): void
+    public function offsetSet($offset, $value): void
     {
-        if (isset($this->frozen[$id])) {
-            throw new FrozenServiceException($id);
+        if (isset($this->frozen[$offset])) {
+            throw new FrozenServiceException($offset);
         }
 
         try {
@@ -110,31 +104,32 @@ class Container implements \ArrayAccess, ContainerInterface
 
         // Autowire service return types of callable or class object.
         if (\is_object($value)) {
-            $this->autowireService($id, $value);
+            $this->autowireService($offset, $value);
         }
 
-        $this->values[$id] = $value;
-        $this->keys[$id]   = true;
+        $this->values[$offset] = $value;
+        $this->keys[$offset]   = true;
     }
 
     /**
-     * Gets a parameter or an object.
+     * Gets a registered service definition.
      *
-     * @param string $id The unique identifier for the parameter or object
+     * @param string $offset The unique identifier for the service
      *
      * @throws NotFoundServiceException If the identifier is not defined
      *
-     * @return mixed The value of the parameter or an object
+     * @return mixed The value of the service
      */
-    public function offsetGet($id)
+    public function offsetGet($offset)
     {
-        if (!isset($this->keys[$id])) {
-            throw new NotFoundServiceException($id);
+        if (!isset($this->keys[$offset])) {
+            throw new NotFoundServiceException($offset);
         }
 
-        if (!\is_object($service = $this->values[$id])) {
+        if (!\is_object($service = $this->values[$offset])) {
             return $service;
         }
+
 
         if (isset($this->factories[$service])) {
             return $this->callMethod($service);
@@ -144,47 +139,47 @@ class Container implements \ArrayAccess, ContainerInterface
             $service = $this->callMethod($service);
         }
 
-        if (isset($this->creating[$id])) {
+        if (isset($this->creating[$offset])) {
             throw new ContainerResolutionException(
                 \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->creating)))
             );
         }
 
         try {
-            $this->frozen[$id]   = true;
-            $this->creating[$id] = true;
+            $this->frozen[$offset]   = true;
+            $this->creating[$offset] = true;
 
-            return $this->values[$id] = $service;
+            return $this->values[$offset] = $service;
         } finally {
-            unset($this->creating[$id]);
+            unset($this->creating[$offset]);
         }
     }
 
     /**
-     * Checks if a parameter or an object is set.
+     * Checks if a service is set.
      *
-     * @param string $id The unique identifier for the parameter or object
+     * @param string $offset The unique identifier for the service
      *
      * @return bool
      */
-    public function offsetExists($id)
+    public function offsetExists($offset)
     {
-        return isset($this->keys[$id]);
+        return isset($this->keys[$offset]);
     }
 
     /**
-     * Unsets a parameter or an object.
+     * Unsets a service by given offset.
      *
-     * @param string $id The unique identifier for the parameter or object
+     * @param string $offset The unique identifier for service definition
      */
-    public function offsetUnset($id): void
+    public function offsetUnset($offset): void
     {
-        if (isset($this->keys[$id])) {
-            if (\is_object($service = $this->values[$id])) {
+        if (isset($this->keys[$offset])) {
+            if (\is_object($service = $this->values[$offset])) {
                 unset($this->factories[$service]);
             }
 
-            unset($this->values[$id], $this->frozen[$id], $this->keys[$id]);
+            unset($this->values[$offset], $this->frozen[$offset], $this->keys[$offset]);
         }
     }
 
@@ -258,7 +253,7 @@ class Container implements \ArrayAccess, ContainerInterface
 
     /**
      * Creates new instance using autowiring.
-     * 
+     *
      * @param array<int|string,mixed> $args
      *
      * @throws ContainerResolutionException
@@ -267,17 +262,18 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function callInstance(string $class, array $args = [])
     {
+        /** @var class-string $class */
         $reflection = new \ReflectionClass($class);
 
         if (!$reflection->isInstantiable()) {
             throw new ContainerResolutionException("Class $class is not instantiable.");
         }
 
-        if ($constructor = $reflection->getConstructor()) {
+        if (null !== $constructor = $reflection->getConstructor()) {
             return $reflection->newInstanceArgs($this->autowireArguments($constructor, $args));
         }
 
-        if ($args) {
+        if (!empty($args)) {
             throw new ContainerResolutionException("Unable to pass arguments, class $class has no constructor.");
         }
 
@@ -286,7 +282,7 @@ class Container implements \ArrayAccess, ContainerInterface
 
     /**
      * Calls method using autowiring.
-     * 
+     *
      * @param array<int|string,mixed> $args
      *
      * @return mixed
@@ -355,6 +351,9 @@ class Container implements \ArrayAccess, ContainerInterface
         }
     }
 
+    /**
+     * @param object|callable $service
+     */
     private function autowireService(string $id, $service): void
     {
         // Resolving the closure of the service to return it's type hint or class.

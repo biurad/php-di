@@ -4,3 +4,17 @@ includes:
 parameters:
     level: max
     paths: [src]
+    checkGenericClassInNonGenericObjectType: false
+    checkMissingIterableValueType: false
+
+    ignoreErrors:
+        - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
+        -
+            message: '#^Binary operation "+" between array<string, class-string>\\|false and array<string, string>\\|false results in an error.$#'
+            path: src/Resolvers/AutowireValueResolver.php
+        -
+            message: "#^Method Rade\\\\DI\\\\Container\\:\\:factory\\(\\) should return callable\\(\\): mixed but returns object.$#"
+            path: src/Container.php
+        -
+            message: "#^Parameter \\#1 \\$offset (string) of method Rade\\\\DI\\\\Container\\:\\:offset|Set|Get|Exists|Unset\\(\\) should be contravariant with parameter \\$offset (mixed) of method ArrayAccess<mixed,mixed>\\:\\:offset|Set|Get|Exists|Unset\\(\\)$#"
+            path: src/Container.php
