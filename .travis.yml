@@ -5,6 +5,11 @@ cache:
     directories:
         - $HOME/.composer/cache
 
+env:
+    global:
+        - CC_TEST_REPORTER_ID=e8a8224d90190f2c58f6d2c92561a29b0688ad64da909746e29838fe639464cf
+        - GIT_COMMITTED_AT=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then git log -1 --pretty=format:%ct; else git log -1 --skip 1 --pretty=format:%ct; fi)
+
 matrix:
     include:
         - php: 7.4
@@ -13,6 +18,9 @@ matrix:
 
 before_install:
     - composer self-update
+    - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+    - chmod +x ./cc-test-reporter
+    - ./cc-test-reporter before-build
 
 install:
     - composer install --no-progress --optimize-autoloader
@@ -20,7 +28,8 @@ install:
 script:
     - ./vendor/bin/phpcs
     - ./vendor/bin/phpstan analyse
-    - ./vendor/bin/phpunit --coverage-clover=coverage.xml
+    - ./vendor/bin/phpunit --testsuite=unit --coverage-clover=build/logs/clover.xml
 
 after_success:
     - bash <(curl -s https://codecov.io/bash) -f coverage.xml
+    - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
