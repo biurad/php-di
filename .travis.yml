@@ -7,6 +7,7 @@ cache:
 
 env:
     global:
+        - XDEBUG_MODE=coverage
         - CC_TEST_REPORTER_ID=e8a8224d90190f2c58f6d2c92561a29b0688ad64da909746e29838fe639464cf
         - GIT_COMMITTED_AT=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then git log -1 --pretty=format:%ct; else git log -1 --skip 1 --pretty=format:%ct; fi)
 
@@ -31,5 +32,4 @@ script:
     - ./vendor/bin/phpunit --testsuite=unit --coverage-clover=build/logs/clover.xml
 
 after_success:
-    - bash <(curl -s https://codecov.io/bash) -f coverage.xml
     - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
