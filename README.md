@@ -225,4 +225,4 @@ Check out the other cool things people are doing with `divineniiquaye/rade-di`: 
 [email]: support@biurad.com
 [message]: https://projects.biurad.com/message
 [nette-di]: https://github.com/nette/di
-[Pimple]: https://github.com/pimple/pimple
+[Pimple]: https://github.com/silexphp/pimple
