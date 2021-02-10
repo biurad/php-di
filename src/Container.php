@@ -332,7 +332,7 @@ class Container implements \ArrayAccess, ContainerInterface
         if ($provider instanceof ConfigurationInterface && !empty($values)) {
             $config = $this->process->processConfiguration($provider, $values);
 
-            $this[$provider->getName() . '.config'] = $config;
+            $this[$provider->getName() . '.config'] = fn () => $config;
         }
 
         $provider->register($this);
