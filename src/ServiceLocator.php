@@ -17,52 +17,15 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Psr\Container\ContainerInterface;
-use Rade\DI\Exceptions\NotFoundServiceException;
+use Symfony\Contracts\Service\ServiceLocatorTrait;
+use Symfony\Contracts\Service\ServiceProviderInterface;
 
 /**
  * Rade PSR-11 service locator.
  *
- * @author Pascal Luna <skalpa@zetareticuli.org>
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class ServiceLocator implements ContainerInterface
+class ServiceLocator implements ServiceProviderInterface
 {
-    private Container $container;
-
-    /** @var array<string,string> */
-    private array $aliases = [];
-
-    /**
-     * @param Container $container The Container instance used to locate services
-     * @param array     $ids       Array of service ids that can be located.
-     *                             String keys can be used to define aliases
-     */
-    public function __construct(Container $container, array $ids)
-    {
-        $this->container = $container;
-
-        foreach ($ids as $key => $id) {
-            $this->aliases[\is_int($key) ? $id : $key] = $id;
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function get($id)
-    {
-        if (!isset($this->aliases[$id])) {
-            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
-        }
-
-        return $this->container[$this->aliases[$id]];
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function has($id)
-    {
-        return isset($this->aliases[$id]) && isset($this->container[$this->aliases[$id]]);
-    }
+    use ServiceLocatorTrait;
 }

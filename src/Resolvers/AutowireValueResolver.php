@@ -24,6 +24,9 @@ use Nette\Utils\Reflection;
 use Rade\DI\Container;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\ServiceLocator;
+use Symfony\Contracts\Service\ServiceProviderInterface;
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 class AutowireValueResolver implements ArgumentValueResolverInterface
 {
@@ -47,6 +50,8 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         \Traversable::class,
         \Serializable::class,
         \JsonSerializable::class,
+        ServiceLocator::class,
+        ServiceProviderInterface::class,
     ];
 
     private Container $container;
@@ -255,6 +260,27 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         }
 
         if ($this->isValidType($type)) {
+            if ($type === ServiceProviderInterface::class) {
+                $class     = $parameter->getDeclaringClass();
+                $className = $class->getName();
+                $services  = [];
+
+                if (null !== $class && !$class->isSubclassOf(ServiceSubscriberInterface::class)) {
+                    throw new ContainerResolutionException(sprintf(
+                        'Service of type %s needs parent class %s to implement %s.',
+                        $type,
+                        $class->getName(),
+                        ServiceSubscriberInterface::class
+                    ));
+                }
+
+                foreach ($className::getSubscribedServices() as $id => $service) {
+                    $services[\is_int($id) ? $service : $id] = $this->container->get($service);
+                }
+
+                return new ServiceLocator($services);
+            }
+
             throw new ContainerResolutionException("Service of type $type needed by $desc not found.");
         }
 
