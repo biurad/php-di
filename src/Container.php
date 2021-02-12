@@ -74,6 +74,7 @@ class Container implements \ArrayAccess, ContainerInterface
     {
         $this->factories = new \SplObjectStorage();
         $this->process   = new Processor();
+        $this->resolver  = new AutowireValueResolver($this);
 
         $resolvers[]    = $this->resolver = new AutowireValueResolver($this);
         $this->autowire = new ArgumentResolver($resolvers);
@@ -100,6 +101,8 @@ class Container implements \ArrayAccess, ContainerInterface
         } catch (NotCallableException $e) {
             if (\is_string($value) && \class_exists($value)) {
                 $value = $this->callInstance($value);
+        } elseif (\is_callable($value) && !$value instanceof \Closure) {
+            $value = \Closure::fromCallable($value);
             }
         }
 
@@ -234,9 +237,9 @@ class Container implements \ArrayAccess, ContainerInterface
 
         $extended = $scope(...[$factory, $this]);
 
-        if (is_object($service) && isset($this->factories[$service])) {
+        if (\is_object($service) && isset($this->factories[$service])) {
             $this->factories->detach($service);
-            $this->factories->attach(fn () => $extended);
+            $this->factories->attach($extended);
         }
 
         return $this[$id] = $extended;
@@ -330,9 +333,9 @@ class Container implements \ArrayAccess, ContainerInterface
         $this->providers[] = $provider;
 
         if ($provider instanceof ConfigurationInterface && !empty($values)) {
-            $config = $this->process->processConfiguration($provider, $values);
+            $providerId = $provider->getName() . '.config';
 
-            $this[$provider->getName() . '.config'] = $config;
+            $this->offsetSet($providerId, $this->process->processConfiguration($provider, $values));
         }
 
         $provider->register($this);
@@ -343,12 +346,12 @@ class Container implements \ArrayAccess, ContainerInterface
     /**
      * Add a clas or interface that should be excluded from autowiring.
      *
-     * @param string[] $types
+     * @param string ...$types
      */
-    public function addExcludedTypes(array $types): void
+    public function exclude(string ...$types): void
     {
         foreach ($types as $type) {
-            $this->resolver->addExcludedType($type);
+            $this->resolver->exclude($type);
         }
     }
 
@@ -365,8 +368,8 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         // Resolving wiring so we could call the service parent classes and interfaces.
-        if (!$this->offsetExists($id)) {
-            $this->resolver->addReturnType($id, $type);
+        if (!isset($this->keys[$id])) {
+            $this->resolver->autowire($id, $type);
         }
     }
 
@@ -380,6 +383,39 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     private function autowireArguments(\ReflectionFunctionAbstract $function, array $args = []): array
     {
-        return $this->autowire->getParameters($function, $args);
+        $resolvedParameters   = [];
+        $reflectionParameters = $function->getParameters();
+
+        foreach ($reflectionParameters as $parameter) {
+            $position = $parameter->getPosition();
+
+            /**
+             * Simply returns all the values of the $args array that are
+             * indexed by the parameter position (i.e. a number).
+             * E.g. `->call($callable, ['foo', 'bar'])` will simply resolve the parameters
+             * to `['foo', 'bar']`.
+             * Parameters that are not indexed by a number (i.e. parameter position)
+             * will be ignored.
+             */
+            if (isset($args[$position])) {
+                $args[$parameter->name] = $args[$position];
+                unset($args[$position]);
+            }
+
+            if (null !== $resolved = $this->resolver->resolve($parameter, $args)) {
+                if ($resolved === DefaultValueResolver::class) {
+                    $resolved = null;
+                }
+
+                $resolvedParameters[$position] = $resolved;
+            }
+
+            if (empty(\array_diff_key($reflectionParameters, $resolvedParameters))) {
+                // Stop traversing: all parameters are resolved
+                return $resolvedParameters;
+            }
+        }
+
+        return $resolvedParameters;
     }
 }

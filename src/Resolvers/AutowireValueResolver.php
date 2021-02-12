@@ -88,16 +88,16 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      * @param string $id
      * @param mixed  $type
      */
-    public function addReturnType(string $id, $type): void
+    public function autowire(string $id, $type): void
     {
         if (null === $type || !$this->isValidType($type)) {
             return;
         }
 
-        foreach (\class_parents($type) + \class_implements($type) + [$type] as $parent) {
-            $excluded = array_flip($this->excluded);
+        $excludedTypes = array_fill_keys($this->excluded, true);
 
-            if (isset($excluded[$parent])) {
+        foreach (\class_parents($type) + \class_implements($type) + [$type] as $parent) {
+            if (isset($excludedTypes[$parent])) {
                 continue;
             }
 
@@ -110,7 +110,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      *
      * @param string $type
      */
-    public function addExcludedType(string $type): void
+    public function exclude(string $type): void
     {
         $this->excluded[] = $type;
     }
