@@ -17,12 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use DivineNii\Invoker\ArgumentResolver;
 use DivineNii\Invoker\CallableReflection;
-use DivineNii\Invoker\CallableResolver;
-use DivineNii\Invoker\Exceptions\NotCallableException;
-use DivineNii\Invoker\Interfaces\ArgumentResolverInterface;
-use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -57,27 +52,21 @@ class Container implements \ArrayAccess, ContainerInterface
 
     private \SplObjectStorage $factories;
 
-    private AutowireValueResolver $resolver;
+    private \SplObjectStorage $protected;
 
-    private ArgumentResolverInterface $autowire;
+    private AutowireValueResolver $resolver;
 
     private Processor $process;
 
     /**
      * Instantiates the container.
-     *
-     * Objects and parameters can be passed as argument to the constructor.
-     *
-     * @param ArgumentValueResolverInterface[] $resolvers
      */
-    public function __construct(array $resolvers = [])
+    public function __construct()
     {
         $this->factories = new \SplObjectStorage();
+        $this->protected = new \SplObjectStorage();
         $this->process   = new Processor();
         $this->resolver  = new AutowireValueResolver($this);
-
-        $resolvers[]    = $this->resolver = new AutowireValueResolver($this);
-        $this->autowire = new ArgumentResolver($resolvers);
 
         $this->offsetSet('container', $this);
     }
@@ -96,14 +85,10 @@ class Container implements \ArrayAccess, ContainerInterface
             throw new FrozenServiceException($offset);
         }
 
-        try {
-            $value = (new CallableResolver())->resolve($value);
-        } catch (NotCallableException $e) {
-            if (\is_string($value) && \class_exists($value)) {
-                $value = $this->callInstance($value);
+        if (\is_string($value) && \class_exists($value)) {
+            $value = $this->callInstance($value);
         } elseif (\is_callable($value) && !$value instanceof \Closure) {
             $value = \Closure::fromCallable($value);
-            }
         }
 
         // Autowire service return types of callable or class object.
@@ -126,11 +111,19 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function offsetGet($offset)
     {
+        // If alias is set
+        if (isset($this->aliases[$offset])) {
+            $offset = $this->aliases[$offset];
+        }
+
         if (!isset($this->keys[$offset])) {
             throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $offset));
         }
 
-        if (!\is_object($service = $this->values[$offset])) {
+        if (
+            !\is_object($service = $this->values[$offset]) ||
+            isset($this->protected[$service])
+        ) {
             return $service;
         }
 
@@ -168,7 +161,7 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function offsetExists($offset)
     {
-        return isset($this->keys[$offset]);
+        return isset($this->keys[$this->aliases[$offset] ?? $offset]);
     }
 
     /**
@@ -183,8 +176,25 @@ class Container implements \ArrayAccess, ContainerInterface
                 unset($this->factories[$service]);
             }
 
-            unset($this->values[$offset], $this->frozen[$offset], $this->keys[$offset]);
+            unset($this->values[$offset], $this->frozen[$offset], $this->aliases[$offset], $this->keys[$offset]);
         }
+    }
+
+    /**
+     * Marks an alias id to service id.
+     *
+     * @param string $id The alias id
+     * @param string $serviceId The registered service id
+     *
+     * @throws ContainerResolutionException Service id is not found in container
+     */
+    public function alias(string $id, string $serviceId): void
+    {
+        if (!isset($this[$serviceId])) {
+            throw new ContainerResolutionException('Service id is not found in container');
+        }
+
+        $this->aliases[$id] = $serviceId;
     }
 
     /**
@@ -203,6 +213,28 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         $this->factories->attach($callable);
+
+        return $callable;
+    }
+
+    /**
+     * Protects a callable from being interpreted as a service.
+     *
+     * This is useful when you want to store a callable as a parameter.
+     *
+     * @param callable $callable A callable to protect from being evaluated
+     *
+     * @return callable The passed callable
+     *
+     * @throws ContainerResolutionException Service definition has to be a closure or an invokable object
+     */
+    public function protect(callable $callable): callable
+    {
+        if (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
+            throw new ContainerResolutionException('Callable is not a Closure or invokable object.');
+        }
+
+        $this->protected->attach($callable);
 
         return $callable;
     }
@@ -232,6 +264,12 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         if (\is_callable($factory = $service = $this->values[$id])) {
+            if (isset($this->protected[$service])) {
+                throw new ContainerResolutionException(
+                    'Protected callable service cannot be extended, cause it has parameters.'
+                );
+            }
+
             $factory = $this->callMethod($factory);
         }
 
