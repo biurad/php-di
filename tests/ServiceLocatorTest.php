@@ -17,106 +17,65 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests;
 
-use PHPUnit\Framework\TestCase;
+use Psr\Container\NotFoundExceptionInterface;
 use Rade\DI\Container;
-use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\ServiceLocator;
+use Symfony\Contracts\Service\Test\ServiceLocatorTest as BaseServiceLocatorTest;
 
-/**
- * ServiceLocator test case.
- *
- * @author Pascal Luna <skalpa@zetareticuli.org>
- */
-class ServiceLocatorTest extends TestCase
+class ServiceLocatorTest extends BaseServiceLocatorTest
 {
-    public function testCanAccessServices()
+    public function getServiceLocator(array $factories)
     {
-        $rade = new Container();
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['service']);
-
-        $this->assertSame($rade['service'], $locator->get('service'));
+        return new ServiceLocator($factories);
     }
 
-    public function testCanAccessAliasedServices()
+    public function testThrowsOnCircularReference()
     {
-        $rade = new Container();
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['alias' => 'service']);
+        $this->expectException(CircularReferenceException::class);
+        $this->expectExceptionMessage('Circular reference detected for service "bar", path: "bar -> baz -> bar".');
 
-        $this->assertSame($rade['service'], $locator->get('alias'));
+        parent::testThrowsOnCircularReference();
     }
 
-    public function testCannotAccessAliasedServiceUsingRealIdentifier()
+    public function testThrowsInServiceSubscriber()
     {
-        $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "service" is not defined.');
+        $this->expectException(NotFoundExceptionInterface::class);
+        $this->expectExceptionMessage('Service "foo" not found: the current service locator only knows about the "bar" service.');
 
-        $rade = new Container();
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['alias' => 'service']);
+        $container = new Container();
+        $container['foo'] = new \stdClass();
+        $subscriber = new Fixtures\SomeServiceSubscriber();
+        $subscriber->container = $this->getServiceLocator(['bar' => function () {}]);
 
-        $service = $locator->get('service');
+        $subscriber->getFoo();
     }
 
-    public function testGetValidatesServiceCanBeLocated()
+    public function testGetThrowsServiceNotFoundException()
     {
-        $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "foo" is not defined.');
+        $this->expectException(NotFoundExceptionInterface::class);
+        $this->expectExceptionMessage('Service "foo" not found: the current service locator is empty...');
 
-        $rade = new Container();
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['alias' => 'service']);
-
-        $service = $locator->get('foo');
+        $locator = new ServiceLocator([]);
+        $locator->get('foo');
     }
 
-    public function testGetValidatesTargetServiceExists()
+    public function testProvidesServicesInformation()
     {
-        $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "invalid" is not defined.');
+        $locator = new ServiceLocator([
+            'foo'  => function () { return 'bar'; },
+            'bar'  => function (): string { return 'baz'; },
+            'bat'  => function (): ?string { return 'zaz'; },
+            'baz'  => new \ArrayObject(),
+            'null' => null,
+        ]);
 
-        $rade = new Container();
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['alias' => 'invalid']);
-
-        $service = $locator->get('alias');
-    }
-
-    public function testHasValidatesServiceCanBeLocated()
-    {
-        $rade = new Container();
-        $rade['service1'] = function () {
-            return new Fixtures\Service();
-        };
-        $rade['service2'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['service1']);
-
-        $this->assertTrue($locator->has('service1'));
-        $this->assertFalse($locator->has('service2'));
-    }
-
-    public function testHasChecksIfTargetServiceExists()
-    {
-        $rade = new Container();
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $locator = new ServiceLocator($rade, ['foo' => 'service', 'bar' => 'invalid']);
-
-        $this->assertTrue($locator->has('foo'));
-        $this->assertFalse($locator->has('bar'));
+        $this->assertSame($locator->getProvidedServices(), [
+            'foo'  => '?',
+            'bar'  => 'string',
+            'bat'  => '?string',
+            'baz'  => 'ArrayObject',
+            'null' => '?',
+        ]);
     }
 }

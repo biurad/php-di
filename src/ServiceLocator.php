@@ -52,7 +52,9 @@ class ServiceLocator implements ServiceProviderInterface
         $this->loading[$id] = $id;
 
         try {
-            return $this->factories[$id];
+            $service = $this->factories[$id];
+
+            return \is_callable($service) ? $service() : $service;
         } finally {
             unset($this->loading[$id]);
         }
@@ -67,12 +69,12 @@ class ServiceLocator implements ServiceProviderInterface
             $this->providedTypes = [];
 
             foreach ($this->factories as $name => $factory) {
-                if (\is_object($factory) && !$factory instanceof \stdClass) {
-                    $this->providedTypes[$name] = \get_class($factory);
-                } elseif (\is_callable($factory)) {
+                if (\is_callable($factory)) {
                     $type = CallableReflection::create($factory)->getReturnType();
 
                     $this->providedTypes[$name] = $type ? ($type->allowsNull() ? '?' : '') . ($type instanceof \ReflectionNamedType ? $type->getName() : $type) : '?';
+                } elseif (\is_object($factory) && !$factory instanceof \stdClass) {
+                    $this->providedTypes[$name] = \get_class($factory);
                 } else {
                     $this->providedTypes[$name] = '?';
                 }
