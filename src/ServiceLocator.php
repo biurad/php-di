@@ -72,7 +72,7 @@ class ServiceLocator implements ServiceProviderInterface
                 } elseif (\is_callable($factory)) {
                     $type = CallableReflection::create($factory)->getReturnType();
 
-                    $this->providedTypes[$name] = $type ? ($type->allowsNull() ? '?' : '').($type instanceof \ReflectionNamedType ? $type->getName() : $type) : '?';
+                    $this->providedTypes[$name] = $type ? ($type->allowsNull() ? '?' : '') . ($type instanceof \ReflectionNamedType ? $type->getName() : $type) : '?';
                 } else {
                     $this->providedTypes[$name] = '?';
                 }
@@ -84,6 +84,8 @@ class ServiceLocator implements ServiceProviderInterface
 
     private function createCircularReferenceException(string $id, array $path): ContainerExceptionInterface
     {
-        return new CircularReferenceException($id, $path);
+        return new CircularReferenceException(\sprintf(
+            'Circular reference detected for service "%s", path: "%s".', $id, implode(' -> ', $path)
+        ));
     }
 }
