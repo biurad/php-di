@@ -261,24 +261,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
 
         if ($this->isValidType($type)) {
             if ($type === ServiceProviderInterface::class) {
-                $class     = $parameter->getDeclaringClass();
-                $className = $class->getName();
-                $services  = [];
-
-                if (null !== $class && !$class->isSubclassOf(ServiceSubscriberInterface::class)) {
-                    throw new ContainerResolutionException(sprintf(
-                        'Service of type %s needs parent class %s to implement %s.',
-                        $type,
-                        $class->getName(),
-                        ServiceSubscriberInterface::class
-                    ));
-                }
-
-                foreach ($className::getSubscribedServices() as $id => $service) {
-                    $services[\is_int($id) ? $service : $id] = $this->container->get($service);
-                }
-
-                return new ServiceLocator($services);
+                return $this->autowireServiceSubscriber($parameter->getDeclaringClass(), $type);
             }
 
             throw new ContainerResolutionException("Service of type $type needed by $desc not found.");
@@ -319,5 +302,26 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     private function isValidType($type): bool
     {
         return \is_string($type) && (\class_exists($type) || \interface_exists($type));
+    }
+
+    private function autowireServiceSubscriber(?\ReflectionClass $class, string $type): ServiceProviderInterface
+    {
+        $className = $class->getName();
+        $services  = [];
+
+        if (null !== $class && !$class->isSubclassOf(ServiceSubscriberInterface::class)) {
+            throw new ContainerResolutionException(sprintf(
+                'Service of type %s needs parent class %s to implement %s.',
+                $type,
+                $class->getName(),
+                ServiceSubscriberInterface::class
+            ));
+        }
+
+        foreach ($className::getSubscribedServices() as $id => $service) {
+            $services[\is_int($id) ? $service : $id] = $this->container->get($service);
+        }
+
+        return new ServiceLocator($services);
     }
 }
