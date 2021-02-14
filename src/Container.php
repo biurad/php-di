@@ -85,6 +85,9 @@ class Container implements \ArrayAccess, ContainerInterface
             throw new FrozenServiceException($offset);
         }
 
+        // Incase new service definition exists in aliases.
+        unset($this->aliases[$offset]);
+
         if (\is_string($value) && \class_exists($value)) {
             $value = $this->callInstance($value);
         } elseif (\is_callable($value) && !$value instanceof \Closure) {
@@ -190,6 +193,12 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function alias(string $id, string $serviceId): void
     {
+        if ($id === $serviceId) {
+            throw new \LogicException("[{$id}] is aliased to itself.");
+        } elseif (isset($this->aliases[$serviceId])) {
+            $serviceId = $this->aliases[$serviceId];
+        }
+
         if (!isset($this[$serviceId])) {
             throw new ContainerResolutionException('Service id is not found in container');
         }
