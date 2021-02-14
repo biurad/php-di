@@ -315,7 +315,7 @@ class Container implements \ArrayAccess, ContainerInterface
 
         if (\is_object($service) && isset($this->factories[$service])) {
             $this->factories->detach($service);
-            $this->factories->attach($extended);
+            $this->factories->attach($extended = fn () => $extended);
         }
 
         return $this[$id] = $extended;
