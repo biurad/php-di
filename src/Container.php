@@ -40,7 +40,7 @@ class Container implements \ArrayAccess, ContainerInterface
     private array $keys = [];
 
     /** @var array<string,bool> service name => bool */
-    private array $creating = [];
+    private array $loading = [];
 
     /** @var array<string,bool> service name => bool */
     private array $frozen = [];
@@ -134,29 +134,13 @@ class Container implements \ArrayAccess, ContainerInterface
             return $service;
         }
 
-        if (isset($this->creating[$offset])) {
+        if (isset($this->loading[$offset])) {
             throw new CircularReferenceException(
-                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->creating)))
+                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
             );
         }
 
-        try {
-            $this->creating[$offset] = true;
-
-            if (isset($this->factories[$service])) {
-                return $this->callMethod($service);
-            }
-
-            $this->frozen[$offset] = true;
-
-            if (\is_callable($service)) {
-                $service = $this->callMethod($service);
-            }
-
-            return $this->values[$offset] = $service;
-        } finally {
-            unset($this->creating[$offset]);
-        }
+        return $this->getService($offset, $service);
     }
 
     /**
@@ -444,6 +428,33 @@ class Container implements \ArrayAccess, ContainerInterface
     {
         foreach ($types as $type) {
             $this->resolver->exclude($type);
+        }
+    }
+
+    /**
+     * @param string          $id
+     * @param callable|object $service
+     *
+     * @return mixed
+     */
+    private function getService(string $id, $service)
+    {
+        $this->loading[$id] = true;
+
+        try {
+            if (isset($this->factories[$service])) {
+                return $this->callMethod($service);
+            }
+
+            $this->frozen[$id] = true;
+
+            if (\is_callable($service)) {
+                $service = $this->callMethod($service);
+            }
+
+            return $this->values[$id] = $service;
+        } finally {
+            unset($this->loading[$id]);
         }
     }
 
