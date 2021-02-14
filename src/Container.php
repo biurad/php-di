@@ -380,8 +380,12 @@ class Container implements \ArrayAccess, ContainerInterface
         try {
             return $this->offsetGet($id);
         } catch (NotFoundServiceException $e) {
-            if (\class_exists($id)) {
-                return $this->callInstance($id);
+            if (\class_exists($id) || \interface_exists($id)) {
+                try {
+                    return $this->resolver->getByType($id);
+                } catch (NotFoundServiceException $e) {
+                    return $this->callInstance($id);
+                }
             }
 
             throw $e;
