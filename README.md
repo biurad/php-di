@@ -26,7 +26,7 @@ use Rade\DI\Container;
 $container = new Container();
 ```
 
-For registering services into container, a service can be anything except an array more than two counts and contains mixed values. Container implements `ArrayAccess`, so here's an example to demonstrate:
+For registering services into container, a service can be anything that is a real PHP valid type. Container implements `ArrayAccess`, so here's an example to demonstrate:
 
 ```php
 // define some services
@@ -35,6 +35,10 @@ $container['session_storage'] = new SessionStorage('SESSION_ID');
 $container['session'] = function (Container $container): Session {
     return new Session($container['session_storage']);
 };
+// or
+$container['session'] = Session::class;
+// or further
+$container['session'] = new Session($container['session_storage']);
 ```
 
 Using the defined services is also very easy:
@@ -76,6 +80,50 @@ $container->extend('session_storage', function ($storage) {
 
 The first argument is the name of the service to extend, the second a function that gets access to the object instance and the container.
 
+Also Rade has a alias and tagging support for services. If you want to add a diffirent nanme to a registered service, use `alias` method.
+
+```php
+$container['film'] = new Movie('S1', 'EP202');
+$container->alias('movie', 'film');
+
+// Can be access by $container['firm'] or $container['movie']
+```
+
+For tagging, perhaps you are building a report aggregator that receives an array of many different `Report` interface implementations.
+
+```php
+$container['speed.report'] = new SpeedReport(...);
+$container['memory.report'] = new MemoryReport(...);
+
+$container->tag([SpeedReport::class, MemoryReport::class], ['reports']);
+```
+
+Once the services have been tagged, you may easily resolve them all via the `tagged` method:
+
+```php
+$tags = $container->tagged('reports');
+$reports = [];
+
+foreach ($tags as [$report, $attr]) {
+    $reports[] = $report;
+}
+
+$container->tag([SpeedReport::class, MemoryReport::class], ['reports'])
+
+$manager = new ReportAggregator($reports);
+
+// For the $attr var, this is useful if you need tag to have extra values
+// for tagging, eg:
+$container->tag([BackupProcessor::class, MonitorProcessor::class], ['process' => true]);
+$container->tag(CacheProcessor::class, ['process' => false]);
+
+foreach ($container->tagged('process') as [$process, $enabled]) {
+    if ($enabled) {
+        $manager->addProcessor($process);
+    }
+}
+```
+
 If you use the same libraries over and over, you might want to reuse some services from one project to the next one; package your services into a **provider** by implementing `Rade\DI\ServiceProviderInterface`:
 
 ```php
@@ -108,7 +156,9 @@ Then, register the provider on a Container:
 $container->register(new FooProvider());
 ```
 
-Als the `Rade\DI\ServiceLocator` is intended to solve this problem by giving access to a set of predefined services while instantiating them only when actually needed.
+Also the `Rade\DI\ServiceLocator` is intended to solve this problem by giving access to a set of predefined services while instantiating them only when actually needed.
+
+For sevice locators, Rade uses [symfony's service contracts](https://github.com/symfony/service-contracts).
 
 It also allows you to make your services available under a different name than the one used to register them. For instance, you may want to use an object that expects an instance of `EventDispatcherInterface` to be available under the name `event_dispatcher` while your event dispatcher has been registered under the name `dispatcher`:
 
@@ -117,33 +167,36 @@ use Monolog\Logger;
 use Rade\DI\ServiceLocator;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
-class MyService
+class MyService implements ServiceSubscriberInterface
 {
     /**
      * "logger" must be an instance of Psr\Log\LoggerInterface
      * "event_dispatcher" must be an instance of Symfony\Component\EventDispatcher\EventDispatcherInterface
      */
-    private $services;
+    private ?ContainerInterface $container;
 
-    public function __construct(ContainerInterface $services)
+    public function __construct(ServiceProviderInterface $provider = null)
     {
-        $this->services = $services;
+        $this->container = $provider;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public static function getSubscribedServices(): array
+    {
+        return ['logger', 'event_dispatcher' => 'dispatcher'];
     }
 }
 
-$container['logger'] = function ($c) {
-    return new Monolog\Logger();
-};
-$container['dispatcher'] = function () {
-    return new EventDispatcher();
-};
+$container['logger'] = new Monolog\Logger();
+$container['dispatcher'] = new EventDispatcher();
 
-$container['service'] = function (ContainerInterface $container) {
-    $locator = new ServiceLocator($container, ['logger', 'event_dispatcher' => 'dispatcher']);
-
-    return new MyService($locator);
-};
+$container['service'] = MyService::class;
+// or
+$container['service'] = $container->callInstance(MyService::class);
 ```
 
 ## 📓 Documentation
