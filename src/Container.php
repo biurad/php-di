@@ -304,7 +304,7 @@ class Container implements \ArrayAccess, ContainerInterface
         if (\is_callable($factory = $service = $this->values[$id])) {
             if (isset($this->protected[$service])) {
                 throw new ContainerResolutionException(
-                    'Protected callable service cannot be extended, cause it has parameters.'
+                    "Protected callable service '{$id}' cannot be extended, cause it has parameters which cannot be resolved."
                 );
             }
 
