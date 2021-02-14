@@ -17,27 +17,21 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests;
 
-use DivineNii\Invoker\ArgumentResolver\ClassValueResolver;
-use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
-use DivineNii\Invoker\ArgumentResolver\NamedValueResolver;
-use DivineNii\Invoker\ArgumentResolver\TypeHintValueResolver;
-use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use PHPUnit\Framework\TestCase;
-use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Rade\DI\Container;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\ServiceProviderInterface;
-use ReflectionProperty;
-use TypeError;
 
 class ContainerTest extends TestCase
 {
     public function testWithString(): void
     {
-        $rade          = new Container();
+        $rade = new Container();
         $rade['param'] = 'value';
 
         $this->assertEquals('value', $rade['param']);
@@ -45,12 +39,63 @@ class ContainerTest extends TestCase
 
     public function testWithClosure(): void
     {
-        $rade            = new Container();
+        $rade = new Container();
         $rade['service'] = function () {
             return new Fixtures\Service();
         };
 
         $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
+    }
+
+    public function testProtect(): void
+    {
+        $rade = new Container();
+        $rade['protected'] = $rade->protect($protected = fn (string $string) => strlen($string));
+
+        $this->assertEquals(6, $rade['protected']('strlen'));
+
+        $this->assertSame($protected, $rade['protected']);
+    }
+
+    /**
+     * @dataProvider badServiceDefinitionProvider
+     */
+    public function testProtectFailsForInvalidServiceDefinitions($service): void
+    {
+        $this->expectExceptionMessage('Callable is not a Closure or invokable object.');
+        $this->expectException(ContainerResolutionException::class);
+
+        $rade = new Container();
+        $rade->protect($service);
+    }
+
+    public function testGlobalFunctionNameAsParameterValue(): void
+    {
+        $rade = new Container();
+        $rade['global_function'] = fn () => 'strlen';
+
+        $this->assertSame('strlen', $rade['global_function']);
+    }
+
+    public function testServiceIsShared(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = $bound = new Fixtures\Service();
+
+        $this->assertSame($bound, $rade['foo']);
+    }
+
+    public function testServicesShouldBeSame(): void
+    {
+        $rade = new Container();
+        $rade['class'] = function () {
+            return new \stdClass;
+        };
+
+        $firstInstantiation = $rade['class'];
+        $secondInstantiation = $rade['class'];
+
+        $this->assertSame($firstInstantiation, $secondInstantiation);
     }
 
     public function testServicesShouldBeDifferent(): void
@@ -61,47 +106,156 @@ class ContainerTest extends TestCase
         });
 
         $serviceOne = $rade['service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceOne);
-
         $serviceTwo = $rade['service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceTwo);
 
         $this->assertNotSame($serviceOne, $serviceTwo);
     }
 
-    public function testShouldPassContainerTypeHintAsParameter(): void
+    public function testGettingServiceResolution(): void
+    {
+        $rade = new Container();
+        $this->assertInstanceOf(Fixtures\Service::class, $rade->get(Fixtures\Service::class));
+
+        try {
+            $rade->get('nothing');
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Identifier "nothing" is not defined.', $e->getMessage());
+        }
+
+        $this->expectExceptionMessage('Identifier "Rade\DI\Tests\Fixtures\Service" is not defined.');
+        $this->expectException(NotFoundServiceException::class);
+
+        $rade[Fixtures\Service::class];
+    }
+
+    public function testArrayAccess(): void
+    {
+        $rade = new Container;
+        $rade['something'] = function () {
+            return 'foo';
+        };
+
+        $this->assertTrue(isset($rade['something']));
+        $this->assertSame('foo', $rade['something']);
+
+        unset($rade['something']);
+        $this->assertFalse(isset($rade['something']));
+    }
+
+    public function testAliases(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = 'bar';
+        $rade->alias('baz', 'foo');
+        $rade->alias('bat', 'baz');
+
+        $this->assertSame('bar', $rade['foo']);
+        $this->assertSame('bar', $rade['baz']);
+        $this->assertSame('bar', $rade['bat']);
+    }
+
+    public function testItThrowsExceptionWhenServiceIdIsSameAsAlias(): void
+    {
+        $this->expectExceptionMessage('[name] is aliased to itself.');
+        $this->expectException('LogicException');
+
+        $rade = new Container();
+        $rade->alias('name', 'name');
+    }
+
+    public function testItThrowsExceptionIfServiceIdNotFound(): void
+    {
+        $this->expectExceptionMessage('Service id is not found in container');
+        $this->expectException(ContainerResolutionException::class);
+
+        $rade = new Container();
+        $rade->alias('name', 'nothing');
+    }
+
+    public function testAliasesWithProtectedService(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = $rade->protect(function (array $config) {
+            return $config;
+        });
+        $rade->alias('baz', 'foo');
+
+        $this->assertEquals([1, 2, 3], $rade['baz']([1, 2, 3]));
+    }
+
+    public function testServicesCanBeOverridden(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = 'bar';
+        $rade['foo'] = 'baz';
+
+        $this->assertSame('baz', $rade['foo']);
+    }
+
+    public function testResolutionOfDefaultParameterAutowring(): void
+    {
+        $rade = new Container();
+        $instance = $rade->get(Fixtures\Constructor::class);
+
+        $this->assertInstanceOf(Container::class, $instance->value);
+        $this->assertSame($rade, $instance->value);
+    }
+
+    public function testServiceAndAliasCheckViaArrayAccess(): void
+    {
+        $rade = new Container();
+        $rade['object'] = new \stdClass;
+        $rade->alias('alias', 'object');
+
+        $this->assertTrue(isset($rade['object']));
+        $this->assertTrue(isset($rade['alias']));
+    }
+
+    public function testCallInstanceResolution(): void
     {
         $rade = new Container();
 
-        $rade['service'] = function () {
-            return new Fixtures\Service();
-        };
-        $rade['construct'] = Fixtures\Constructor::class;
+        try {
+            $rade->callInstance(Fixtures\Service::class, ['me', 'cool']);
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals(
+                'Unable to pass arguments, class Rade\DI\Tests\Fixtures\Service has no constructor.',
+                $e->getMessage()
+            );
+        }
 
-        $rade['container1'] = function (Container $container) {
-            return $container;
-        };
+        try {
+            $rade->callInstance(Fixtures\Unstantiable::class);
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals('Class Rade\DI\Tests\Fixtures\Unstantiable is not instantiable.', $e->getMessage());
+        }
 
-        $this->assertNotSame($rade, $rade['service']);
-        $this->assertSame($rade, $rade['construct']->value);
-        $this->assertSame($rade, $rade['container1']);
-    }
-
-    public function testShouldPassContainerBuiltinTypeAsParameter(): void
-    {
-        $rade  = new Container();
-
-        $this->expectExceptionMessage(
-            'Parameter $container in Rade\DI\Tests\ContainerTest::Rade\DI\Tests\{closure}() ' .
-            'has no class type hint or default value, so its value must be specified.'
-        );
+        $this->expectExceptionMessage('Class Psr\Log\LoggerInterface is not instantiable.');
         $this->expectException(ContainerResolutionException::class);
 
-        $rade['container1'] = function (string $container) {
-            return $container;
-        };
+        $rade->callInstance('Psr\Log\LoggerInterface');
+    }
 
-        $rade['container1'];
+    public function testResolvingWithUsingAnInterface(): void
+    {
+        $rade = new Container();
+        $rade['logger'] = NullLogger::class;
+        $instance = $rade->get(LoggerInterface::class);
+
+        $this->assertInstanceOf(NullLogger::class, $instance);
+    }
+
+    public function testNestedParameterOverrideWithProtectedServices(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = $rade->protect(function ($config) use ($rade) {
+            return $rade['bar'](['name' => 'Divine']);
+        });
+        $rade['bar'] = $rade->protect(function ($config) {
+            return $config;
+        });
+
+        $this->assertEquals(['name' => 'Divine'], $rade['foo']('something'));
     }
 
     public function testIsset(): void
@@ -116,8 +270,8 @@ class ContainerTest extends TestCase
 
         $this->assertTrue(isset($rade['param']));
         $this->assertTrue(isset($rade['service']));
-        $this->assertTrue(isset($rade['null']));
-        $this->assertFalse(isset($rade['non_existent']));
+        $this->assertTrue($rade->has('null'));
+        $this->assertFalse($rade->has('non_existent'));
     }
 
     public function testOffsetGetValidatesKeyIsPresent(): void
@@ -126,7 +280,7 @@ class ContainerTest extends TestCase
         $this->expectExceptionMessage('Identifier "foo" is not defined.');
 
         $rade = new Container();
-        echo $rade['foo'];
+        $rade['foo'];
     }
 
     public function testOffsetGetHonorsNullValues(): void
@@ -145,32 +299,9 @@ class ContainerTest extends TestCase
         };
 
         unset($rade['param'], $rade['service']);
+
         $this->assertFalse(isset($rade['param']));
         $this->assertFalse(isset($rade['service']));
-    }
-
-    /**
-     * @dataProvider serviceDefinitionProvider
-     */
-    public function testShare($service): void
-    {
-        $rade                   = new Container();
-        $rade['shared_service'] = $service;
-
-        $serviceOne = $rade['shared_service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceOne);
-
-        $serviceTwo = $rade['shared_service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceTwo);
-
-        $this->assertSame($serviceOne, $serviceTwo);
-    }
-
-    public function testGlobalFunctionNameAsParameterValue(): void
-    {
-        $rade                    = new Container();
-        $rade['global_function'] = 'strlen';
-        $this->assertSame('strlen', $rade['global_function']);
     }
 
     public function testFluentRegister(): void
@@ -179,35 +310,48 @@ class ContainerTest extends TestCase
         $this->assertSame($rade, $rade->register($this->getMockBuilder(ServiceProviderInterface::class)->getMock()));
     }
 
-    /**
-     * @dataProvider serviceDefinitionProvider
-     */
-    public function testExtend($service): void
+    public function testExtend(): void
     {
-        $rade                   = new Container();
-        $rade['shared_service'] = function () {
-            return new Fixtures\Service();
+        $rade = new Container();
+        $rade['shared_service'] = function () use ($rade) {
+            return $rade['factory_service'];
         };
         $rade['factory_service'] = $rade->factory(function () {
             return new Fixtures\Service();
         });
 
+        $service = function (Fixtures\Service $service, $container) {
+            $service->value = $container;
+
+            return $service;
+        };
+
         $rade->extend('shared_service', $service);
         $serviceOne = $rade['shared_service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceOne);
         $serviceTwo = $rade['shared_service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceTwo);
+
         $this->assertSame($serviceOne, $serviceTwo);
         $this->assertSame($serviceOne->value, $serviceTwo->value);
 
         $rade->extend('factory_service', $service);
         $serviceOne = $rade['factory_service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceOne);
         $serviceTwo = $rade['factory_service'];
-        $this->assertInstanceOf(Fixtures\Service::class, $serviceTwo);
 
         $this->assertSame($serviceOne, $serviceTwo);
         $this->assertSame($serviceOne->value, $serviceTwo->value);
+    }
+
+    public function testExtendDoesNotSupportProtectedServices(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = $rade->protect(fn () => new Fixtures\Service());
+
+        $this->expectExceptionMessage(
+            'Protected callable service \'foo\' cannot be extended, cause it has parameters which cannot be resolved.'
+        );
+        $this->expectException(ContainerResolutionException::class);
+
+        $rade->extend('foo', fn (Fixtures\Service $service) => $service);
     }
 
     public function testExtendDoesNotLeakWithFactories(): void
@@ -220,14 +364,14 @@ class ContainerTest extends TestCase
         });
         unset($rade['foo']);
 
-        $p = new ReflectionProperty($rade, 'values');
+        $p = new \ReflectionProperty($rade, 'values');
         $p->setAccessible(true);
         $this->assertNotEmpty($p->getValue($rade));
         $this->assertArrayNotHasKey('foo', $p->getValue($rade));
 
-        $p = new ReflectionProperty($rade, 'factories');
+        $p = new \ReflectionProperty($rade, 'factories');
         $p->setAccessible(true);
-        $this->assertCount(1, $p->getValue($rade));
+        $this->assertCount(0, $p->getValue($rade));
     }
 
     public function testExtendValidatesKeyIsPresent(): void
@@ -242,7 +386,7 @@ class ContainerTest extends TestCase
 
     public function testKeys(): void
     {
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = 123;
         $rade['bar'] = 123;
 
@@ -284,7 +428,7 @@ class ContainerTest extends TestCase
      */
     public function testExtendFailsForInvalidServiceDefinitions($service): void
     {
-        $this->expectException(TypeError::class);
+        $this->expectException(\TypeError::class);
 
         $rade        = new Container();
         $rade['foo'] = function (): void {
@@ -330,28 +474,6 @@ class ContainerTest extends TestCase
         return [
             [123],
             [new Fixtures\NonInvokable()],
-        ];
-    }
-
-    /**
-     * Provider for service definitions.
-     */
-    public function serviceDefinitionProvider()
-    {
-        return [
-            'Named Parameter' => [function ($value = null) {
-                $service = new Fixtures\Service();
-                $service->value = $value;
-
-                return $service;
-            }],
-            'Named TypeHint Parameter' => [function (?Fixtures\Service $value) {
-                $service = new Fixtures\Service();
-                $service->value = $value;
-
-                return $service;
-            }],
-            'Class Object' => [new Fixtures\Invokable()],
         ];
     }
 
@@ -432,19 +554,6 @@ class ContainerTest extends TestCase
         $this->assertSame('bar.baz', $rade['bar']);
     }
 
-    public function testCircularReferenceWithParameter(): void
-    {
-        $rade            = new Container();
-        $rade['service'] = function (Fixtures\Service $service): Fixtures\Service {
-            return $service;
-        };
-
-        $this->expectExceptionMessage('Circular reference detected for services: service.');
-        $this->expectException(CircularReferenceException::class);
-
-        $rade['service'];
-    }
-
     public function testCircularReferenceWithServiceDefinitions(): void
     {
         $rade        = new Container();
@@ -462,27 +571,9 @@ class ContainerTest extends TestCase
         $rade['one'];
     }
 
-    public function testCallIntanceAndCallMethod(): void
+    public function testCallMethodResolution(): void
     {
         $rade = new Container();
-
-        $this->assertInstanceOf(Fixtures\Service::class, $rade->callInstance(Fixtures\Service::class));
-        $this->assertInstanceOf(Fixtures\Constructor::class, $rade->callInstance(Fixtures\Constructor::class));
-
-        try {
-            $rade->callInstance(Fixtures\Unstantiable::class);
-        } catch (ContainerResolutionException $e) {
-            $this->assertEquals('Class Rade\DI\Tests\Fixtures\Unstantiable is not instantiable.', $e->getMessage());
-        }
-
-        try {
-            $rade->callInstance(Fixtures\Service::class, ['me', 'cool']);
-        } catch (ContainerResolutionException $e) {
-            $this->assertEquals(
-                'Unable to pass arguments, class Rade\DI\Tests\Fixtures\Service has no constructor.',
-                $e->getMessage()
-            );
-        }
 
         $method1 = $rade->callMethod(
             function ($cool, array $ggg, $value): string {
@@ -500,138 +591,5 @@ class ContainerTest extends TestCase
 
         $this->assertEquals('me', $method1);
         $this->assertEquals('me', $method2);
-    }
-
-    public function testContainerFactory(): void
-    {
-        $rade            = new Container();
-        $rade['service'] = $rade->factory(function (): Fixtures\Service {
-            return new Fixtures\Service();
-        });
-
-        $serviceOne = $rade['service'];
-        $serviceTwo = $rade['service'];
-
-        $this->assertNotSame($serviceOne, $serviceTwo);
-    }
-
-    public function testAutowiringMissingService(): void
-    {
-        $rade             = new Container();
-        $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
-
-        $this->expectExceptionMessage(
-            'Service of type Rade\DI\Tests\Fixtures\Service needed by $service in ' .
-            'Rade\DI\Tests\Fixtures\ServiceAutowire::missingService() not found.',
-        );
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade->callMethod([$rade['autowire'], 'missingService']);
-    }
-
-    public function testAutowiringMissingClass(): void
-    {
-        $rade             = new Container();
-        $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
-
-        $this->expectExceptionMessage(
-            'Class Rade\DI\Tests\Fixtures\Servic needed by $service in ' .
-            'Rade\DI\Tests\Fixtures\ServiceAutowire::missingClass() not found. ' .
-            "Check type hint and 'use' statements.",
-        );
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade->callMethod([$rade['autowire'], 'missingClass']);
-    }
-
-    public function testAutowiringMultipleService(): void
-    {
-        $rade             = new Container();
-        $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
-
-        $rade['name.value'] = NamedValueResolver::class;
-        $rade['type.value'] = TypeHintValueResolver::class;
-
-        $this->expectExceptionMessage(
-            'Multiple services of type DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface ' .
-            'found: name.value, type.value. (needed by $resolver in ' .
-            'Rade\DI\Tests\Fixtures\ServiceAutowire::multipleAutowireTypes())'
-        );
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade->callMethod([$rade['autowire'], 'multipleAutowireTypes']);
-    }
-
-    public function testAutowiringSelectFromMultipleServiceUsingDocParam(): void
-    {
-        $rade             = new Container();
-        $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
-
-        $rade['name.value'] = NamedValueResolver::class;
-        $rade['type.value'] = TypeHintValueResolver::class;
-
-        $namedResolver = $rade->callMethod([$rade['autowire'], 'multipleAutowireTypesFound']);
-
-        $this->assertInstanceOf(NamedValueResolver::class, $namedResolver);
-
-        $this->expectExceptionMessage(
-            'Multiple services of type DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface ' .
-            'found: name.value, type.value. (needed by $resolver in ' .
-            'Rade\DI\Tests\Fixtures\ServiceAutowire::multipleAutowireTypesNotFound())'
-        );
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade->callMethod([$rade['autowire'], 'multipleAutowireTypesNotFound']);
-    }
-
-    public function testAutowiringMultipleServicesOnArray(): void
-    {
-        $rade             = new Container();
-        $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
-
-        $rade['name.value']    = NamedValueResolver::class;
-        $rade['type.value']    = TypeHintValueResolver::class;
-        $rade['default.value'] = DefaultValueResolver::class;
-        $rade['class.value']   = ClassValueResolver::class;
-
-        $resolvers = $rade->callMethod([$rade['autowire'], 'autowireTypesArray']);
-
-        $this->assertCount(4, $resolvers);
-
-        foreach ($resolvers as $resolver) {
-            $this->assertInstanceOf(ArgumentValueResolverInterface::class, $resolver);
-        }
-    }
-
-    public function testAutowiringTypeOnParameter(): void
-    {
-        $rade = new Container();
-
-        $rade['cl_container'] = Fixtures\Constructor::class;
-        $rade['fn_container'] = function (ContainerInterface $container) {
-            return $container;
-        };
-
-        $this->assertEquals($rade, $rade['fn_container']);
-        $this->assertEquals($rade, $rade['cl_container']->value);
-    }
-
-    public function testAutowiringOnExcludedType(): void
-    {
-        $rade = new Container();
-        $rade->addExcludedTypes([Fixtures\Service::class]);
-
-        $rade['construct'] = Fixtures\Constructor::class;
-        $rade['service']   = function (Fixtures\Service $container) {
-            return $container;
-        };
-
-        $this->expectExceptionMessage(
-            'Service of type Rade\DI\Tests\Fixtures\Service needed by $container in ' .
-            'Rade\DI\Tests\ContainerTest::Rade\DI\Tests\{closure}() not found.'
-        );
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade['service'];
     }
 }

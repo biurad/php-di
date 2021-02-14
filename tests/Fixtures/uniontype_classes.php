@@ -16,10 +16,41 @@ declare(strict_types=1);
  */
 
 namespace Rade\DI\Tests\Fixtures;
-/**
- * @author  Igor Wiedler <igor@wiedler.ch>
- */
-class Service
+
+class UnionScalars
 {
-    public $value;
+    public function __construct(int|float $timeout)
+    {
+    }
 }
+
+class UnionClasses
+{
+    public function __construct(CollisionA|CollisionB $collision)
+    {
+    }
+}
+
+class UnionNull
+{
+    public function __construct(private CollisionInterface|null $c)
+    {
+    }
+}
+
+class CollisionA
+{
+
+}
+
+class CollisionB
+{
+
+}
+
+interface CollisionInterface
+{
+
+}
+
+$unionFunction = fn (CollisionB|CollisionA $collision): CollisionA|CollisionB => $collision;
