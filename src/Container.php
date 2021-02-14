@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
 use DivineNii\Invoker\CallableReflection;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
