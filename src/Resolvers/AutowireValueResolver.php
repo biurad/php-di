@@ -67,6 +67,12 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     public function resolve(\ReflectionParameter $parameter, array $providedParameters)
     {
         $paramName = $parameter->name;
+        $position  = $parameter->getPosition();
+
+        if (isset($providedParameters[$position])) {
+            $providedParameters[$paramName] = $providedParameters[$position];
+            unset($providedParameters[$position]);
+        }
 
         if (!$parameter->isVariadic() && \array_key_exists($paramName, $providedParameters)) {
             $value = $providedParameters[$paramName];
@@ -75,16 +81,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             return $value;
         }
 
-        return $this->autowireArgument($parameter, function ($type, bool $single) {
-            if ($single) {
-                return $this->getByType($type);
-            }
-
-            return \array_map(
-                [$this->container, 'offsetGet'],
-                \array_merge($this->wiring[$type][0] ?? [], $this->wiring[$type][1] ?? [])
-            );
-        });
+        return $this->autowireArgument($parameter, [$this, 'getByType']);
     }
 
     /**
@@ -222,16 +219,19 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      * Resolves service by type.
      *
      * @param string $type
+     * @param bool   $single
      *
      * @return mixed
      */
-    private function getByType(string $type)
+    public function getByType(string $type, bool $single = null)
     {
         if (!empty($this->wiring[$type][0])) {
             $autowired = \array_merge(...$this->wiring[$type]);
 
             if (\count($names = $autowired) === 1) {
                 return $this->container->offsetGet($names[0]);
+            } elseif (!$single) {
+                return \array_map([$this->container, 'offsetGet'], $autowired);
             }
 
             \natsort($names);

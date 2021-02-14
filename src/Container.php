@@ -427,19 +427,6 @@ class Container implements \ArrayAccess, ContainerInterface
         foreach ($reflectionParameters as $parameter) {
             $position = $parameter->getPosition();
 
-            /**
-             * Simply returns all the values of the $args array that are
-             * indexed by the parameter position (i.e. a number).
-             * E.g. `->call($callable, ['foo', 'bar'])` will simply resolve the parameters
-             * to `['foo', 'bar']`.
-             * Parameters that are not indexed by a number (i.e. parameter position)
-             * will be ignored.
-             */
-            if (isset($args[$position])) {
-                $args[$parameter->name] = $args[$position];
-                unset($args[$position]);
-            }
-
             if (null !== $resolved = $this->resolver->resolve($parameter, $args)) {
                 if ($resolved === DefaultValueResolver::class) {
                     $resolved = null;
