@@ -47,6 +47,9 @@ class Container implements \ArrayAccess, ContainerInterface
     /** @var string[] alias => service name */
     private array $aliases = [];
 
+    /** @var array[]  tag name => service name => tag value */
+	private array $tags = [];
+
     /** @var ServiceProviderInterface[] */
     protected $providers = [];
 
@@ -204,6 +207,47 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         $this->aliases[$id] = $serviceId;
+    }
+
+    /**
+     * Assign a set of tags to service(s).
+     *
+     * @param string[]|string         $serviceIds
+     * @param array<int|string,mixed> $tags
+     */
+    public function tag($serviceIds, array $tags): void
+    {
+        foreach ((array) $serviceIds as $service) {
+            foreach ($tags as $tag => $attributes) {
+                // Exchange values if $tag is an integer
+                if (\is_int($tmp = $tag)) {
+                    $tag = $attributes;
+                    $attributes = $tmp;
+                }
+
+                $this->tags[$service][$tag] = $attributes;
+            }
+        }
+    }
+
+    /**
+     * Resolve all of the bindings for a given tag.
+     *
+     * @param string $tag
+     *
+     * @return mixed[] of [service, attributes]
+     */
+    public function tagged(string $tag): array
+    {
+        $tags = [];
+
+        foreach ($this->tags as $service => $tagged) {
+            if (isset($tagged[$tag])) {
+                $tags[] = [$this->get($service), $tagged[$tag]];
+            }
+        }
+
+        return $tags;
     }
 
     /**
