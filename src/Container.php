@@ -244,7 +244,7 @@ class Container implements \ArrayAccess, ContainerInterface
      *
      * @return callable The passed callable
      */
-    public function factory($callable)
+    public function factory($callable): callable
     {
         if (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
             throw new ContainerResolutionException('Service definition is not a Closure or invokable object.');
@@ -266,7 +266,7 @@ class Container implements \ArrayAccess, ContainerInterface
      *
      * @throws ContainerResolutionException Service definition has to be a closure or an invokable object
      */
-    public function protect(callable $callable): callable
+    public function protect($callable): callable
     {
         if (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
             throw new ContainerResolutionException('Callable is not a Closure or invokable object.');
@@ -291,7 +291,7 @@ class Container implements \ArrayAccess, ContainerInterface
      *
      * @return mixed The wrapped scope
      */
-    public function extend($id, callable $scope)
+    public function extend(string $id, callable $scope)
     {
         if (!isset($this->keys[$id])) {
             throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));

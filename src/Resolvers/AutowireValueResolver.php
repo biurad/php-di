@@ -128,7 +128,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      * Resolves missing argument using autowiring.
      *
      * @param \ReflectionParameter $parameter
-     * @param callable $getter
+     * @param callable             $getter
      *
      * @throws ContainerResolutionException
      *
@@ -334,6 +334,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
 
     private function autowireServiceSubscriber(\ReflectionClass $class, string $type): ServiceProviderInterface
     {
+        /** @var class-string $className */
         $className = $class->getName();
         $services  = [];
 
