@@ -470,8 +470,10 @@ class Container implements \ArrayAccess, ContainerInterface
         // Resolving the closure of the service to return it's type hint or class.
         $type = \is_callable($service) ? CallableReflection::create($service)->getReturnType() : \get_class($service);
 
-        if ($type instanceof \ReflectionNamedType) {
-            $type = $type->getName();
+        if ($type instanceof \ReflectionType) {
+            $types = $type instanceof \ReflectionUnionType ? $type->getTypes() : [$type];
+
+            $type = \array_map(fn (\ReflectionNamedType $type): string => $type->getName(), $types);
         }
 
         // Resolving wiring so we could call the service parent classes and interfaces.
@@ -499,6 +501,14 @@ class Container implements \ArrayAccess, ContainerInterface
             if (null !== $resolved = $this->resolver->resolve($parameter, $args)) {
                 if ($resolved === DefaultValueResolver::class) {
                     $resolved = null;
+                }
+
+                if (null !== $resolved && $parameter->isVariadic()) {
+                    foreach (\array_chunk($resolved, 1) as $index => [$value]) {
+                        $resolvedParameters[$index + 1] = $value;
+                    }
+
+                    continue;
                 }
 
                 $resolvedParameters[$position] = $resolved;
