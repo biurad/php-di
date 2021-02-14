@@ -43,7 +43,7 @@ class ServiceLocator implements ServiceProviderInterface
 
         if (isset($this->loading[$id])) {
             $ids = array_values($this->loading);
-            $ids = \array_slice($this->loading, array_search($id, $ids));
+            $ids = \array_slice($this->loading, (int) array_search($id, $ids, true));
             $ids[] = $id;
 
             throw $this->createCircularReferenceException($id, $ids);

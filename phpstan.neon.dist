@@ -13,8 +13,17 @@ parameters:
             message: '#^Binary operation "+" between array<string, class-string>\\|false and array<string, string>\\|false results in an error.$#'
             path: src/Resolvers/AutowireValueResolver.php
         -
-            message: "#^Method Rade\\\\DI\\\\Container\\:\\:factory\\(\\) should return callable\\(\\): mixed but returns object.$#"
+            message: '#^Foreach overwrites \$type with its value variable|Only booleans are allowed in a negated boolean, bool\|null given.$#'
+            path: src/Resolvers/AutowireValueResolver.php
+        -
+            message: "#^Method Rade\\\\DI\\\\Container\\:\\:(factory|protect)\\(\\) should return callable\\(\\): mixed but returns object.$#"
             path: src/Container.php
         -
             message: "#^Parameter \\#1 \\$offset (string) of method Rade\\\\DI\\\\Container\\:\\:offset|Set|Get|Exists|Unset\\(\\) should be contravariant with parameter \\$offset (mixed) of method ArrayAccess<mixed,mixed>\\:\\:offset|Set|Get|Exists|Unset\\(\\)$#"
             path: src/Container.php
+        -
+            message: "#^Cannot assign offset \\(callable\\(\\): mixed\\)\\|object to SplObjectStorage|Parameter \\#1 \\$function of method Rade\\\\DI\\\\Container\\:\\:callMethod\\(\\) expects callable\\(\\): mixed, \\(callable\\(\\): mixed\\)\\|object given.$#"
+            path: src/Container.php
+        -
+            message: '#^Invalid type Psr\\Container\\(NotFound|Container)ExceptionInterface to throw|Only booleans are allowed in a ternary operator condition, ReflectionType\|null given.$#'
+            path: src/ServiceLocator.php
