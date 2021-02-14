@@ -87,7 +87,9 @@ class ServiceLocator implements ServiceProviderInterface
     private function createCircularReferenceException(string $id, array $path): ContainerExceptionInterface
     {
         return new CircularReferenceException(\sprintf(
-            'Circular reference detected for service "%s", path: "%s".', $id, implode(' -> ', $path)
+            'Circular reference detected for service "%s", path: "%s".',
+            $id,
+            implode(' -> ', $path)
         ));
     }
 }

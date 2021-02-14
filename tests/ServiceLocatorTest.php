@@ -46,7 +46,8 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
         $container = new Container();
         $container['foo'] = new \stdClass();
         $subscriber = new Fixtures\SomeServiceSubscriber();
-        $subscriber->container = $this->getServiceLocator(['bar' => function () {}]);
+        $subscriber->container = $this->getServiceLocator(['bar' => function () {
+        }]);
 
         $subscriber->getFoo();
     }
@@ -63,9 +64,15 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
     public function testProvidesServicesInformation()
     {
         $locator = new ServiceLocator([
-            'foo'  => function () { return 'bar'; },
-            'bar'  => function (): string { return 'baz'; },
-            'bat'  => function (): ?string { return 'zaz'; },
+            'foo'  => function () {
+                return 'bar';
+            },
+            'bar'  => function (): string {
+                return 'baz';
+            },
+            'bat'  => function (): ?string {
+                return 'zaz';
+            },
             'baz'  => new \ArrayObject(),
             'null' => null,
         ]);

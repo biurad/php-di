@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 
 namespace Rade\DI\Tests\Fixtures;
+
 /**
  * @author  Igor Wiedler <igor@wiedler.ch>
  */

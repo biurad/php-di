@@ -89,7 +89,7 @@ class ContainerTest extends TestCase
     {
         $rade = new Container();
         $rade['class'] = function () {
-            return new \stdClass;
+            return new \stdClass();
         };
 
         $firstInstantiation = $rade['class'];
@@ -130,7 +130,7 @@ class ContainerTest extends TestCase
 
     public function testArrayAccess(): void
     {
-        $rade = new Container;
+        $rade = new Container();
         $rade['something'] = function () {
             return 'foo';
         };
@@ -204,7 +204,7 @@ class ContainerTest extends TestCase
     public function testServiceAndAliasCheckViaArrayAccess(): void
     {
         $rade = new Container();
-        $rade['object'] = new \stdClass;
+        $rade['object'] = new \stdClass();
         $rade->alias('alias', 'object');
 
         $this->assertTrue(isset($rade['object']));

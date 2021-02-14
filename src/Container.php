@@ -48,8 +48,8 @@ class Container implements \ArrayAccess, ContainerInterface
     /** @var string[] alias => service name */
     private array $aliases = [];
 
-    /** @var array[]  tag name => service name => tag value */
-	private array $tags = [];
+    /** @var array[] tag name => service name => tag value */
+    private array $tags = [];
 
     /** @var ServiceProviderInterface[] */
     protected $providers = [];

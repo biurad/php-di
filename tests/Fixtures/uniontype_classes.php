@@ -19,21 +19,21 @@ namespace Rade\DI\Tests\Fixtures;
 
 class UnionScalars
 {
-    public function __construct(int|float $timeout)
+    public function __construct(int | float $timeout)
     {
     }
 }
 
 class UnionClasses
 {
-    public function __construct(CollisionA|CollisionB $collision)
+    public function __construct(CollisionA | CollisionB $collision)
     {
     }
 }
 
 class UnionNull
 {
-    public function __construct(private CollisionInterface|null $c)
+    public function __construct(private CollisionInterface | null $c)
     {
     }
 }
@@ -53,4 +53,4 @@ interface CollisionInterface
 
 }
 
-$unionFunction = fn (CollisionB|CollisionA $collision): CollisionA|CollisionB => $collision;
+$unionFunction = fn(CollisionB | CollisionA $collision): CollisionA | CollisionB => $collision;

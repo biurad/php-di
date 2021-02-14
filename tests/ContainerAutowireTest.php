@@ -63,7 +63,7 @@ class ContainerAutowireTest extends TestCase
         $this->assertNull($rade['baz']->container);
 
         $this->expectExceptionMessage(
-            'Service of type Symfony\Contracts\Service\ServiceProviderInterface needs parent class '.
+            'Service of type Symfony\Contracts\Service\ServiceProviderInterface needs parent class ' .
             'Rade\DI\Tests\Fixtures\SomeService to implement Symfony\Contracts\Service\ServiceSubscriberInterface.'
         );
         $this->expectException(ContainerResolutionException::class);
@@ -107,7 +107,7 @@ class ContainerAutowireTest extends TestCase
         $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
 
         $this->expectExceptionMessage(
-            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::missingService() typehint(s) '.
+            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::missingService() typehint(s) ' .
             '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
         );
         $this->expectException(ContainerResolutionException::class);
@@ -154,7 +154,7 @@ class ContainerAutowireTest extends TestCase
         };
 
         $this->expectExceptionMessage(
-            'Parameter $container in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() typehint(s) '.
+            'Parameter $container in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() typehint(s) ' .
             '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
         );
         $this->expectException(ContainerResolutionException::class);
@@ -178,7 +178,7 @@ class ContainerAutowireTest extends TestCase
         $this->assertCount(2, $services);
 
         $this->expectExceptionMessage(
-            'Multiple services of type Rade\DI\Tests\Fixtures\Service found: bar, foo. '.
+            'Multiple services of type Rade\DI\Tests\Fixtures\Service found: bar, foo. ' .
             '(needed by $service in Rade\DI\Tests\Fixtures\ServiceAutowire::__construct())'
         );
         $this->expectException(ContainerResolutionException::class);
@@ -309,11 +309,11 @@ class ContainerAutowireTest extends TestCase
             $rade['foo'] = fn (Fixtures\Service ...$service) => $service;
             $rade['foo'];
         } catch (\TypeError $e) {
-            $message = 'Argument 1 passed to Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() '.
+            $message = 'Argument 1 passed to Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() ' .
             'must be an instance of Rade\DI\Tests\Fixtures\Service, null given';
 
             if (PHP_VERSION_ID >= 80000) {
-                $message = 'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}(): '.
+                $message = 'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}(): ' .
                 'Argument #1 must be of type Rade\DI\Tests\Fixtures\Service, null given,';
             }
 
@@ -357,12 +357,12 @@ class ContainerAutowireTest extends TestCase
         );
 
         $this->getExpectedExceptionMessage(
-            'Parameter $collision in Rade\DI\Tests\Fixtures\UnionClasses::__construct() typehint(s) '.
-            '\'Rade\DI\Tests\Fixtures\CollisionA|Rade\DI\Tests\Fixtures\CollisionB\' '.
+            'Parameter $collision in Rade\DI\Tests\Fixtures\UnionClasses::__construct() typehint(s) ' .
+            '\'Rade\DI\Tests\Fixtures\CollisionA|Rade\DI\Tests\Fixtures\CollisionB\' ' .
             'not found, and no default value specified.'
         );
         $this->expectException(ContainerResolutionException::class);
-        
+
         unset($rade['collision'], $rade['foo']);
         $rade['foo'] = Fixtures\UnionClasses::class;
     }

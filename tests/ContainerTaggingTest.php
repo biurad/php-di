@@ -24,7 +24,7 @@ class ContainerTaggingTest extends TestCase
 {
     public function testContainerTags(): void
     {
-        $container = new Container;
+        $container = new Container();
         $container->tag(Fixtures\Service::class, ['foo', 'bar']);
         $container->tag(Fixtures\Constructor::class, ['foo']);
 
@@ -47,7 +47,7 @@ class ContainerTaggingTest extends TestCase
         $this->assertInstanceOf(Fixtures\Service::class, $barResults[0]);
         $this->assertInstanceOf(Fixtures\Constructor::class, $fooResults[1]);
 
-        $container = new Container;
+        $container = new Container();
         $container->tag([Fixtures\Service::class, Fixtures\Constructor::class], ['foo']);
         $this->assertCount(2, $container->tagged('foo'));
 
@@ -65,7 +65,7 @@ class ContainerTaggingTest extends TestCase
 
     public function testTaggedServiceByItsAttribute(): void
     {
-        $container = new Container;
+        $container = new Container();
         $container->tag(Fixtures\Service::class, ['foo' => true]);
         $container->tag(Fixtures\Constructor::class, ['foo' => false]);
 
@@ -103,7 +103,7 @@ class ContainerTaggingTest extends TestCase
 
     public function testLazyLoadedTaggedServicesCanBeLoopedOverMultipleTimes(): void
     {
-        $container = new Container;
+        $container = new Container();
         $container->tag(Fixtures\Service::class, ['foo']);
         $container->tag(Fixtures\Constructor::class, ['foo']);
 
