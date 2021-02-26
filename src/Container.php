@@ -28,6 +28,7 @@ use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\Resolvers\AutowireValueResolver;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Processor;
+use Symfony\Contracts\Service\ResetInterface;
 
 class Container implements \ArrayAccess, ContainerInterface
 {
@@ -332,32 +333,25 @@ class Container implements \ArrayAccess, ContainerInterface
     }
 
     /**
-     * Creates new instance using autowiring.
-     *
-     * @param array<int|string,mixed> $args
-     *
-     * @throws ContainerResolutionException
-     *
-     * @return object
+     * Resets the container
      */
-    public function callInstance(string $class, array $args = [])
+    public function reset(): void
     {
-        /** @var class-string $class */
-        $reflection = new \ReflectionClass($class);
-
-        if (!$reflection->isInstantiable()) {
-            throw new ContainerResolutionException("Class $class is not instantiable.");
+        foreach ($this->values as $id => $service) {
+            if ($service instanceof self) {
+                continue;
         }
 
-        if (null !== $constructor = $reflection->getConstructor()) {
-            return $reflection->newInstanceArgs($this->autowireArguments($constructor, $args));
+            if ($service instanceof ResetInterface) {
+                $service->reset();
         }
 
-        if (!empty($args)) {
-            throw new ContainerResolutionException("Unable to pass arguments, class $class has no constructor.");
+            unset($this->values[$id], $this->keys[$id], $this->frozen[$id]);
         }
+        unset($this->tags, $this->aliases, $this->loading);
 
-        return new $class();
+        $this->protected->removeAll($this->protected);
+        $this->factories->removeAll($this->factories);
     }
 
     /**
