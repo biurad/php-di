@@ -373,16 +373,19 @@ class Container implements \ArrayAccess, ContainerInterface
     {
         try {
             return $this->offsetGet($id);
-        } catch (NotFoundServiceException $e) {
-            if (\class_exists($id) || \interface_exists($id)) {
+        } catch (NotFoundServiceException $serviceError) {
                 try {
                     return $this->resolver->getByType($id);
-                } catch (NotFoundServiceException $e) {
-                    return $this->callInstance($id);
+            } catch (NotFoundServiceException $typeError) {
+                if (\class_exists($id)) {
+                    try {
+                        return $this->autowireClass($id, []);
+                    } catch (ContainerResolutionException $e) {
+                    }
                 }
             }
 
-            throw $e;
+            throw $serviceError;
         }
     }
 
@@ -391,7 +394,11 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function has($id)
     {
-        return $this->offsetExists($id);
+        if (isset($this->keys[$this->aliases[$id] ?? $id])) {
+            return true;
+        }
+
+        throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
     }
 
     /**
