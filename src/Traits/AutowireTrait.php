@@ -22,6 +22,7 @@ use DivineNii\Invoker\CallableReflection;
 use DivineNii\Invoker\Exceptions\NotCallableException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\AutowireValueResolver;
+use Rade\DI\ServiceProviderInterface;
 use Symfony\Component\Config\Definition\Processor;
 
 trait AutowireTrait
