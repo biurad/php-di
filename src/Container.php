@@ -413,8 +413,12 @@ class Container implements \ArrayAccess, ContainerInterface
     {
         $this->providers[] = $provider;
 
-        if ($provider instanceof ConfigurationInterface && !empty($values)) {
+        if ([] !== $values && $provider instanceof ConfigurationInterface) {
             $providerId = $provider->getName() . '.config';
+
+            if (!isset($values[$providerId])) {
+                $values = [$providerId => $values];
+            }
 
             $this->offsetSet($providerId, $this->process->processConfiguration($provider, $values));
         }
