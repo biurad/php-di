@@ -235,11 +235,10 @@ class ContainerAutowireTest extends TestCase
         $rade['name.value']    = NamedValueResolver::class;
         $rade['type.value']    = TypeHintValueResolver::class;
         $rade['default.value'] = DefaultValueResolver::class;
-        $rade['class.value']   = ClassValueResolver::class;
 
         $resolvers = $rade->call([$rade['autowire'], 'autowireTypesArray']);
 
-        $this->assertCount(4, $resolvers);
+        $this->assertCount(3, $resolvers);
 
         foreach ($resolvers as $resolver) {
             $this->assertInstanceOf(ArgumentValueResolverInterface::class, $resolver);
