@@ -74,7 +74,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             unset($providedParameters[$position]);
         }
 
-        if (!$parameter->isVariadic() && \array_key_exists($paramName, $providedParameters)) {
+        if (\array_key_exists($paramName, $providedParameters)) {
             $value = $providedParameters[$paramName];
             unset($providedParameters[$paramName]);
 
@@ -144,9 +144,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
 
         foreach ($types as $type) {
             if ($type instanceof \ReflectionNamedType) {
-                $typeName = $type->getName();
-
-                if ($typeName === 'array') {
+                if (\in_array($typeName = $type->getName(), ['array', 'iterable'], true)) {
                     $result = $this->findByMethod($parameter, true, $getter);
 
                     if (self::NONE !== $result) {

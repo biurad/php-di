@@ -19,8 +19,10 @@ namespace Rade\DI\Tests\Fixtures;
 
 use Rade\DI\Container;
 use Rade\DI\ServiceProviderInterface;
+use Symfony\Component\Config\Definition\Builder\TreeBuilder;
+use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider implements ServiceProviderInterface
+class RadeServiceProvider implements ConfigurationInterface, ServiceProviderInterface
 {
     /**
      * {@inheritdoc}
@@ -28,6 +30,22 @@ class RadeServiceProvider implements ServiceProviderInterface
     public function getName(): string
     {
         return 'rade_di';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getConfigTreeBuilder(): TreeBuilder
+    {
+        $treeBuilder = new TreeBuilder($this->getName());
+
+        $treeBuilder->getRootNode()
+            ->children()
+                ->scalarNode('hello')->end()
+            ->end()
+        ;
+
+        return $treeBuilder;
     }
 
     /**
@@ -40,13 +58,13 @@ class RadeServiceProvider implements ServiceProviderInterface
      */
     public function register(Container $rade): void
     {
-        $pimple['param'] = 'value';
+        $rade['param'] = 'value';
 
-        $pimple['service'] = function () {
+        $rade['service'] = function () {
             return new Service();
         };
 
-        $pimple['factory'] = $rade->factory(function () {
+        $rade['factory'] = $rade->factory(function () {
             return new Service();
         });
     }

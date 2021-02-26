@@ -112,7 +112,7 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade->callMethod([$rade['autowire'], 'missingService']);
+        $rade->call([$rade['autowire'], 'missingService']);
     }
 
     public function testShouldFailOnIncompleteClassType(): void
@@ -127,7 +127,7 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade->callMethod([$rade['autowire'], 'missingClass']);
+        $rade->call([$rade['autowire'], 'missingClass']);
     }
 
     public function testShouldPassOnExcludedType(): void
@@ -202,7 +202,7 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade->callMethod([$rade['autowire'], 'multipleAutowireTypes']);
+        $rade->call([$rade['autowire'], 'multipleAutowireTypes']);
     }
 
     public function testShouldPassSelectingFromMultipleServiceUsingDocParam(): void
@@ -213,7 +213,7 @@ class ContainerAutowireTest extends TestCase
         $rade['name.value'] = NamedValueResolver::class;
         $rade['type.value'] = TypeHintValueResolver::class;
 
-        $namedResolver = $rade->callMethod([$rade['autowire'], 'multipleAutowireTypesFound']);
+        $namedResolver = $rade->call([$rade['autowire'], 'multipleAutowireTypesFound']);
 
         $this->assertInstanceOf(NamedValueResolver::class, $namedResolver);
 
@@ -224,7 +224,7 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade->callMethod([$rade['autowire'], 'multipleAutowireTypesNotFound']);
+        $rade->call([$rade['autowire'], 'multipleAutowireTypesNotFound']);
     }
 
     public function testShouldPassOnMultipleServicesOnArray(): void
@@ -237,7 +237,7 @@ class ContainerAutowireTest extends TestCase
         $rade['default.value'] = DefaultValueResolver::class;
         $rade['class.value']   = ClassValueResolver::class;
 
-        $resolvers = $rade->callMethod([$rade['autowire'], 'autowireTypesArray']);
+        $resolvers = $rade->call([$rade['autowire'], 'autowireTypesArray']);
 
         $this->assertCount(4, $resolvers);
 
@@ -271,12 +271,12 @@ class ContainerAutowireTest extends TestCase
         $rade['service2'] = Fixtures\Constructor::class;
         $rade['protected'] = $rade->protect($service);
 
-        [$obj, $services] = $rade->callMethod($rade['protected'], [1 => $arguments]);
+        [$obj, $services] = $rade->call($rade['protected'], [1 => $arguments]);
         $this->assertInstanceOf(Fixtures\SomeService::class, $obj);
         $this->assertSame($objeActual, $obj);
         $this->assertCount(2, $services);
 
-        [$obj, $services] = $rade->callMethod($service, ['services' => $arguments]);
+        [$obj, $services] = $rade->call($service, ['services' => $arguments]);
         $this->assertInstanceOf(Fixtures\SomeService::class, $obj);
         $this->assertSame($objeActual, $obj);
         $this->assertCount(2, $services);
@@ -298,12 +298,34 @@ class ContainerAutowireTest extends TestCase
         $this->assertInstanceOf(Fixtures\SomeService::class, $obj);
         $this->assertSame($objeActual, $obj);
         $this->assertCount(2, $services);
+
+        $rade->reset();
+        $this->assertFalse(isset($rade['variadic']));
+
+        [$obj, $services] = $rade->call($service, [$objeActual = new Fixtures\SomeService(), new Fixtures\Service()]);
+        $this->assertInstanceOf(Fixtures\SomeService::class, $obj);
+        $this->assertSame($objeActual, $obj);
+        $this->assertCount(1, $services);
+
+        $result = $rade->call(function (Fixtures\Service ...$services) {
+            return $services;
+        }, [new Fixtures\Constructor($rade)]);
+
+        $this->assertIsArray($result);
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(Fixtures\Service::class, \current((array) $result));
     }
 
     public function testShouldFailOnVariadicType(): void
     {
         $rade = new Container();
-        $this->assertNull(current($rade->callMethod(fn (...$service) => $service)));
+        $this->assertNull(current((array) $rade->call(fn (...$service) => $service)));
+
+        try {
+            $rade->call(new Fixtures\Service());
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals('Instance of Rade\DI\Tests\Fixtures\Service is not a callable', $e->getMessage());
+        }
 
         try {
             $rade['foo'] = fn (Fixtures\Service ...$service) => $service;
@@ -337,19 +359,20 @@ class ContainerAutowireTest extends TestCase
 
         $this->assertInstanceOf(
             Fixtures\UnionScalars::class,
-            $rade->callInstance(Fixtures\UnionScalars::class, [1.0])
+            $rade->call(Fixtures\UnionScalars::class, [1.0])
         );
         $this->assertInstanceOf(
             Fixtures\UnionNull::class,
-            $rade->callInstance(Fixtures\UnionNull::class)
+            $rade->call(Fixtures\UnionNull::class)
         );
 
-        $this->assertInstanceOf(Fixtures\CollisionB::class, $rade->callMethod($unionFunction));
+        $this->assertInstanceOf(Fixtures\CollisionA::class, $rade->call($unionFunction, [new Fixtures\CollisionA()]));
+        $this->assertInstanceOf(Fixtures\CollisionB::class, $rade->call($unionFunction));
 
         $rade['foo'] = Fixtures\UnionClasses::class;
         $this->assertInstanceOf(
             Fixtures\UnionClasses::class,
-            $rade->callInstance(Fixtures\UnionClasses::class)
+            $rade->call(Fixtures\UnionClasses::class)
         );
         $this->assertInstanceOf(
             Fixtures\UnionClasses::class,

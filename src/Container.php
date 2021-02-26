@@ -17,8 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
-use DivineNii\Invoker\CallableReflection;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -30,38 +28,10 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Contracts\Service\ResetInterface;
 
-class Container implements \ArrayAccess, ContainerInterface
+class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 {
+    use Traits\AutowireTrait;
     use SmartObject;
-
-    /** @var array<string,mixed> service name => instance */
-    private array $values = [];
-
-    /** @var array<string,bool> service name => bool */
-    private array $keys = [];
-
-    /** @var array<string,bool> service name => bool */
-    private array $loading = [];
-
-    /** @var array<string,bool> service name => bool */
-    private array $frozen = [];
-
-    /** @var string[] alias => service name */
-    private array $aliases = [];
-
-    /** @var array[] tag name => service name => tag value */
-    private array $tags = [];
-
-    /** @var ServiceProviderInterface[] */
-    protected $providers = [];
-
-    private \SplObjectStorage $factories;
-
-    private \SplObjectStorage $protected;
-
-    private AutowireValueResolver $resolver;
-
-    private Processor $process;
 
     /**
      * Instantiates the container.
@@ -94,7 +64,7 @@ class Container implements \ArrayAccess, ContainerInterface
         unset($this->aliases[$offset]);
 
         if (\is_string($value) && \class_exists($value)) {
-            $value = $this->callInstance($value);
+            $value = $this->autowireClass($value, []);
         } elseif (\is_callable($value) && !$value instanceof \Closure) {
             $value = \Closure::fromCallable($value);
         }
@@ -163,9 +133,9 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function offsetUnset($offset): void
     {
-        if (isset($this->keys[$offset])) {
+        if ($this->offsetExists($offset)) {
             if (\is_object($service = $this->values[$offset])) {
-                unset($this->factories[$service]);
+                unset($this->factories[$service], $this->protected[$service]);
             }
 
             unset($this->values[$offset], $this->frozen[$offset], $this->aliases[$offset], $this->keys[$offset]);
@@ -309,7 +279,7 @@ class Container implements \ArrayAccess, ContainerInterface
                 );
             }
 
-            $factory = $this->callMethod($factory);
+            $factory = $this->call($factory);
         }
 
         $extended = $scope(...[$factory, $this]);
@@ -329,7 +299,7 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function keys()
     {
-        return \array_keys($this->values);
+        return \array_keys($this->keys);
     }
 
     /**
@@ -340,11 +310,11 @@ class Container implements \ArrayAccess, ContainerInterface
         foreach ($this->values as $id => $service) {
             if ($service instanceof self) {
                 continue;
-        }
+            }
 
             if ($service instanceof ResetInterface) {
                 $service->reset();
-        }
+            }
 
             unset($this->values[$id], $this->keys[$id], $this->frozen[$id]);
         }
@@ -355,18 +325,6 @@ class Container implements \ArrayAccess, ContainerInterface
     }
 
     /**
-     * Calls method using autowiring.
-     *
-     * @param array<int|string,mixed> $args
-     *
-     * @return mixed
-     */
-    public function callMethod(callable $function, array $args = [])
-    {
-        return $function(...$this->autowireArguments(CallableReflection::create($function), $args));
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function get($id)
@@ -374,8 +332,8 @@ class Container implements \ArrayAccess, ContainerInterface
         try {
             return $this->offsetGet($id);
         } catch (NotFoundServiceException $serviceError) {
-                try {
-                    return $this->resolver->getByType($id);
+            try {
+                return $this->resolver->getByType($id);
             } catch (NotFoundServiceException $typeError) {
                 if (\class_exists($id)) {
                     try {
@@ -429,18 +387,6 @@ class Container implements \ArrayAccess, ContainerInterface
     }
 
     /**
-     * Add a clas or interface that should be excluded from autowiring.
-     *
-     * @param string ...$types
-     */
-    public function exclude(string ...$types): void
-    {
-        foreach ($types as $type) {
-            $this->resolver->exclude($type);
-        }
-    }
-
-    /**
      * @param string          $id
      * @param callable|object $service
      *
@@ -452,79 +398,20 @@ class Container implements \ArrayAccess, ContainerInterface
 
         try {
             if (isset($this->factories[$service])) {
-                return $this->callMethod($service);
+                return $this->call($service);
+            } elseif (isset($this->frozen[$id])) {
+                return $service;
             }
 
             $this->frozen[$id] = true;
 
             if (\is_callable($service)) {
-                $service = $this->callMethod($service);
+                $service = $this->call($service);
             }
 
             return $this->values[$id] = $service;
         } finally {
             unset($this->loading[$id]);
         }
-    }
-
-    /**
-     * @param object|callable $service
-     */
-    private function autowireService(string $id, $service): void
-    {
-        // Resolving the closure of the service to return it's type hint or class.
-        $type = \is_callable($service) ? CallableReflection::create($service)->getReturnType() : \get_class($service);
-
-        if ($type instanceof \ReflectionType) {
-            $types = $type instanceof \ReflectionUnionType ? $type->getTypes() : [$type];
-
-            $type = \array_map(fn (\ReflectionNamedType $type): string => $type->getName(), $types);
-        }
-
-        // Resolving wiring so we could call the service parent classes and interfaces.
-        if (!isset($this->keys[$id])) {
-            $this->resolver->autowire($id, $type);
-        }
-    }
-
-    /**
-     * Resolves arguments for callables
-     *
-     * @param \ReflectionFunctionAbstract $function
-     * @param array<int|string,mixed> $args
-     *
-     * @return array<int,mixed>
-     */
-    private function autowireArguments(\ReflectionFunctionAbstract $function, array $args = []): array
-    {
-        $resolvedParameters   = [];
-        $reflectionParameters = $function->getParameters();
-
-        foreach ($reflectionParameters as $parameter) {
-            $position = $parameter->getPosition();
-
-            if (null !== $resolved = $this->resolver->resolve($parameter, $args)) {
-                if ($resolved === DefaultValueResolver::class) {
-                    $resolved = null;
-                }
-
-                if (null !== $resolved && $parameter->isVariadic()) {
-                    foreach (\array_chunk($resolved, 1) as $index => [$value]) {
-                        $resolvedParameters[$index + 1] = $value;
-                    }
-
-                    continue;
-                }
-
-                $resolvedParameters[$position] = $resolved;
-            }
-
-            if (empty(\array_diff_key($reflectionParameters, $resolvedParameters))) {
-                // Stop traversing: all parameters are resolved
-                return $resolvedParameters;
-            }
-        }
-
-        return $resolvedParameters;
     }
 }

@@ -17,18 +17,26 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
+use Psr\Container\ContainerInterface;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Service\ServiceProviderInterface;
-use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
-class SomeServiceSubscriber extends SomeService implements ServiceSubscriberInterface
+class SomeService implements ResetInterface
 {
+    public ?ContainerInterface $container;
+
     public function __construct(ServiceProviderInterface $provider = null)
     {
-        parent::__construct($provider);
+        $this->container = $provider;
     }
 
-    public static function getSubscribedServices(): array
+    public function getFoo()
     {
-        return ['bar' => 'stdClass'];
+        return $this->container->get('foo');
+    }
+
+    public function reset()
+    {
+        $this->container = null;
     }
 }

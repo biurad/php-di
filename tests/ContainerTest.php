@@ -122,6 +122,12 @@ class ContainerTest extends TestCase
             $this->assertEquals('Identifier "nothing" is not defined.', $e->getMessage());
         }
 
+        try {
+            $rade->get(Fixtures\Unstantiable::class);
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Identifier "Rade\DI\Tests\Fixtures\Unstantiable" is not defined.', $e->getMessage());
+        }
+
         $this->expectExceptionMessage('Identifier "Rade\DI\Tests\Fixtures\Service" is not defined.');
         $this->expectException(NotFoundServiceException::class);
 
@@ -216,7 +222,7 @@ class ContainerTest extends TestCase
         $rade = new Container();
 
         try {
-            $rade->callInstance(Fixtures\Service::class, ['me', 'cool']);
+            $rade->call(Fixtures\Service::class, ['me', 'cool']);
         } catch (ContainerResolutionException $e) {
             $this->assertEquals(
                 'Unable to pass arguments, class Rade\DI\Tests\Fixtures\Service has no constructor.',
@@ -225,7 +231,7 @@ class ContainerTest extends TestCase
         }
 
         try {
-            $rade->callInstance(Fixtures\Unstantiable::class);
+            $rade->call(Fixtures\Unstantiable::class);
         } catch (ContainerResolutionException $e) {
             $this->assertEquals('Class Rade\DI\Tests\Fixtures\Unstantiable is not instantiable.', $e->getMessage());
         }
@@ -233,7 +239,7 @@ class ContainerTest extends TestCase
         $this->expectExceptionMessage('Class Psr\Log\LoggerInterface is not instantiable.');
         $this->expectException(ContainerResolutionException::class);
 
-        $rade->callInstance('Psr\Log\LoggerInterface');
+        $rade->call('Psr\Log\LoggerInterface');
     }
 
     public function testResolvingWithUsingAnInterface(): void
@@ -271,6 +277,10 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade['param']));
         $this->assertTrue(isset($rade['service']));
         $this->assertTrue($rade->has('null'));
+
+        $this->expectException(NotFoundServiceException::class);
+        $this->expectExceptionMessage('Identifier "non_existent" is not defined.');
+
         $this->assertFalse($rade->has('non_existent'));
     }
 
@@ -308,6 +318,11 @@ class ContainerTest extends TestCase
     {
         $rade = new Container();
         $this->assertSame($rade, $rade->register($this->getMockBuilder(ServiceProviderInterface::class)->getMock()));
+
+        $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
+
+        $this->assertTrue(isset($rade['rade_di.config']['hello']));
+        $this->assertCount(5, $rade->keys());
     }
 
     public function testExtend(): void
@@ -575,14 +590,14 @@ class ContainerTest extends TestCase
     {
         $rade = new Container();
 
-        $method1 = $rade->callMethod(
+        $method1 = $rade->call(
             function ($cool, array $ggg, $value): string {
                 return $cool;
             },
             ['me', ['beat', 'baz']]
         );
 
-        $method2 = $rade->callMethod(
+        $method2 = $rade->call(
             function ($cool, ?array $ggg, $value): string {
                 return $cool;
             },
