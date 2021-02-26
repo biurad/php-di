@@ -33,7 +33,7 @@
 
         <ArgumentTypeCoercion>
             <errorLevel type="suppress">
-                <file name="src/Container.php"/>
+                <file name="src/AutowireTrait.php"/>
             </errorLevel>
         </ArgumentTypeCoercion>
 
