@@ -374,8 +374,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         if ([] !== $values && $provider instanceof ConfigurationInterface) {
             $providerId = $provider->getName() . '.config';
 
-            if (!isset($values[$providerId])) {
-                $values = [$providerId => $values];
+            if (!isset($values[$provider->getName()])) {
+                $values = [$provider->getName() => $values];
             }
 
             $this->offsetSet($providerId, $this->process->processConfiguration($provider, $values));
