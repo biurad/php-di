@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use DivineNii\Invoker\CallableReflection;
+use DivineNii\Invoker\Exceptions\NotCallableException;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
