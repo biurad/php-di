@@ -35,6 +35,13 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     use Traits\AutowireTrait;
     use SmartObject;
 
+    protected const WIRING = [
+        ContainerInterface::class => [['container']],
+        Container::class => [['container']],
+    ];
+
+    protected const METHODS_MAP = ['container' => 'getServiceContainer'];
+
     /**
      * Instantiates the container.
      */
@@ -43,9 +50,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         $this->factories = new \SplObjectStorage();
         $this->protected = new \SplObjectStorage();
         $this->process   = new Processor();
-        $this->resolver  = new AutowireValueResolver($this);
+        $typesWiring     = static::WIRING;
 
-        $this->offsetSet('container', $this);
+        // Incase this class it extended ...
+        if (static::class !== __CLASS__) {
+            $typesWiring += [static::class => [['container']]];
+        }
+
+        $this->resolver  = new AutowireValueResolver($this, $typesWiring);
     }
 
     /**

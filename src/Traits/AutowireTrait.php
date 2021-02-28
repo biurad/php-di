@@ -37,7 +37,7 @@ trait AutowireTrait
     private array $frozen = [];
 
     /** @var array<string,bool> service name => bool */
-    protected array $keys = [];
+    protected array $keys = ['container' => true];
 
     /** @var string[] alias => service name */
     protected array $aliases = [];
@@ -46,7 +46,7 @@ trait AutowireTrait
     protected array $tags = [];
 
     /** @var ServiceProviderInterface[] */
-    protected $providers = [];
+    protected array $providers = [];
 
     private \SplObjectStorage $factories;
 

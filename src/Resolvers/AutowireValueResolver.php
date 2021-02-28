@@ -25,6 +25,7 @@ use Rade\DI\Container;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\ServiceLocator;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
@@ -36,7 +37,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     private const NONE = '\/\/:oxo:\/\/';
 
     /** @var array<string,mixed[]> type => level => services */
-    protected $wiring = [];
+    protected array $wiring;
 
     /** @var string[] of classes excluded from autowiring */
     private $excluded = [
@@ -56,8 +57,9 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
 
     private Container $container;
 
-    public function __construct(Container $container)
+    public function __construct(Container $container, array $wiring = [])
     {
+        $this->wiring = $wiring;
         $this->container = $container;
     }
 
