@@ -56,26 +56,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetSet($offset, $value): void
     {
-        if (isset($this->frozen[$offset])) {
-            throw new FrozenServiceException($offset);
-        }
-
-        // Incase new service definition exists in aliases.
-        unset($this->aliases[$offset]);
-
-        if (\is_string($value) && \class_exists($value)) {
-            $value = $this->autowireClass($value, []);
-        } elseif (\is_callable($value) && !$value instanceof \Closure) {
-            $value = \Closure::fromCallable($value);
-        }
-
-        // Autowire service return types of callable or class object.
-        if (\is_object($value)) {
-            $this->autowireService($offset, $value);
-        }
-
-        $this->values[$offset] = $value;
-        $this->keys[$offset]   = true;
+        $this->set($offset, $value, true);
     }
 
     /**
@@ -357,6 +338,47 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         }
 
         throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
+    }
+
+    /**
+     * Set a sevice definition
+     *
+     * @param mixed $definition
+     *
+     * @throws FrozenServiceException Prevent override of a frozen service
+     */
+    public function set(string $id, $definition = null, bool $autowire = false): void
+    {
+        if (isset($this->frozen[$id]) || isset(static::METHODS_MAP[$id])) {
+            throw new FrozenServiceException($id);
+        }
+
+        // Incase new service definition exists in aliases.
+        unset($this->aliases[$id]);
+
+        // If $id is a valid class name and definition is set to null
+        $definition = $definition ?? (\class_exists($id) ? $id : null);
+
+        // Resolving the closure of the service to return it's type hint or class.
+        if ($autowire && $this->autowireSupported($definition)) {
+            try {
+                $type = CallableReflection::create($definition)->getReturnType();
+            } catch (NotCallableException $e) {
+                $type = \is_object($definition) ? \get_class($definition) : $definition;
+
+                // Create an instance from an class string with autowired arguments
+                if (\is_string($definition)) {
+                    $definition = $this->autowireClass($definition, []);
+                }
+            }
+
+            if (null !== $type) {
+                $this->autowireService($id, $type);
+            }
+        }
+
+        $this->values[$id] = $definition;
+        $this->keys[$id]   = true;
     }
 
     /**
