@@ -23,7 +23,6 @@ use DivineNii\Invoker\Exceptions\NotCallableException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\AutowireValueResolver;
 use Rade\DI\ServiceProviderInterface;
-use Symfony\Component\Config\Definition\Processor;
 
 trait AutowireTrait
 {
@@ -53,8 +52,6 @@ trait AutowireTrait
     private \SplObjectStorage $protected;
 
     private AutowireValueResolver $resolver;
-
-    private Processor $process;
 
     /**
      * Creates new instance from class string or callable using autowiring.

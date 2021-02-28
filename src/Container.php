@@ -49,7 +49,6 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         $this->factories = new \SplObjectStorage();
         $this->protected = new \SplObjectStorage();
-        $this->process   = new Processor();
         $typesWiring     = static::WIRING;
 
         // Incase this class it extended ...
@@ -407,12 +406,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
         if ([] !== $values && $provider instanceof ConfigurationInterface) {
             $providerId = $provider->getName() . '.config';
+            $process    = new Processor();
 
             if (!isset($values[$provider->getName()])) {
                 $values = [$provider->getName() => $values];
             }
 
-            $this->offsetSet($providerId, $this->process->processConfiguration($provider, $values));
+            $this->values[$providerId] = $process->processConfiguration($provider, $values);
+            $this->keys[$providerId]   = true;
         }
 
         $provider->register($this);
