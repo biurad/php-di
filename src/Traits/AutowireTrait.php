@@ -95,13 +95,10 @@ trait AutowireTrait
     }
 
     /**
-     * @param object|callable $service
+     * @param string|\ReflectionType $type
      */
-    private function autowireService(string $id, $service): void
+    private function autowireService(string $id, $type): void
     {
-        // Resolving the closure of the service to return it's type hint or class.
-        $type = \is_callable($service) ? CallableReflection::create($service)->getReturnType() : \get_class($service);
-
         if ($type instanceof \ReflectionType) {
             $types = $type instanceof \ReflectionUnionType ? $type->getTypes() : [$type];
 
@@ -110,8 +107,16 @@ trait AutowireTrait
 
         // Resolving wiring so we could call the service parent classes and interfaces.
         if (!isset($this->keys[$id])) {
-            $this->resolver->autowire($id, $type);
+            $this->resolver->autowire($id, (array) $type);
         }
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private function autowireSupported($value): bool
+    {
+        return (\is_object($value) && !$value instanceof \stdClass) || (\is_string($value) && \class_exists($value));
     }
 
     /**

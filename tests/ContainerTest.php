@@ -607,4 +607,16 @@ class ContainerTest extends TestCase
         $this->assertEquals('me', $method1);
         $this->assertEquals('me', $method2);
     }
+
+    public function testExtendingContainer(): void
+    {
+        $newRade = new AppContainer();
+
+        $this->assertSame($newRade, $newRade['container']);
+        $this->assertSame($newRade, $newRade->get(AppContainer::class));
+    }
+}
+
+class AppContainer extends Container
+{
 }

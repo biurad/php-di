@@ -85,8 +85,11 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function offsetGet($offset)
     {
         // If alias is set
-        if (isset($this->aliases[$offset])) {
-            $offset = $this->aliases[$offset];
+        $offset = $this->aliases[$offset] ?? $offset;
+
+        // We start by checking if  requested service is internally cached;
+        if (isset(static::METHODS_MAP[$offset])) {
+            return $this->{static::METHODS_MAP[$offset]}();
         }
 
         if (!isset($this->keys[$offset])) {
@@ -98,12 +101,6 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             isset($this->protected[$service])
         ) {
             return $service;
-        }
-
-        if (isset($this->loading[$offset])) {
-            throw new CircularReferenceException(
-                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
-            );
         }
 
         return $this->getService($offset, $service);
@@ -149,9 +146,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         if ($id === $serviceId) {
             throw new \LogicException("[{$id}] is aliased to itself.");
-        } elseif (isset($this->aliases[$serviceId])) {
-            $serviceId = $this->aliases[$serviceId];
         }
+
+        // Incase alias is found linking to another alias that exist
+        $serviceId = $this->aliases[$serviceId] ?? $serviceId;
 
         if (!isset($this[$serviceId])) {
             throw new ContainerResolutionException('Service id is not found in container');
@@ -263,7 +261,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
         }
 
-        if (isset($this->frozen[$id])) {
+        if (isset($this->frozen[$id]) || isset(static::METHODS_MAP[$id])) {
             throw new FrozenServiceException($id);
         }
 
@@ -423,6 +421,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
+     * Get the mapped service container instance
+     */
+    protected function getServiceContainer(): self
+    {
+        return $this;
+    }
+
+    /**
      * @param string          $id
      * @param callable|object $service
      *
@@ -430,22 +436,25 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     private function getService(string $id, $service)
     {
+        if (isset($this->loading[$id])) {
+            throw new CircularReferenceException(
+                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
+            );
+        }
+
+        // Begin checking circular referencing ...
         $this->loading[$id] = true;
 
         try {
-            if (isset($this->factories[$service])) {
-                return $this->call($service);
-            } elseif (isset($this->frozen[$id])) {
+            if (isset($this->frozen[$id])) {
                 return $service;
+            } elseif (isset($this->factories[$service])) {
+                return $this->call($service);
             }
 
             $this->frozen[$id] = true;
 
-            if (\is_callable($service)) {
-                $service = $this->call($service);
-            }
-
-            return $this->values[$id] = $service;
+            return $this->values[$id] = \is_callable($service) ? $this->call($service) : $service;
         } finally {
             unset($this->loading[$id]);
         }
