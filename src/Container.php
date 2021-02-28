@@ -115,7 +115,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetExists($offset)
     {
-        return isset($this->keys[$this->aliases[$offset] ?? $offset]);
+        return $this->keys[$this->aliases[$offset] ?? $offset] ?? false;
     }
 
     /**
@@ -345,7 +345,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function has($id)
     {
-        if (isset($this->keys[$this->aliases[$id] ?? $id])) {
+        if ($this->offsetExists($id)) {
             return true;
         }
 
