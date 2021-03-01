@@ -346,6 +346,20 @@ class ContainerAutowireTest extends TestCase
         $rade['bar'];
     }
 
+    public function testProtectAndFactoryAutowired(): void
+    {
+        $rade = new Container();
+        $rade->set('service', new Fixtures\Service(), true);
+
+        $callable = [$rade->call(Fixtures\ServiceAutowire::class), 'missingService'];
+
+        $rade['factory'] = $factory = $rade->factory($callable);
+        $rade['protect'] = $protect = $rade->protect($callable);
+
+        $this->assertNotSame($factory, $rade['factory']);
+        $this->assertSame($protect, $rade['protect']);
+    }
+
     public function testAutowringWithUnionType(): void
     {
         if (PHP_VERSION_ID < 80000) {

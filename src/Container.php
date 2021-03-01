@@ -209,7 +209,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function factory($callable): callable
     {
-        if (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
+        if (\is_callable($callable) && !$callable instanceof \Closure) {
+            $callable = \Closure::fromCallable($callable);
+        } elseif (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
             throw new ContainerResolutionException('Service definition is not a Closure or invokable object.');
         }
 
@@ -231,7 +233,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function protect($callable): callable
     {
-        if (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
+        if (\is_callable($callable) && !$callable instanceof \Closure) {
+            $callable = \Closure::fromCallable($callable);
+        } elseif (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
             throw new ContainerResolutionException('Callable is not a Closure or invokable object.');
         }
 
