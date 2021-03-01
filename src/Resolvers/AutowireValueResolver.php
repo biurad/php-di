@@ -97,7 +97,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     {
         $excludedTypes = \array_fill_keys($this->excluded, true);
 
-        foreach ((array) $types as $type) {
+        foreach ($types as $type) {
             if (!$this->isValidType($type)) {
                 continue;
             }

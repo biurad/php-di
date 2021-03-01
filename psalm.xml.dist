@@ -31,6 +31,12 @@
             </errorLevel>
         </PossiblyInvalidArgument>
 
+        <PossiblyNullArgument>
+            <errorLevel type="suppress">
+                <referencedFunction name="DivineNii\Invoker\CallableReflection::create"/>
+            </errorLevel>
+        </PossiblyNullArgument>
+
         <ArgumentTypeCoercion>
             <errorLevel type="suppress">
                 <file name="src/Traits/AutowireTrait.php"/>
