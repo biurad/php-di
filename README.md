@@ -227,20 +227,20 @@ To report a security vulnerability, please use the [Biurad Security](https://sec
 
 Contributions to this library are **welcome**, especially ones that:
 
-- Improve usability or flexibility without compromising our ability to adhere to ???.
-- Optimize performance
-- Fix issues with adhering to ???.
-- ???.
+- Improve usability or flexibility without compromising our ability to adhere to [PSR-12] coding stardand.
+- Optimize performance and add new features
+- Fix issues with adhering to [PSR-11] support and backward compatability.
+- 
 
 Please see [CONTRIBUTING] for additional details.
 
 ## 🧪 Testing
 
 ```bash
-$ composer test
+$ ./vendor/bin/phpunit
 ```
 
-This will tests divineniiquaye/rade-di will run against PHP 7.2 version or higher.
+This will tests divineniiquaye/rade-di will run against PHP 7.4 version or higher.
 
 ## 👥 Credits & Acknowledgements
 
@@ -279,3 +279,5 @@ Check out the other cool things people are doing with `divineniiquaye/rade-di`: 
 [message]: https://projects.biurad.com/message
 [nette-di]: https://github.com/nette/di
 [Pimple]: https://github.com/silexphp/pimple
+[PSR-11]: http://www.php-fig.org/psr/psr-11/
+[PSR-12]: http://www.php-fig.org/psr/psr-12/
