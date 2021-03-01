@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use DivineNii\Invoker\CallableReflection;
+use DivineNii\Invoker\Exceptions\NotCallableException;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -33,6 +35,13 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     use Traits\AutowireTrait;
     use SmartObject;
 
+    protected const WIRING = [
+        ContainerInterface::class => [['container']],
+        Container::class => [['container']],
+    ];
+
+    protected const METHODS_MAP = ['container' => 'getServiceContainer'];
+
     /**
      * Instantiates the container.
      */
@@ -40,10 +49,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         $this->factories = new \SplObjectStorage();
         $this->protected = new \SplObjectStorage();
-        $this->process   = new Processor();
-        $this->resolver  = new AutowireValueResolver($this);
+        $typesWiring     = static::WIRING;
 
-        $this->offsetSet('container', $this);
+        // Incase this class it extended ...
+        if (static::class !== __CLASS__) {
+            $typesWiring += [static::class => [['container']]];
+        }
+
+        $this->resolver  = new AutowireValueResolver($this, $typesWiring);
     }
 
     /**
@@ -56,26 +69,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetSet($offset, $value): void
     {
-        if (isset($this->frozen[$offset])) {
-            throw new FrozenServiceException($offset);
-        }
-
-        // Incase new service definition exists in aliases.
-        unset($this->aliases[$offset]);
-
-        if (\is_string($value) && \class_exists($value)) {
-            $value = $this->autowireClass($value, []);
-        } elseif (\is_callable($value) && !$value instanceof \Closure) {
-            $value = \Closure::fromCallable($value);
-        }
-
-        // Autowire service return types of callable or class object.
-        if (\is_object($value)) {
-            $this->autowireService($offset, $value);
-        }
-
-        $this->values[$offset] = $value;
-        $this->keys[$offset]   = true;
+        $this->set($offset, $value, true);
     }
 
     /**
@@ -90,8 +84,11 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function offsetGet($offset)
     {
         // If alias is set
-        if (isset($this->aliases[$offset])) {
-            $offset = $this->aliases[$offset];
+        $offset = $this->aliases[$offset] ?? $offset;
+
+        // We start by checking if  requested service is internally cached;
+        if (isset(static::METHODS_MAP[$offset])) {
+            return $this->{static::METHODS_MAP[$offset]}();
         }
 
         if (!isset($this->keys[$offset])) {
@@ -103,12 +100,6 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             isset($this->protected[$service])
         ) {
             return $service;
-        }
-
-        if (isset($this->loading[$offset])) {
-            throw new CircularReferenceException(
-                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
-            );
         }
 
         return $this->getService($offset, $service);
@@ -123,7 +114,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetExists($offset)
     {
-        return isset($this->keys[$this->aliases[$offset] ?? $offset]);
+        return $this->keys[$this->aliases[$offset] ?? $offset] ?? false;
     }
 
     /**
@@ -154,9 +145,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         if ($id === $serviceId) {
             throw new \LogicException("[{$id}] is aliased to itself.");
-        } elseif (isset($this->aliases[$serviceId])) {
-            $serviceId = $this->aliases[$serviceId];
         }
+
+        // Incase alias is found linking to another alias that exist
+        $serviceId = $this->aliases[$serviceId] ?? $serviceId;
 
         if (!isset($this[$serviceId])) {
             throw new ContainerResolutionException('Service id is not found in container');
@@ -268,7 +260,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
         }
 
-        if (isset($this->frozen[$id])) {
+        if (isset($this->frozen[$id]) || isset(static::METHODS_MAP[$id])) {
             throw new FrozenServiceException($id);
         }
 
@@ -308,17 +300,13 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function reset(): void
     {
         foreach ($this->values as $id => $service) {
-            if ($service instanceof self) {
-                continue;
-            }
-
             if ($service instanceof ResetInterface) {
                 $service->reset();
             }
 
             unset($this->values[$id], $this->keys[$id], $this->frozen[$id]);
         }
-        unset($this->tags, $this->aliases, $this->loading);
+        $this->tags = $this->aliases = [];
 
         $this->protected->removeAll($this->protected);
         $this->factories->removeAll($this->factories);
@@ -352,11 +340,52 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function has($id)
     {
-        if (isset($this->keys[$this->aliases[$id] ?? $id])) {
+        if ($this->offsetExists($id)) {
             return true;
         }
 
         throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
+    }
+
+    /**
+     * Set a sevice definition
+     *
+     * @param mixed $definition
+     *
+     * @throws FrozenServiceException Prevent override of a frozen service
+     */
+    public function set(string $id, $definition = null, bool $autowire = false): void
+    {
+        if (isset($this->frozen[$id]) || isset(static::METHODS_MAP[$id])) {
+            throw new FrozenServiceException($id);
+        }
+
+        // Incase new service definition exists in aliases.
+        unset($this->aliases[$id]);
+
+        // If $id is a valid class name and definition is set to null
+        $definition = $definition ?? (\class_exists($id) ? $id : null);
+
+        // Resolving the closure of the service to return it's type hint or class.
+        if ($autowire && $this->autowireSupported($definition)) {
+            try {
+                $type = CallableReflection::create($definition)->getReturnType();
+            } catch (NotCallableException $e) {
+                $type = \is_object($definition) ? \get_class($definition) : $definition;
+
+                // Create an instance from an class string with autowired arguments
+                if (\is_string($definition)) {
+                    $definition = $this->autowireClass($definition, []);
+                }
+            }
+
+            if (null !== $type) {
+                $this->autowireService($id, $type);
+            }
+        }
+
+        $this->values[$id] = $definition;
+        $this->keys[$id]   = true;
     }
 
     /**
@@ -373,16 +402,26 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
         if ([] !== $values && $provider instanceof ConfigurationInterface) {
             $providerId = $provider->getName() . '.config';
+            $process    = new Processor();
 
             if (!isset($values[$provider->getName()])) {
                 $values = [$provider->getName() => $values];
             }
 
-            $this->offsetSet($providerId, $this->process->processConfiguration($provider, $values));
+            $this->values[$providerId] = $process->processConfiguration($provider, $values);
+            $this->keys[$providerId]   = true;
         }
 
         $provider->register($this);
 
+        return $this;
+    }
+
+    /**
+     * Get the mapped service container instance
+     */
+    protected function getServiceContainer(): self
+    {
         return $this;
     }
 
@@ -394,22 +433,25 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     private function getService(string $id, $service)
     {
+        if (isset($this->loading[$id])) {
+            throw new CircularReferenceException(
+                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
+            );
+        }
+
+        // Begin checking circular referencing ...
         $this->loading[$id] = true;
 
         try {
-            if (isset($this->factories[$service])) {
-                return $this->call($service);
-            } elseif (isset($this->frozen[$id])) {
+            if (isset($this->frozen[$id])) {
                 return $service;
+            } elseif (isset($this->factories[$service])) {
+                return $this->call($service);
             }
 
             $this->frozen[$id] = true;
 
-            if (\is_callable($service)) {
-                $service = $this->call($service);
-            }
-
-            return $this->values[$id] = $service;
+            return $this->values[$id] = \is_callable($service) ? $this->call($service) : $service;
         } finally {
             unset($this->loading[$id]);
         }

@@ -53,8 +53,15 @@ class ContainerTest extends TestCase
         $rade['protected'] = $rade->protect($protected = fn (string $string) => strlen($string));
 
         $this->assertEquals(6, $rade['protected']('strlen'));
-
         $this->assertSame($protected, $rade['protected']);
+    }
+
+    public function testFactory(): void
+    {
+        $rade = new Container();
+        $rade['factory'] = $rade->factory($factory = fn () => 6);
+
+        $this->assertNotSame($factory, $rade['factory']);
     }
 
     /**
@@ -381,7 +388,7 @@ class ContainerTest extends TestCase
 
         $p = new \ReflectionProperty($rade, 'values');
         $p->setAccessible(true);
-        $this->assertNotEmpty($p->getValue($rade));
+        $this->assertEmpty($p->getValue($rade));
         $this->assertArrayNotHasKey('foo', $p->getValue($rade));
 
         $p = new \ReflectionProperty($rade, 'factories');
@@ -607,4 +614,16 @@ class ContainerTest extends TestCase
         $this->assertEquals('me', $method1);
         $this->assertEquals('me', $method2);
     }
+
+    public function testExtendingContainer(): void
+    {
+        $newRade = new AppContainer();
+
+        $this->assertSame($newRade, $newRade['container']);
+        $this->assertSame($newRade, $newRade->get(AppContainer::class));
+    }
+}
+
+class AppContainer extends Container
+{
 }

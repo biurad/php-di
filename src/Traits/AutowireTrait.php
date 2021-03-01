@@ -23,7 +23,6 @@ use DivineNii\Invoker\Exceptions\NotCallableException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\AutowireValueResolver;
 use Rade\DI\ServiceProviderInterface;
-use Symfony\Component\Config\Definition\Processor;
 
 trait AutowireTrait
 {
@@ -37,7 +36,7 @@ trait AutowireTrait
     private array $frozen = [];
 
     /** @var array<string,bool> service name => bool */
-    protected array $keys = [];
+    protected array $keys = ['container' => true];
 
     /** @var string[] alias => service name */
     protected array $aliases = [];
@@ -46,15 +45,13 @@ trait AutowireTrait
     protected array $tags = [];
 
     /** @var ServiceProviderInterface[] */
-    protected $providers = [];
+    protected array $providers = [];
 
     private \SplObjectStorage $factories;
 
     private \SplObjectStorage $protected;
 
     private AutowireValueResolver $resolver;
-
-    private Processor $process;
 
     /**
      * Creates new instance from class string or callable using autowiring.
@@ -95,13 +92,10 @@ trait AutowireTrait
     }
 
     /**
-     * @param object|callable $service
+     * @param string|\ReflectionType $type
      */
-    private function autowireService(string $id, $service): void
+    private function autowireService(string $id, $type): void
     {
-        // Resolving the closure of the service to return it's type hint or class.
-        $type = \is_callable($service) ? CallableReflection::create($service)->getReturnType() : \get_class($service);
-
         if ($type instanceof \ReflectionType) {
             $types = $type instanceof \ReflectionUnionType ? $type->getTypes() : [$type];
 
@@ -110,8 +104,16 @@ trait AutowireTrait
 
         // Resolving wiring so we could call the service parent classes and interfaces.
         if (!isset($this->keys[$id])) {
-            $this->resolver->autowire($id, $type);
+            $this->resolver->autowire($id, (array) $type);
         }
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private function autowireSupported($value): bool
+    {
+        return (\is_object($value) && !$value instanceof \stdClass) || (\is_string($value) && \class_exists($value));
     }
 
     /**

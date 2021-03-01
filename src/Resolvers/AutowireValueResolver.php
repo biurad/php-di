@@ -25,6 +25,7 @@ use Rade\DI\Container;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\ServiceLocator;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
@@ -36,7 +37,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     private const NONE = '\/\/:oxo:\/\/';
 
     /** @var array<string,mixed[]> type => level => services */
-    protected $wiring = [];
+    protected array $wiring;
 
     /** @var string[] of classes excluded from autowiring */
     private $excluded = [
@@ -52,12 +53,14 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         \JsonSerializable::class,
         ServiceLocator::class,
         ServiceProviderInterface::class,
+        ResetInterface::class,
     ];
 
     private Container $container;
 
-    public function __construct(Container $container)
+    public function __construct(Container $container, array $wiring = [])
     {
+        $this->wiring = $wiring;
         $this->container = $container;
     }
 
@@ -87,18 +90,14 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     /**
      * Resolve wiring classes + interfaces.
      *
-     * @param string $id
-     * @param null|string|string[] $types
+     * @param string   $id
+     * @param string[] $types
      */
-    public function autowire(string $id, $types): void
+    public function autowire(string $id, array $types): void
     {
-        if (null === $types) {
-            return;
-        }
+        $excludedTypes = \array_fill_keys($this->excluded, true);
 
-        $excludedTypes = array_fill_keys($this->excluded, true);
-
-        foreach ((array) $types as $type) {
+        foreach ($types as $type) {
             if (!$this->isValidType($type)) {
                 continue;
             }
@@ -157,7 +156,9 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
                 } catch (NotFoundServiceException $e) {
                     $res = null;
                 } catch (ContainerResolutionException $e) {
-                    if (self::NONE !== $res = $this->findByMethod($parameter, true, $getter, true)) {
+                    $res = $this->findByMethod($parameter, true, $getter, true);
+
+                    if (self::NONE !== $res) {
                         return $res;
                     }
 
@@ -165,17 +166,19 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
                 }
 
                 if (!$type->isBuiltin()) {
-                    if (self::NONE !== $res = $this->getNullable($parameter, $typeName, $res, $desc)) {
+                    $res = $this->getNullable($parameter, $typeName, $res, $desc);
+
+                    if (self::NONE !== $res) {
                         return $res;
                     }
 
                     $invalid[] = $typeName;
                 }
             }
+        }
 
-            if (self::NONE !== $default = $this->getDefaultValue($parameter)) {
-                return $default;
-            }
+        if (self::NONE !== $default = $this->getDefaultValue($parameter)) {
+            return $default;
         }
 
         $message = "Parameter $desc has no class type hint or default value, so its value must be specified.";
@@ -250,16 +253,16 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         if (!empty($this->wiring[$type][0])) {
             $autowired = \array_merge(...$this->wiring[$type]);
 
-            if (\count($names = $autowired) === 1) {
-                return $this->container->offsetGet($names[0]);
+            if (\count($autowired) === 1) {
+                return $this->container->offsetGet($autowired[0]);
             } elseif (!$single) {
                 return \array_map([$this->container, 'offsetGet'], $autowired);
             }
 
-            \natsort($names);
+            \natsort($autowired);
 
             throw new ContainerResolutionException(
-                "Multiple services of type $type found: " . \implode(', ', $names) . '.'
+                "Multiple services of type $type found: " . \implode(', ', $autowired) . '.'
             );
         }
 
