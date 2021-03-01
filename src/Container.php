@@ -300,17 +300,13 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function reset(): void
     {
         foreach ($this->values as $id => $service) {
-            if ($service instanceof self) {
-                continue;
-            }
-
             if ($service instanceof ResetInterface) {
                 $service->reset();
             }
 
             unset($this->values[$id], $this->keys[$id], $this->frozen[$id]);
         }
-        unset($this->tags, $this->aliases, $this->loading);
+        $this->tags = $this->aliases = [];
 
         $this->protected->removeAll($this->protected);
         $this->factories->removeAll($this->factories);
