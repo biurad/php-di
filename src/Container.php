@@ -306,12 +306,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 $service->reset();
             }
 
-            unset($this->values[$id], $this->keys[$id], $this->frozen[$id]);
+            unset($this->values[$id], $this->protected[$id], $this->factories[$id], $this->keys[$id], $this->frozen[$id]);
         }
-        $this->tags = $this->aliases = [];
 
-        $this->protected->removeAll($this->protected);
-        $this->factories->removeAll($this->factories);
+        $this->tags = $this->aliases = [];
     }
 
     /**
