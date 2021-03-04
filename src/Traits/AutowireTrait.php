@@ -17,13 +17,17 @@ declare(strict_types=1);
 
 namespace Rade\DI\Traits;
 
-use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
 use Nette\Utils\Callback;
 use Nette\Utils\Reflection;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\AutowireValueResolver;
 use Rade\DI\ServiceProviderInterface;
 
+/**
+ * The autowiring service used in Container class.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
 trait AutowireTrait
 {
     /** @var array<string,mixed> service name => instance */
@@ -82,7 +86,7 @@ trait AutowireTrait
     }
 
     /**
-     * Add a clas or interface that should be excluded from autowiring.
+     * Add a class or interface that should be excluded from autowiring.
      *
      * @param string ...$types
      */
@@ -132,7 +136,7 @@ trait AutowireTrait
     }
 
     /**
-     * Resolves arguments for callables
+     * Resolves arguments for callable
      *
      * @param \ReflectionFunctionAbstract $function
      * @param array<int|string,mixed>     $args
@@ -187,10 +191,7 @@ trait AutowireTrait
         }
 
         if (!empty($args)) {
-            throw new ContainerResolutionException(
-                "Unable to pass arguments, class $class has no constructor.",
-                \strlen($class)
-            );
+            throw new ContainerResolutionException("Unable to pass arguments, class $class has no constructor.", \strlen($class));
         }
 
         return new $class();

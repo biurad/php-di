@@ -28,6 +28,11 @@ use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
+/**
+ * An advanced autowiring used for PSR-11 implementation.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
 class AutowireValueResolver implements ArgumentValueResolverInterface
 {
     use SmartObject;
@@ -35,7 +40,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     /** a unique identifier for not found parameter value */
     private const NONE = '\/\/:oxo:\/\/';
 
-    /** @var array<string,string[]> type => services */
+    /** @var array type => services */
     protected array $wiring;
 
     /** @var array<string,bool> of classes excluded from autowiring */
@@ -57,6 +62,9 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
 
     private ContainerInterface $container;
 
+    /**
+     * AutowireValueResolver constructor.
+     */
     public function __construct(ContainerInterface $container, array $wiring = [])
     {
         $this->wiring = $wiring;
@@ -106,8 +114,6 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
 
     /**
      * Add a class or interface that should be excluded from autowiring.
-     *
-     * @param string $type
      */
     public function exclude(string $type): void
     {

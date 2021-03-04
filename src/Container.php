@@ -52,7 +52,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             $typesWiring += [static::class => ['container']];
         }
 
-        $this->resolver  = new AutowireValueResolver($this, $typesWiring);
+        $this->resolver = new AutowireValueResolver($this, $typesWiring);
     }
 
     /**
@@ -118,7 +118,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * @return bool
      */
-    public function offsetExists($offset)
+    public function offsetExists($offset): bool
     {
         return $this->keys[$this->aliases[$offset] ?? $offset] ?? false;
     }
@@ -285,9 +285,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /**
      * Returns all defined value names.
      *
-     * @return array An array of value names
+     * @return string[] An array of value names
      */
-    public function keys()
+    public function keys(): array
     {
         return \array_keys($this->keys);
     }
@@ -334,7 +334,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /**
      * {@inheritdoc}
      */
-    public function has($id)
+    public function has($id): bool
     {
         if ($this->offsetExists($id)) {
             return true;
@@ -344,7 +344,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
-     * Set a sevice definition
+     * Set a service definition
      *
      * @param mixed $definition
      *
@@ -403,6 +403,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
+     * @internal
+     *
      * Get the mapped service container instance
      */
     protected function getServiceContainer(): self

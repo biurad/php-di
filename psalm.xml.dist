@@ -49,5 +49,11 @@
                 <referencedClass name="Psr\Container\ContainerExceptionInterface"/>
             </errorLevel>
         </InvalidThrow>
+
+        <TypeDoesNotContainType>
+            <errorLevel type="suppress">
+                <file name="src/Resolvers/AutowireValueResolver.php"/>
+            </errorLevel>
+        </TypeDoesNotContainType>
     </issueHandlers>
 </psalm>
