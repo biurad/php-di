@@ -20,7 +20,7 @@ namespace Rade\DI\Resolvers;
 use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use Nette\SmartObject;
 use Nette\Utils\Reflection;
-use Rade\DI\Container;
+use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\ServiceLocator;
@@ -55,9 +55,9 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         ResetInterface::class => true,
     ];
 
-    private Container $container;
+    private ContainerInterface $container;
 
-    public function __construct(Container $container, array $wiring = [])
+    public function __construct(ContainerInterface $container, array $wiring = [])
     {
         $this->wiring = $wiring;
         $this->container = $container;
