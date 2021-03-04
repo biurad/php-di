@@ -364,28 +364,17 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         unset($this->aliases[$id]);
 
         // If $id is a valid class name and definition is set to null
-        $definition = $definition ?? (\class_exists($id) ? $id : null);
-
-        // Resolving the closure of the service to return it's type hint or class.
-        if ($autowire && $this->autowireSupported($definition)) {
-            try {
-                $type = CallableReflection::create($definition)->getReturnType();
-            } catch (NotCallableException $e) {
-                $type = \is_object($definition) ? \get_class($definition) : $definition;
-
-                // Create an instance from an class string with autowired arguments
-                if (\is_string($definition)) {
-                    $definition = $this->autowireClass($definition, []);
-                }
-            }
-
-            if (null !== $type) {
-                $this->autowireService($id, $type);
-            }
+        if (null === $definition && \class_exists($id)) {
+            $definition = $this->autowireClass($id, []);
         }
 
-        $this->values[$id] = $definition;
-        $this->keys[$id]   = true;
+        if (\is_array($definition) && (isset($definition['bounded']))) {
+            [$name, $definition] = $definition['bounded'];
+        }
+
+        // Resolving the closure of the service to return it's type hint or class.
+        $this->{$name ?? 'values'}[$id] = !$autowire ? $definition : $this->autowireService($id, $definition);
+        $this->keys[$id] = true;
     }
 
     /**
