@@ -92,20 +92,33 @@ trait AutowireTrait
     }
 
     /**
-     * @param string|\ReflectionType $type
+     * @param mixed $definition
+     *
+     * @return mixed
      */
-    private function autowireService(string $id, $type): void
+    private function autowireService(string $id, $definition)
     {
-        if ($type instanceof \ReflectionType) {
-            $types = $type instanceof \ReflectionUnionType ? $type->getTypes() : [$type];
+        if (!$this->autowireSupported($definition)) {
+            return $definition;
+        }
 
-            $type = \array_map(fn (\ReflectionNamedType $type): string => $type->getName(), $types);
+        try {
+            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
+        } catch (\ReflectionException $e) {
+            $types = [\is_object($definition) ? \get_class($definition) : $definition];
+
+            // Create an instance from an class string with autowired arguments
+            if (\is_string($definition)) {
+                $definition = $this->autowireClass($definition, []);
+            }
         }
 
         // Resolving wiring so we could call the service parent classes and interfaces.
-        if (!isset($this->keys[$id])) {
-            $this->resolver->autowire($id, (array) $type);
+        if ([] !== $types && !isset($this->keys[$id])) {
+            $this->resolver->autowire($id, $types);
         }
+
+        return $definition;
     }
 
     /**
@@ -113,7 +126,7 @@ trait AutowireTrait
      */
     private function autowireSupported($value): bool
     {
-        return (\is_object($value) && !$value instanceof \stdClass) || (\is_string($value) && \class_exists($value));
+        return \is_object($value) || (\is_string($value) && \class_exists($value));
     }
 
     /**
