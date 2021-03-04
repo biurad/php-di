@@ -36,8 +36,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     use SmartObject;
 
     protected const WIRING = [
-        ContainerInterface::class => [['container']],
-        Container::class => [['container']],
+        ContainerInterface::class => ['container'],
+        Container::class => ['container'],
     ];
 
     protected const METHODS_MAP = ['container' => 'getServiceContainer'];
@@ -53,7 +53,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
         // Incase this class it extended ...
         if (static::class !== __CLASS__) {
-            $typesWiring += [static::class => [['container']]];
+            $typesWiring += [static::class => ['container']];
         }
 
         $this->resolver  = new AutowireValueResolver($this, $typesWiring);

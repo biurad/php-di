@@ -36,24 +36,24 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     /** a unique identifier for not found parameter value */
     private const NONE = '\/\/:oxo:\/\/';
 
-    /** @var array<string,mixed[]> type => level => services */
+    /** @var array<string,string[]> type => services */
     protected array $wiring;
 
-    /** @var string[] of classes excluded from autowiring */
-    private $excluded = [
-        \ArrayAccess::class,
-        \Countable::class,
-        \IteratorAggregate::class,
-        \SplDoublyLinkedList::class,
-        \stdClass::class,
-        \SplStack::class,
-        \Iterator::class,
-        \Traversable::class,
-        \Serializable::class,
-        \JsonSerializable::class,
-        ServiceLocator::class,
-        ServiceProviderInterface::class,
-        ResetInterface::class,
+    /** @var array<string,bool> of classes excluded from autowiring */
+    protected array $excluded = [
+        \ArrayAccess::class => true,
+        \Countable::class => true,
+        \IteratorAggregate::class => true,
+        \SplDoublyLinkedList::class => true,
+        \stdClass::class => true,
+        \SplStack::class => true,
+        \Iterator::class => true,
+        \Traversable::class => true,
+        \Serializable::class => true,
+        \JsonSerializable::class => true,
+        ServiceLocator::class => true,
+        ServiceProviderInterface::class => true,
+        ResetInterface::class => true,
     ];
 
     private Container $container;
@@ -95,8 +95,6 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     public function autowire(string $id, array $types): void
     {
-        $excludedTypes = \array_fill_keys($this->excluded, true);
-
         foreach ($types as $type) {
             if (!$this->isValidType($type)) {
                 continue;
@@ -104,11 +102,11 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             $parents = \class_parents($type) + \class_implements($type) + [$type];
 
             foreach ($parents as $parent) {
-                if (count($parents) > 1 && isset($excludedTypes[$parent])) {
+                if (isset($this->excluded[$parent]) && \count($parents) > 1) {
                     continue;
                 }
 
-                $this->wiring[$parent] = \array_merge(\array_filter([$this->findByType($parent), [$id]]));
+                $this->wiring[$parent][] = $id;
             }
         }
     }
