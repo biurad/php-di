@@ -266,24 +266,20 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new FrozenServiceException($id);
         }
 
-        if (\is_callable($factory = $service = $this->values[$id])) {
-            if (isset($this->protected[$service])) {
-                throw new ContainerResolutionException(
-                    "Protected callable service '{$id}' cannot be extended, cause it has parameters which cannot be resolved."
-                );
-            }
-
-            $factory = $this->call($factory);
+        if (isset($this->protected[$id])) {
+            throw new ContainerResolutionException(
+                "Protected callable service '{$id}' cannot be extended, cause it has parameters which cannot be resolved."
+            );
         }
 
-        $extended = $scope(...[$factory, $this]);
+        $service  = $this->factories[$id] ?? $this->values[$id];
+        $extended = $scope(...[!\is_callable($service) ? $service : $this->call($service), $this]);
 
-        if (\is_object($service) && isset($this->factories[$service])) {
-            $this->factories->detach($service);
-            $this->factories->attach($extended = fn () => $extended);
+        if (isset($this->factories[$id])) {
+            return $this->factories[$id] = static fn () => $extended;
         }
 
-        return $this[$id] = $extended;
+        return $this->values[$id] = $extended;
     }
 
     /**
