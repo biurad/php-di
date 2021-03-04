@@ -47,9 +47,11 @@ trait AutowireTrait
     /** @var ServiceProviderInterface[] */
     protected array $providers = [];
 
-    private \SplObjectStorage $factories;
+    /** @var array<string,mixed> service name => instance */
+    private array $factories = [];
 
-    private \SplObjectStorage $protected;
+    /** @var array<string,mixed> service name => instance */
+    private array $protected = [];
 
     private AutowireValueResolver $resolver;
 

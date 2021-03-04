@@ -47,9 +47,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function __construct()
     {
-        $this->factories = new \SplObjectStorage();
-        $this->protected = new \SplObjectStorage();
-        $typesWiring     = static::WIRING;
+        $typesWiring = static::WIRING;
 
         // Incase this class it extended ...
         if (static::class !== __CLASS__) {
@@ -125,11 +123,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function offsetUnset($offset): void
     {
         if ($this->offsetExists($offset)) {
-            if (\is_object($service = $this->values[$offset])) {
-                unset($this->factories[$service], $this->protected[$service]);
-            }
-
-            unset($this->values[$offset], $this->frozen[$offset], $this->aliases[$offset], $this->keys[$offset]);
+            unset($this->values[$offset], $this->protected[$offset], $this->factories[$offset], $this->frozen[$offset], $this->keys[$offset]);
         }
     }
 
@@ -205,9 +199,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * @throws ContainerResolutionException Service definition has to be a closure or an invokable object
      *
-     * @return callable The passed callable
+     * @return array<string,mixed> The passed callable
      */
-    public function factory($callable): callable
+    public function factory($callable): array
     {
         if (\is_callable($callable) && !$callable instanceof \Closure) {
             $callable = \Closure::fromCallable($callable);
@@ -215,9 +209,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new ContainerResolutionException('Service definition is not a Closure or invokable object.');
         }
 
-        $this->factories->attach($callable);
-
-        return $callable;
+        return ['bounded' => ['factories', fn () => $this->call($callable)]];
     }
 
     /**
@@ -227,11 +219,11 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * @param callable $callable A callable to protect from being evaluated
      *
-     * @return callable The passed callable
+     * @return array<string,mixed> The passed callable
      *
      * @throws ContainerResolutionException Service definition has to be a closure or an invokable object
      */
-    public function protect($callable): callable
+    public function protect($callable): array
     {
         if (\is_callable($callable) && !$callable instanceof \Closure) {
             $callable = \Closure::fromCallable($callable);
@@ -239,9 +231,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new ContainerResolutionException('Callable is not a Closure or invokable object.');
         }
 
-        $this->protected->attach($callable);
-
-        return $callable;
+        return ['bounded' => ['protected', $callable]];
     }
 
     /**
