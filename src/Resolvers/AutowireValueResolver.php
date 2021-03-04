@@ -179,27 +179,21 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     {
         $method = $parameter->getDeclaringFunction();
 
-        \preg_match(
-            '#@param[ \t]+([\w\\\\]+?)(\[\])?[ \t]+\$' . $parameter->name . '#',
-            (string) $method->getDocComment(),
-            $matches
-        );
+        if ($method instanceof \ReflectionMethod) {
+            \preg_match(
+                "#@param[ \\t]+([\\w\\\\]+?)(\\[])?[ \\t]+\\\${$parameter->name}#",
+                (string) $method->getDocComment(),
+                $matches
+            );
 
-        if (($method instanceof \ReflectionMethod && $type) && isset($matches[1])) {
-            $itemType = Reflection::expandClassName($matches[1], $method->getDeclaringClass());
+            $itemType = isset($matches[1]) ? Reflection::expandClassName($matches[1], $method->getDeclaringClass()) : '';
 
-            if ($this->isValidType($itemType)) {
-                if ($single && \count($this->findByType($itemType)) > 1) {
-                    return $this->findByMethod($parameter, false, $getter);
-                }
-
+            if ($this->isValidType($itemType) && !($single && \count($this->wiring[$itemType] ?? []) > 1)) {
                 return $getter($itemType, $single);
             }
         }
 
-        return $this->getDefaultValue($parameter);
-    }
-
+        return self::NONE;
     }
 
     /**
@@ -238,25 +232,30 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     private function resolveNotFoundService(\ReflectionParameter $parameter, string $type, string $desc)
     {
-        if (null === $res && $this->isValidType($type)) {
-            if ($type === ServiceProviderInterface::class) {
-                $class = $parameter->getDeclaringClass();
+        if ($type === ServiceProviderInterface::class) {
+            $class = $parameter->getDeclaringClass();
 
-                if ($class instanceof \ReflectionClass) {
-                    return $this->autowireServiceSubscriber($class, $type);
-                }
+            if ($class instanceof \ReflectionClass) {
+                return $this->autowireServiceSubscriber($class, $type);
             }
+        }
 
+        if (\in_array($type, ['array', 'iterable'], true)) {
+            return $this->findByMethod($parameter, [$this, 'getByType']);
+        }
+
+        // Incase a valid class/interface is found or default value ...
+        if ($this->isValidType($type) || ($parameter->isDefaultValueAvailable() || $parameter->allowsNull())) {
             return self::NONE;
         }
 
-        if ($res !== null || $parameter->allowsNull()) {
-            return null === $res ? DefaultValueResolver::class : $res;
+        $message = "Type '$type' needed by $desc not found. Check type hint and 'use' statements.";
+
+        if (Reflection::isBuiltinType($type)) {
+            $message = "Builtin Type '$type' needed by $desc is not supported for autowiring.";
         }
 
-        throw new ContainerResolutionException(
-            "Class '$type' needed by $desc not found. Check type hint and 'use' statements."
-        );
+        throw new ContainerResolutionException($message);
     }
 
     /**
