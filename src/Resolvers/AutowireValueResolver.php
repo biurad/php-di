@@ -118,7 +118,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     public function exclude(string $type): void
     {
-        $this->excluded[] = $type;
+        $this->excluded[$type] = true;
     }
 
     /**
