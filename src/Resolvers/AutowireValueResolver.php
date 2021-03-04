@@ -126,46 +126,30 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     private function autowireArgument(\ReflectionParameter $parameter, callable $getter)
     {
-        $type = $parameter->getType();
-        $desc = Reflection::toString($parameter);
-
-        $types   = $type instanceof \ReflectionUnionType ? $type->getTypes() : [$type];
+        $types   = Reflection::getParameterTypes($parameter);
+        $desc    = Reflection::toString($parameter);
         $invalid = [];
 
-        foreach ($types as $type) {
-            if ($type instanceof \ReflectionNamedType) {
-                if (\in_array($typeName = $type->getName(), ['array', 'iterable'], true)) {
-                    $result = $this->findByMethod($parameter, true, $getter);
+        foreach ($types as $typeName) {
+            try {
+                return $getter($typeName, !$parameter->isVariadic());
+            } catch (NotFoundServiceException $e) {
+                $res = null;
+            } catch (ContainerResolutionException $e) {
+                $res = $this->findByMethod($parameter, $getter, true);
 
-                    if (self::NONE !== $result) {
-                        return $result;
-                    }
-                }
-
-                try {
-                    $res = $getter($typeName, !$parameter->isVariadic());
-                } catch (NotFoundServiceException $e) {
-                    $res = null;
-                } catch (ContainerResolutionException $e) {
-                    $res = $this->findByMethod($parameter, true, $getter, true);
-
-                    if (self::NONE !== $res) {
-                        return $res;
-                    }
-
+                if (self::NONE === $res) {
                     throw new ContainerResolutionException("{$e->getMessage()} (needed by $desc)");
                 }
-
-                if (!$type->isBuiltin()) {
-                    $res = $this->getNullable($parameter, $typeName, $res, $desc);
-
-                    if (self::NONE !== $res) {
-                        return $res;
-                    }
-
-                    $invalid[] = $typeName;
-                }
             }
+
+            $res = $res ?? $this->resolveNotFoundService($parameter, $typeName, $desc);
+
+            if (self::NONE !== $res) {
+                return $res;
+            }
+
+            $invalid[] = $typeName;
         }
 
         if (self::NONE !== $default = $this->getDefaultValue($parameter)) {
@@ -175,7 +159,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         $message = "Parameter $desc has no class type hint or default value, so its value must be specified.";
 
         if (!empty($invalid)) {
-            $invalid = join('|', $invalid);
+            $invalid = implode('|', $invalid);
             $message = "Parameter $desc typehint(s) '$invalid' not found, and no default value specified.";
         }
 
@@ -186,13 +170,12 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      * Parses a methods doc comments or return default value
      *
      * @param \ReflectionParameter $parameter
-     * @param bool                 $type
      * @param callable             $getter
      * @param bool                 $single
      *
      * @return mixed
      */
-    private function findByMethod(\ReflectionParameter $parameter, bool $type, callable $getter, bool $single = false)
+    private function findByMethod(\ReflectionParameter $parameter, callable $getter, bool $single = false)
     {
         $method = $parameter->getDeclaringFunction();
 
@@ -263,13 +246,11 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     }
 
     /**
-     * If parameter is nullable, return null else value
-     *
-     * @param mixed $res
+     * Resolve services which may or not exist in container.
      *
      * @return mixed
      */
-    private function getNullable(\ReflectionParameter $parameter, string $type, $res, string $desc)
+    private function resolveNotFoundService(\ReflectionParameter $parameter, string $type, string $desc)
     {
         if (null === $res && $this->isValidType($type)) {
             if ($type === ServiceProviderInterface::class) {
@@ -321,7 +302,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     private function isValidType($type): bool
     {
-        return \is_string($type) && (\class_exists($type) || \interface_exists($type));
+        return \class_exists($type) || \interface_exists($type);
     }
 
     private function autowireServiceSubscriber(\ReflectionClass $class, string $type): ServiceProviderInterface
