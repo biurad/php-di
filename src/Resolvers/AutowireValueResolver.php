@@ -212,25 +212,23 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
      */
     public function getByType(string $type, bool $single = null)
     {
-        if (!empty($this->wiring[$type][0])) {
-            $autowired = \array_merge(...$this->wiring[$type]);
+        if (!empty($this->wiring[$type])) {
+            $autowired  = $this->wiring[$type];
+            $getService = $this->container instanceof \ArrayAccess ? 'offsetGet' : 'get';
 
             if (\count($autowired) === 1) {
-                return $this->container->offsetGet($autowired[0]);
-            } elseif (!$single) {
-                return \array_map([$this->container, 'offsetGet'], $autowired);
+                return $this->container->{$getService}(reset($autowired));
             }
 
+            if (!$single) {
+                return \array_map([$this->container, $getService], $autowired);
+            }
             \natsort($autowired);
 
-            throw new ContainerResolutionException(
-                "Multiple services of type $type found: " . \implode(', ', $autowired) . '.'
-            );
+            throw new ContainerResolutionException("Multiple services of type $type found: " . \implode(', ', $autowired) . '.');
         }
 
-        throw new NotFoundServiceException(
-            "Service of type '$type' not found. Check class name because it cannot be found."
-        );
+        throw new NotFoundServiceException("Service of type '$type' not found. Check class name because it cannot be found.");
     }
 
     /**
