@@ -131,20 +131,17 @@ trait AutowireTrait
 
         foreach ($reflectionParameters as $parameter) {
             $position = $parameter->getPosition();
+            $resolved = $this->resolver->resolve($parameter, $args);
 
-            if (null !== $resolved = $this->resolver->resolve($parameter, $args)) {
-                if ($resolved === DefaultValueResolver::class) {
-                    $resolved = null;
-                } elseif ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
-                    foreach (\array_chunk($resolved, 1) as $index => [$value]) {
-                        $resolvedParameters[$index + 1] = $value;
-                    }
-
-                    continue;
+            if ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
+                foreach (\array_chunk($resolved, 1) as $index => [$value]) {
+                    $resolvedParameters[$index + 1] = $value;
                 }
 
-                $resolvedParameters[$position] = $resolved;
+                continue;
             }
+
+            $resolvedParameters[$position] = $resolved;
 
             if (empty(\array_diff_key($reflectionParameters, $resolvedParameters))) {
                 // Stop traversing: all parameters are resolved

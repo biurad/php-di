@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
 use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use Nette\SmartObject;
 use Nette\Utils\Reflection;
@@ -72,19 +71,13 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         $paramName = $parameter->name;
         $position  = $parameter->getPosition();
 
-        if (isset($providedParameters[$position])) {
-            $providedParameters[$paramName] = $providedParameters[$position];
-            unset($providedParameters[$position]);
+        try {
+            return $providedParameters[$position]
+                ?? $providedParameters[$paramName]
+                ?? $this->autowireArgument($parameter, [$this, 'getByType']);
+        } finally {
+            unset($providedParameters[$position], $providedParameters[$paramName]);
         }
-
-        if (\array_key_exists($paramName, $providedParameters)) {
-            $value = $providedParameters[$paramName];
-            unset($providedParameters[$paramName]);
-
-            return $value;
-        }
-
-        return $this->autowireArgument($parameter, [$this, 'getByType']);
     }
 
     /**
@@ -318,7 +311,7 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             $value = null;
         }
 
-        return null === $value ? DefaultValueResolver::class : $value;
+        return $value;
     }
 
     /**
