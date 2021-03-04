@@ -19,6 +19,7 @@
     },
     "require": {
         "php": "^7.4 || ^8.0",
+        "ext-json": "*",
         "divineniiquaye/php-invoker": "^0.9",
         "nette/utils": "^3.2",
         "psr/container": "^1.0",
