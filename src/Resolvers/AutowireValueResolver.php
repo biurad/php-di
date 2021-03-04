@@ -200,18 +200,6 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
         return $this->getDefaultValue($parameter);
     }
 
-    /**
-     * Gets the service names of the specified type.
-     *
-     * @return string[]
-     */
-    private function findByType(string $type): array
-    {
-        if (empty($this->wiring[$type])) {
-            return [];
-        }
-
-        return \array_merge(...\array_values($this->wiring[$type]));
     }
 
     /**
