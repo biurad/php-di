@@ -329,7 +329,7 @@ class ContainerTest extends TestCase
         $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
 
         $this->assertTrue(isset($rade['rade_di.config']['hello']));
-        $this->assertCount(5, $rade->keys());
+        $this->assertCount(4, $rade->keys());
     }
 
     public function testExtend(): void
@@ -412,7 +412,7 @@ class ContainerTest extends TestCase
         $rade['foo'] = 123;
         $rade['bar'] = 123;
 
-        $this->assertEquals(['container', 'foo', 'bar'], $rade->keys());
+        $this->assertEquals(['foo', 'bar'], $rade->keys());
     }
 
     /** @test */
@@ -613,6 +613,22 @@ class ContainerTest extends TestCase
 
         $this->assertEquals('me', $method1);
         $this->assertEquals('me', $method2);
+    }
+
+    public function testShouldFailOnUnrealAutowiringWithSetMethod(): void
+    {
+        $rade = new Container();
+
+        $this->expectExceptionMessage(
+            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::__construct() typehint(s) ' .
+            '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
+        );
+        $this->expectException(ContainerResolutionException::class);
+
+        $rade->set(Fixtures\Service::class);
+        $rade['baz'] = Fixtures\ServiceAutowire::class;
+
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['baz']->value);
     }
 
     public function testExtendingContainer(): void

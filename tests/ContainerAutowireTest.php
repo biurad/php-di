@@ -75,8 +75,8 @@ class ContainerAutowireTest extends TestCase
     public function testShouldPassContainerBuiltinTypeAsParameter(): void
     {
         $this->expectExceptionMessage(
-            'Parameter $container in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() ' .
-            'has no class type hint or default value, so its value must be specified.'
+            'Builtin Type \'string\' needed by $container in ' .
+            'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() is not supported for autowiring.'
         );
         $this->expectException(ContainerResolutionException::class);
 
@@ -121,7 +121,7 @@ class ContainerAutowireTest extends TestCase
         $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
 
         $this->expectExceptionMessage(
-            'Class \'Rade\DI\Tests\Fixtures\Servic\' needed by $service in ' .
+            'Type \'Rade\DI\Tests\Fixtures\Servic\' needed by $service in ' .
             'Rade\DI\Tests\Fixtures\ServiceAutowire::missingClass() not found. ' .
             "Check type hint and 'use' statements.",
         );
@@ -183,7 +183,7 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        // On Autowring parameters
+        // On Autowiring parameters
         $rade['baz'] = Fixtures\ServiceAutowire::class;
     }
 
@@ -323,7 +323,7 @@ class ContainerAutowireTest extends TestCase
         try {
             $rade->call(new Fixtures\Service());
         } catch (ContainerResolutionException $e) {
-            $this->assertEquals('Instance of Rade\DI\Tests\Fixtures\Service is not a callable', $e->getMessage());
+            $this->assertEquals('Method Rade\DI\Tests\Fixtures\Service::__invoke() does not exist', $e->getMessage());
         }
 
         try {
@@ -341,7 +341,11 @@ class ContainerAutowireTest extends TestCase
             $this->assertStringStartsWith($message, $e->getMessage());
         }
 
-        $this->expectException('TypeError');
+        $this->expectExceptionMessage(
+            'Builtin Type \'string\' needed by $service in ' .
+            'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() is not supported for autowiring.'
+        );
+        $this->expectException(ContainerResolutionException::class);
         $rade['bar'] = fn (string ...$service) => $service;
         $rade['bar'];
     }
@@ -356,11 +360,11 @@ class ContainerAutowireTest extends TestCase
         $rade['factory'] = $factory = $rade->factory($callable);
         $rade['protect'] = $protect = $rade->protect($callable);
 
-        $this->assertNotSame($factory, $rade['factory']);
-        $this->assertSame($protect, $rade['protect']);
+        $this->assertNotSame($factory['bounded'][1], $rade['factory']);
+        $this->assertSame($protect['bounded'][1], $rade['protect']);
     }
 
-    public function testAutowringWithUnionType(): void
+    public function testAutowiringWithUnionType(): void
     {
         if (PHP_VERSION_ID < 80000) {
             $this->markTestSkipped('Skip test because PHP version is lower than 8');
@@ -392,7 +396,7 @@ class ContainerAutowireTest extends TestCase
             $rade['foo']
         );
 
-        $this->getExpectedExceptionMessage(
+        $this->expectExceptionMessage(
             'Parameter $collision in Rade\DI\Tests\Fixtures\UnionClasses::__construct() typehint(s) ' .
             '\'Rade\DI\Tests\Fixtures\CollisionA|Rade\DI\Tests\Fixtures\CollisionB\' ' .
             'not found, and no default value specified.'
