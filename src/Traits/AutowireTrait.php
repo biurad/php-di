@@ -18,8 +18,8 @@ declare(strict_types=1);
 namespace Rade\DI\Traits;
 
 use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
-use DivineNii\Invoker\CallableReflection;
-use DivineNii\Invoker\Exceptions\NotCallableException;
+use Nette\Utils\Callback;
+use Nette\Utils\Reflection;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\AutowireValueResolver;
 use Rade\DI\ServiceProviderInterface;
@@ -66,8 +66,9 @@ trait AutowireTrait
     public function call($callback, array $args = [])
     {
         try {
-            $callable = CallableReflection::create($callback);
-        } catch (NotCallableException $e) {
+            /** @var callable $callback */
+            $callable = Callback::toReflection($callback);
+        } catch (\ReflectionException $e) {
             if (\is_string($callback)) {
                 return $this->autowireClass($callback, $args);
             }
@@ -75,7 +76,6 @@ trait AutowireTrait
             throw new ContainerResolutionException($e->getMessage());
         }
 
-        /** @var callable $callback */
         return $callback(...$this->autowireArguments($callable, $args));
     }
 
