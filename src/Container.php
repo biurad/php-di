@@ -17,8 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use DivineNii\Invoker\CallableReflection;
-use DivineNii\Invoker\Exceptions\NotCallableException;
 use Nette\SmartObject;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -82,25 +80,35 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function offsetGet($offset)
     {
         // If alias is set
-        $offset = $this->aliases[$offset] ?? $offset;
+        $id = $this->aliases[$offset] ?? $offset;
 
-        // We start by checking if  requested service is internally cached;
-        if (isset(static::METHODS_MAP[$offset])) {
-            return $this->{static::METHODS_MAP[$offset]}();
+        if (!$mappedService = static::METHODS_MAP[$id] ?? $this->keys[$id] ?? false) {
+            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
         }
 
-        if (!isset($this->keys[$offset])) {
-            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $offset));
+        if (isset($this->loading[$id])) {
+            throw new CircularReferenceException(
+                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
+            );
         }
 
-        if (
-            !\is_object($service = $this->values[$offset]) ||
-            isset($this->protected[$service])
-        ) {
-            return $service;
-        }
+        // Begin checking circular referencing ...
+        $this->loading[$id] = true;
 
-        return $this->getService($offset, $service);
+        try {
+            $value = \is_string($mappedService) ? $this->{$mappedService}()
+                : $this->protected[$id] ?? (\array_key_exists($id, $this->factories) ? $this->factories[$id]()
+                    : (isset($this->frozen[$id]) || !\is_object($this->values[$id] ?? null) ? $this->values[$id] : null));
+
+            if (null !== $value) {
+                return $value;
+            }
+            $this->frozen[$id] = true;
+
+            return $this->values[$id] = !\is_callable($service = $this->values[$id]) ? $service : $this->call($service);
+        } finally {
+            unset($this->loading[$id]);
+        }
     }
 
     /**
@@ -417,37 +425,5 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     protected function getServiceContainer(): self
     {
         return $this;
-    }
-
-    /**
-     * @param string          $id
-     * @param callable|object $service
-     *
-     * @return mixed
-     */
-    private function getService(string $id, $service)
-    {
-        if (isset($this->loading[$id])) {
-            throw new CircularReferenceException(
-                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
-            );
-        }
-
-        // Begin checking circular referencing ...
-        $this->loading[$id] = true;
-
-        try {
-            if (isset($this->frozen[$id])) {
-                return $service;
-            } elseif (isset($this->factories[$service])) {
-                return $this->call($service);
-            }
-
-            $this->frozen[$id] = true;
-
-            return $this->values[$id] = \is_callable($service) ? $this->call($service) : $service;
-        } finally {
-            unset($this->loading[$id]);
-        }
     }
 }
