@@ -120,7 +120,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetExists($offset): bool
     {
-        return $this->keys[$this->aliases[$offset] ?? $offset] ?? false;
+        return $this->keys[$id = $this->aliases[$offset] ?? $offset] ?? isset(static::METHODS_MAP[$id]);
     }
 
     /**
