@@ -236,13 +236,11 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         }
 
         $service  = $this->factories[$id] ?? $this->values[$id];
-        $extended = $scope(...[!\is_callable($service) ? $service : $this->call($service), $this]);
+        $extended = fn () => !\is_callable($service) ? $service : $this->call($service);
 
-        if (isset($this->factories[$id])) {
-            return $this->factories[$id] = static fn () => $extended;
-        }
-
-        return $this->values[$id] = $extended;
+        return isset($this->factories[$id])
+            ? $this->factories[$id] = fn () => $scope($extended(), $this)
+            : $this->values[$id] = $scope($extended(), $this);
     }
 
     /**
