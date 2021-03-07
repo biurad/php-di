@@ -25,6 +25,7 @@ use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\ScopedDefinition;
 use Rade\DI\ServiceProviderInterface;
 
 class ContainerTest extends TestCase
@@ -69,18 +70,6 @@ class ContainerTest extends TestCase
         $rade['factory'] = $rade->factory($factory = fn () => 6);
 
         $this->assertNotSame($factory, $rade['factory']);
-    }
-
-    /**
-     * @dataProvider badServiceDefinitionProvider
-     */
-    public function testProtectFailsForInvalidServiceDefinitions($service): void
-    {
-        $this->expectExceptionMessage('Callable is not a Closure or invokable object.');
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade = new Container();
-        $rade->protect($service);
     }
 
     public function testGlobalFunctionNameAsParameterValue(): void
@@ -443,18 +432,6 @@ class ContainerTest extends TestCase
     /**
      * @dataProvider badServiceDefinitionProvider
      */
-    public function testFactoryFailsForInvalidServiceDefinitions($service): void
-    {
-        $this->expectExceptionMessage('Service definition is not a Closure or invokable object.');
-        $this->expectException(ContainerResolutionException::class);
-
-        $rade = new Container();
-        $rade->factory($service);
-    }
-
-    /**
-     * @dataProvider badServiceDefinitionProvider
-     */
     public function testExtendFailsForInvalidServiceDefinitions($service): void
     {
         $this->expectException(\TypeError::class);
@@ -644,6 +621,26 @@ class ContainerTest extends TestCase
 
         $this->assertSame($newRade, $newRade['container']);
         $this->assertSame($newRade, $newRade->get(AppContainer::class));
+    }
+
+    public function testScopedDefinition(): void
+    {
+        $rade = new Container();
+
+        $rade['class_string'] = new ScopedDefinition(
+            Fixtures\ServiceAutowire::class,
+            Fixtures\ServiceAutowire::class
+        );
+        $rade['protected'] = new ScopedDefinition(
+            fn (string $name) => "Hello {$name}",
+            ScopedDefinition::RAW
+        );
+        $rade['factory'] = new ScopedDefinition(new Fixtures\Invokable());
+        $rade['service'] = new Fixtures\Service();
+
+        $this->expectExceptionObject(new ContainerResolutionException('Scoped definition cannot be a definiton of itself.'));
+
+        $rade['scoped'] = new ScopedDefinition(new ScopedDefinition(fn () => null));
     }
 }
 

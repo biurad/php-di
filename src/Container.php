@@ -187,20 +187,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      * Marks a callable as being a factory service.
      *
      * @param callable $callable A service definition to be used as a factory
-     *
-     * @throws ContainerResolutionException Service definition has to be a closure or an invokable object
-     *
-     * @return array<string,mixed> The passed callable
      */
-    public function factory($callable): array
+    public function factory($callable): ScopedDefinition
     {
-        if (\is_callable($callable) && !$callable instanceof \Closure) {
-            $callable = \Closure::fromCallable($callable);
-        } elseif (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
-            throw new ContainerResolutionException('Service definition is not a Closure or invokable object.');
-        }
-
-        return ['bounded' => ['factories', fn () => $this->call($callable)]];
+        return new ScopedDefinition(fn () => $this->call($callable));
     }
 
     /**
@@ -209,20 +199,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      * This is useful when you want to store a callable as a parameter.
      *
      * @param callable $callable A callable to protect from being evaluated
-     *
-     * @return array<string,mixed> The passed callable
-     *
-     * @throws ContainerResolutionException Service definition has to be a closure or an invokable object
      */
-    public function protect($callable): array
+    public function protect($callable): ScopedDefinition
     {
-        if (\is_callable($callable) && !$callable instanceof \Closure) {
-            $callable = \Closure::fromCallable($callable);
-        } elseif (!\is_object($callable) || !\method_exists($callable, '__invoke')) {
-            throw new ContainerResolutionException('Callable is not a Closure or invokable object.');
-        }
-
-        return ['bounded' => ['protected', $callable]];
+        return new ScopedDefinition($callable, ScopedDefinition::RAW);
     }
 
     /**

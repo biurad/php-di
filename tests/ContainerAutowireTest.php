@@ -360,8 +360,8 @@ class ContainerAutowireTest extends TestCase
         $rade['factory'] = $factory = $rade->factory($callable);
         $rade['protect'] = $protect = $rade->protect($callable);
 
-        $this->assertNotSame($factory['bounded'][1], $rade['factory']);
-        $this->assertSame($protect['bounded'][1], $rade['protect']);
+        $this->assertNotSame($factory->service, $rade['factory']);
+        $this->assertSame($protect->service, $rade['protect']);
     }
 
     public function testAutowiringWithUnionType(): void
