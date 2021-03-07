@@ -90,33 +90,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         // If alias is set
         $id = $this->aliases[$offset] ?? $offset;
 
-        if (!$mappedService = static::METHODS_MAP[$id] ?? $this->keys[$id] ?? false) {
-            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
-        }
-
-        if (isset($this->loading[$id])) {
-            throw new CircularReferenceException(
-                \sprintf('Circular reference detected for services: %s.', \implode(', ', \array_keys($this->loading)))
-            );
-        }
-
-        // Begin checking circular referencing ...
-        $this->loading[$id] = true;
-
-        try {
-            $value = \is_string($mappedService) ? $this->{$mappedService}()
-                : $this->protected[$id] ?? (\array_key_exists($id, $this->factories) ? $this->factories[$id]()
-                    : (isset($this->frozen[$id]) || !\is_object($this->values[$id] ?? null) ? $this->values[$id] : null));
-
-            if (null !== $value) {
-                return $value;
-            }
-            $this->frozen[$id] = true;
-
-            return $this->values[$id] = !\is_callable($service = $this->values[$id]) ? $service : $this->call($service);
-        } finally {
-            unset($this->loading[$id]);
-        }
+        return isset($this->frozen[$id]) ? $this->values[$id] : $this->raw[$id]
+            ?? ($this->factories[$id] ?? [$this, 'getService'])($id);
     }
 
     /**
@@ -418,5 +393,47 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     protected function getServiceContainer(): self
     {
         return $this;
+    }
+    /**
+     * Build an entry of the container by its name.
+     *
+     * @param string $id
+     *
+     * @throws CircularReferenceException
+     * @throws NotFoundServiceException
+     *
+     * @return mixed
+     */
+    protected function getService(string $id)
+    {
+        // Checking if circular reference exists ...
+        if (isset($this->loading[$id])) {
+            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+        }
+
+        $this->loading[$id] = true;
+
+        try {
+            if (isset($this->keys[$id])) {
+                if (\is_callable($service = $this->values[$id])) {
+                    $service = $this->call($service);
+                }
+                $this->frozen[$id] = true; // Freeze resolved service ...
+
+                return $this->values[$id] = $service;
+            } elseif (isset(static::METHODS_MAP[$id])) {
+                return $this->{static::METHODS_MAP[$id]}();
+            }
+        } finally {
+            unset($this->loading[$id]);
+        }
+
+        $suggest = Helpers::getSuggestion($this->keys(), $id);
+
+        if (null !== $suggest) {
+            $suggest = " Did you mean: \"{$suggest}\" ?";
+        }
+
+        throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
     }
 }
