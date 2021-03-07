@@ -365,8 +365,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 $values = [$provider->getName() => $values];
             }
 
-            $this->values[$providerId] = $process->processConfiguration($provider, $values);
-            $this->keys[$providerId]   = true;
+            $this->raw[$providerId]  = $process->processConfiguration($provider, $values);
+            $this->keys[$providerId] = true;
         }
 
         $provider->register($this);
