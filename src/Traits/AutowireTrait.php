@@ -104,35 +104,18 @@ trait AutowireTrait
      */
     private function autowireService(string $id, $definition)
     {
-        if (!$this->autowireSupported($definition)) {
-            return $definition;
-        }
-
         try {
             $types = Reflection::getReturnTypes(Callback::toReflection($definition));
         } catch (\ReflectionException $e) {
-            $types = [\is_object($definition) ? \get_class($definition) : $definition];
-
-            // Create an instance from an class string with autowired arguments
-            if (\is_string($definition)) {
-                $definition = $this->autowireClass($definition, []);
-            }
+            $types = [\get_class($definition)];
         }
 
         // Resolving wiring so we could call the service parent classes and interfaces.
-        if ([] !== $types && !isset($this->keys[$id])) {
+        if ([] !== $types) {
             $this->resolver->autowire($id, $types);
         }
 
         return $definition;
-    }
-
-    /**
-     * @param mixed $value
-     */
-    private function autowireSupported($value): bool
-    {
-        return \is_object($value) || (\is_string($value) && \class_exists($value));
     }
 
     /**

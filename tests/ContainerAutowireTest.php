@@ -95,7 +95,7 @@ class ContainerAutowireTest extends TestCase
             return $service;
         };
 
-        $this->expectExceptionMessage('Circular reference detected for services: service.');
+        $this->expectExceptionMessage('Circular reference detected for service "service", path: "service -> service".');
         $this->expectException(CircularReferenceException::class);
 
         $rade['service'];
