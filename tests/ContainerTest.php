@@ -325,7 +325,7 @@ class ContainerTest extends TestCase
         $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
 
         $this->assertTrue(isset($rade['rade_di.config']['hello']));
-        $this->assertCount(4, $rade->keys());
+        $this->assertCount(5, $rade->keys());
     }
 
     public function testExtend(): void
@@ -408,7 +408,7 @@ class ContainerTest extends TestCase
         $rade['foo'] = 123;
         $rade['bar'] = 123;
 
-        $this->assertEquals(['foo', 'bar'], $rade->keys());
+        $this->assertEquals(['foo', 'bar', 'container'], $rade->keys());
     }
 
     /** @test */

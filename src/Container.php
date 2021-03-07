@@ -252,7 +252,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function keys(): array
     {
-        return \array_keys($this->keys);
+        return \array_keys($this->keys + static::METHODS_MAP);
     }
 
     /**
