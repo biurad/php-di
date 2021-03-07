@@ -114,7 +114,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function offsetUnset($offset): void
     {
         if ($this->offsetExists($offset)) {
-            unset($this->values[$offset], $this->protected[$offset], $this->factories[$offset], $this->frozen[$offset], $this->keys[$offset]);
+            unset($this->values[$offset], $this->factories[$offset], $this->frozen[$offset], $this->raw[$offset], $this->keys[$offset]);
         }
     }
 
@@ -249,9 +249,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new FrozenServiceException($id);
         }
 
-        if (isset($this->protected[$id])) {
+        if (isset($this->raw[$id])) {
             throw new ContainerResolutionException(
-                "Protected callable service '{$id}' cannot be extended, cause it has parameters which cannot be resolved."
+                "Service definition '{$id}' cannot be extended, was not meant to be resolved."
             );
         }
 
@@ -285,7 +285,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 $service->reset();
             }
 
-            unset($this->values[$id], $this->protected[$id], $this->factories[$id], $this->keys[$id], $this->frozen[$id]);
+            unset($this->values[$id], $this->factories[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id]);
         }
 
         $this->tags = $this->aliases = [];

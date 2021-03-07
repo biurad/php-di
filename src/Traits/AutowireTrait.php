@@ -55,7 +55,7 @@ trait AutowireTrait
     private array $factories = [];
 
     /** @var array<string,mixed> service name => instance */
-    private array $protected = [];
+    private array $raw = [];
 
     private AutowireValueResolver $resolver;
 
