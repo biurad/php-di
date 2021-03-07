@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Nette\SmartObject;
+use Nette\Utils\Helpers;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
@@ -28,6 +29,11 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Contracts\Service\ResetInterface;
 
+/**
+ * Dependency injection container.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
 class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 {
     use Traits\AutowireTrait;
@@ -38,6 +44,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         Container::class => ['container'],
     ];
 
+    /** @var array<string,string> internal cached services */
     protected const METHODS_MAP = ['container' => 'getServiceContainer'];
 
     /**
@@ -135,7 +142,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         // Incase alias is found linking to another alias that exist
         $serviceId = $this->aliases[$serviceId] ?? $serviceId;
 
-        if (!isset($this[$serviceId])) {
+        if (!isset($this->keys[$serviceId])) {
             throw new ContainerResolutionException('Service id is not found in container');
         }
 

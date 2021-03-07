@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests;
 
-use DivineNii\Invoker\ArgumentResolver\ClassValueResolver;
 use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
 use DivineNii\Invoker\ArgumentResolver\NamedValueResolver;
 use DivineNii\Invoker\ArgumentResolver\TypeHintValueResolver;
