@@ -56,6 +56,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
+     * Container can not be cloned.
+     */
+    public function __clone()
+    {
+        throw new \LogicException('Container is not clonable');
+    }
+
+    /**
      * Sets a new service to a unique identifier.
      *
      * @param string $offset The unique identifier for the parameter or object

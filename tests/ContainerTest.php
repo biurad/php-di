@@ -47,6 +47,13 @@ class ContainerTest extends TestCase
         $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
     }
 
+    public function testContainerIsClonable(): void
+    {
+        $this->expectExceptionMessage('Container is not clonable');
+        $this->expectException(\LogicException::class);
+
+        $cloned = clone new Container();
+    }
     public function testProtect(): void
     {
         $rade = new Container();
