@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rade\DI\Container;
@@ -55,6 +56,28 @@ class ContainerTest extends TestCase
 
         $cloned = clone new Container();
     }
+
+    public function testContainerHasItSelf(): void
+    {
+        $rade = new Container();
+
+        $this->assertTrue(isset($rade['container']));
+        $this->assertTrue($rade->has('container'));
+        $this->assertSame($rade, $rade['container']);
+        $this->assertSame($rade, $rade->get('container'));
+        $this->assertSame($rade, $rade->get(Container::class));
+        $this->assertSame($rade, $rade->get(ContainerInterface::class));
+
+        $rade->reset();
+
+        $this->assertTrue(isset($rade['container']));
+        $this->assertTrue($rade->has('container'));
+        $this->assertSame($rade, $rade['container']);
+        $this->assertSame($rade, $rade->get('container'));
+        $this->assertSame($rade, $rade->get(Container::class));
+        $this->assertSame($rade, $rade->get(ContainerInterface::class));
+    }
+
     public function testProtect(): void
     {
         $rade = new Container();
@@ -129,6 +152,12 @@ class ContainerTest extends TestCase
             $rade->get(Fixtures\Unstantiable::class);
         } catch (NotFoundServiceException $e) {
             $this->assertEquals('Identifier "Rade\DI\Tests\Fixtures\Unstantiable" is not defined.', $e->getMessage());
+        }
+
+        try {
+            $rade->get('contain');
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Identifier "contain" is not defined. Did you mean: "container" ?', $e->getMessage());
         }
 
         $this->expectExceptionMessage('Identifier "Rade\DI\Tests\Fixtures\Service" is not defined.');
@@ -296,11 +325,12 @@ class ContainerTest extends TestCase
         $rade['foo'];
     }
 
-    public function testOffsetGetHonorsNullValues(): void
+    public function testOffsetGetDoesNotHonorsNullValues(): void
     {
         $rade        = new Container();
         $rade['foo'] = null;
-        $this->assertNull($rade['foo']);
+        $this->assertNotNull($rade['foo']);
+        $this->assertEquals('foo', $rade['foo']);
     }
 
     public function testUnset(): void
@@ -644,6 +674,12 @@ class ContainerTest extends TestCase
         );
         $rade['factory'] = new ScopedDefinition(new Fixtures\Invokable());
         $rade['service'] = new Fixtures\Service();
+
+        $this->assertIsObject($rade['class_string']);
+        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $rade['class_string']);
+        $this->assertEquals('Hello Divine', $rade['protected']('Divine'));
+        $this->assertIsObject($factory1 = $rade['factory']);
+        $this->assertNotSame($factory1, $rade['factory']);
 
         $this->expectExceptionObject(new ContainerResolutionException('Scoped definition cannot be a definiton of itself.'));
 

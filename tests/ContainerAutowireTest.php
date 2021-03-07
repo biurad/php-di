@@ -68,8 +68,8 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade['bar'] = (object) ['name' => 'Divine'];
         $rade['foo'] = Fixtures\SomeService::class;
+        $rade['foo'];
     }
 
     public function testShouldPassContainerBuiltinTypeAsParameter(): void
@@ -185,6 +185,7 @@ class ContainerAutowireTest extends TestCase
 
         // On Autowiring parameters
         $rade['baz'] = Fixtures\ServiceAutowire::class;
+        $rade['baz'];
     }
 
     public function testShouldFailOnMultipleService(): void
@@ -405,5 +406,6 @@ class ContainerAutowireTest extends TestCase
 
         unset($rade['collision'], $rade['foo']);
         $rade['foo'] = Fixtures\UnionClasses::class;
+        $rade['foo']; // Lazy service definition
     }
 }

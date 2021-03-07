@@ -320,17 +320,28 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         // Incase new service definition exists in aliases.
         unset($this->aliases[$id]);
 
-        // If $id is a valid class name and definition is set to null
-        if (null === $definition && \class_exists($id)) {
-            $definition = $this->autowireClass($id, []);
+        // Create the definition for better mapping ...
+        $definition = $this->doCreate($definition ?? $id);
+
+        if (!$definition instanceof ScopedDefinition) {
+           // Resolving the closure of the service to return it's type hint or class.
+            $this->values[$id] = !$autowire ? $definition : $this->autowireService($id, $definition);
+        } else {
+            $service = $definition->service;
+
+            // Lazy class-string service $definition
+            if (\class_exists($property = $definition->property)) {
+                $property = 'values';
+                $service  = static fn (self $di) => $di->autowireClass($service, []);
+
+                if ($autowire) {
+                    $this->resolver->autowire($id, [$definition->property]);
+                }
+            }
+
+            $this->{$property}[$id] = $service;
         }
 
-        if (\is_array($definition) && (isset($definition['bounded']))) {
-            [$name, $definition] = $definition['bounded'];
-        }
-
-        // Resolving the closure of the service to return it's type hint or class.
-        $this->{$name ?? 'values'}[$id] = !$autowire ? $definition : $this->autowireService($id, $definition);
         $this->keys[$id] = true;
     }
 
@@ -372,6 +383,25 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         return $this;
     }
+
+    /**
+     * Creates a serive definition.
+     *
+     * @param mixed $definition
+     *
+     * @return callable|object
+     */
+    protected function doCreate($definition)
+    {
+        if (\is_string($definition) && \class_exists($definition)) {
+            $definition = new ScopedDefinition($definition, $definition);
+        } elseif (!(\is_callable($definition) || \is_object($definition))) {
+            $definition = new ScopedDefinition($definition, ScopedDefinition::RAW);
+        }
+
+        return $definition;
+    }
+
     /**
      * Build an entry of the container by its name.
      *
