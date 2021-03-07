@@ -369,7 +369,7 @@ class ContainerTest extends TestCase
         });
 
         $service = function (Fixtures\Service $service, $container) {
-            $service->value = $container;
+            $service->value = (object) [$container];
 
             return $service;
         };
@@ -385,8 +385,8 @@ class ContainerTest extends TestCase
         $serviceOne = $rade['factory_service'];
         $serviceTwo = $rade['factory_service'];
 
-        $this->assertSame($serviceOne, $serviceTwo);
-        $this->assertSame($serviceOne->value, $serviceTwo->value);
+        $this->assertNotSame($serviceOne, $serviceTwo);
+        $this->assertNotSame($serviceOne->value, $serviceTwo->value);
     }
 
     public function testExtendDoesNotSupportProtectedServices(): void
@@ -395,7 +395,7 @@ class ContainerTest extends TestCase
         $rade['foo'] = $rade->protect(fn () => new Fixtures\Service());
 
         $this->expectExceptionMessage(
-            'Protected callable service \'foo\' cannot be extended, cause it has parameters which cannot be resolved.'
+            'Service definition \'foo\' cannot be extended, was not meant to be resolved.'
         );
         $this->expectException(ContainerResolutionException::class);
 
@@ -408,7 +408,7 @@ class ContainerTest extends TestCase
 
         $rade['foo'] = $rade->factory(function (): void {
         });
-        $rade['foo'] = $rade->extend('foo', function ($foo, $rade): void {
+        $rade->extend('foo', function ($foo, $rade): void {
         });
         unset($rade['foo']);
 
@@ -564,10 +564,11 @@ class ContainerTest extends TestCase
         $rade['foo'] = function () {
             return 'foo';
         };
-        $rade['foo'] = $rade->extend('foo', function ($foo, $app) {
+
+        $rade->extend('foo', function ($foo, $app) {
             return "$foo.bar";
         });
-        $rade['foo'] = $rade->extend('foo', function ($foo, $app) {
+        $rade->extend('foo', function ($foo, $app) {
             return "$foo.baz";
         });
         $this->assertSame('foo.bar.baz', $rade['foo']);
@@ -584,7 +585,7 @@ class ContainerTest extends TestCase
         };
         $foo = $rade['foo'];
 
-        $rade['bar'] = $rade->extend('bar', function ($bar, $app) {
+        $rade->extend('bar', function ($bar, $app) {
             return "$bar.baz";
         });
         $this->assertSame('bar.baz', $rade['bar']);
