@@ -39,20 +39,20 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     use Traits\AutowireTrait;
     use SmartObject;
 
-    protected const WIRING = [
+    protected array $types = [
         ContainerInterface::class => ['container'],
         Container::class => ['container'],
     ];
 
     /** @var array<string,string> internal cached services */
-    protected const METHODS_MAP = ['container' => 'getServiceContainer'];
+    protected array $methodsMap = ['container' => 'getServiceContainer'];
 
     /**
      * Instantiates the container.
      */
     public function __construct()
     {
-        $typesWiring = static::WIRING;
+        $typesWiring = $this->types;
 
         // Incase this class it extended ...
         if (static::class !== __CLASS__) {
@@ -110,7 +110,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetExists($offset): bool
     {
-        return $this->keys[$id = $this->aliases[$offset] ?? $offset] ?? isset(static::METHODS_MAP[$id]);
+        return $this->keys[$id = $this->aliases[$offset] ?? $offset] ?? isset($this->methodsMap[$id]);
     }
 
     /**
@@ -257,7 +257,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function keys(): array
     {
-        return \array_keys($this->keys + static::METHODS_MAP);
+        return \array_keys($this->keys + $this->methodsMap);
     }
 
     /**
@@ -436,16 +436,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 $this->frozen[$id] = true; // Freeze resolved service ...
 
                 return $this->values[$id] = $service;
-            } elseif (isset(static::METHODS_MAP[$id])) {
-                return $this->{static::METHODS_MAP[$id]}();
+            } elseif (isset($this->methodsMap[$id])) {
+                return $this->{$this->methodsMap[$id]}();
             }
         } finally {
             unset($this->loading[$id]);
         }
 
-        $suggest = Helpers::getSuggestion($this->keys(), $id);
-
-        if (null !== $suggest) {
+        if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
             $suggest = " Did you mean: \"{$suggest}\" ?";
         }
 
