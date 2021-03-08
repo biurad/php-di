@@ -350,7 +350,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /**
      * Set a service definition
      *
-     * @param mixed $definition
+     * @param object $definition
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      */
@@ -393,16 +393,14 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         $this->providers[] = $provider;
 
-        if ([] !== $values && $provider instanceof ConfigurationInterface) {
-            $providerId = $provider->getName() . '.config';
-            $process    = new Processor();
+        if (
+            ([] !== $values && \method_exists($provider, 'getName')) && 
+            $provider instanceof ConfigurationInterface
+        ) {
+            $id = $provider->getName();
+            $process = [new Processor(), 'processConfiguration'];
 
-            if (!isset($values[$provider->getName()])) {
-                $values = [$provider->getName() => $values];
-            }
-
-            $this->raw[$providerId]  = $process->processConfiguration($provider, $values);
-            $this->keys[$providerId] = true;
+            $this->parameters[$id] = $process($provider, isset($values[$id]) ? $values : [$id => $values]);
         }
 
         $provider->register($this);

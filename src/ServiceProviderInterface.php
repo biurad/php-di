@@ -19,19 +19,14 @@ namespace Rade\DI;
 
 /**
  * Rade service provider interface.
+ * 
+ * @method string getName() This should be exist if Symfony's config interface
+ *         is extended to, then set in TreeBuilder instance.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 interface ServiceProviderInterface
 {
-    /**
-     * This should be set if Symfony's config interface
-     * is extended to, and also set in TreeBuilder instance.
-     * 
-     * @var null|string Unique name for a given provider
-     */
-    public const NAME = null;
-
     /**
      * Registers services on the given container.
      *
