@@ -239,15 +239,13 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
-     * Protects a callable from being interpreted as a service.
+     * Marks a definition from being interpreted as a service.
      *
-     * This is useful when you want to store a callable as a parameter.
-     *
-     * @param callable $callable A callable to protect from being evaluated
+     * @param mixed $defintion from being evaluated
      */
-    public function protect($callable): ScopedDefinition
+    public function raw($definition): ScopedDefinition
     {
-        return new ScopedDefinition($callable, ScopedDefinition::RAW);
+        return new ScopedDefinition($definition, ScopedDefinition::RAW);
     }
 
     /**
