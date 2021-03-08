@@ -259,6 +259,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * @throws NotFoundServiceException If the identifier is not defined
      * @throws FrozenServiceException   If the service is frozen
+     * @throws CircularReferenceException If infinite loop among service is detected
      *
      * @return mixed The wrapped scope
      */
@@ -268,7 +269,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
         }
 
-        if (isset($this->frozen[$id]) || isset(static::METHODS_MAP[$id])) {
+        if (isset($this->frozen[$id]) || isset($this->methodsMap[$id])) {
             throw new FrozenServiceException($id);
         }
 
@@ -278,12 +279,20 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             );
         }
 
-        $service  = $this->factories[$id] ?? $this->values[$id];
-        $extended = fn () => !\is_callable($service) ? $service : $this->call($service);
+        // Extended factories should always return new instance ...
+        if (isset($this->factories[$id])) {
+            $factory = $this->factories[$id];
 
-        return isset($this->factories[$id])
-            ? $this->factories[$id] = fn () => $scope($extended(), $this)
-            : $this->values[$id] = $scope($extended(), $this);
+            return $this->factories[$id] = fn () => $scope($factory(), $this);
+        }
+        $extended = $scope($this->getService($id), $this);
+
+        // Unfreeze sevice if frozen ...
+        unset($this->frozen[$id]);
+
+        // We bare in mind that $extended could return anyting, and does want to exist in $this->values.
+        // This is a hungry implementation to autowire $extended if it's an object.
+        return $this->values[$id] = is_object($extended) ? $this->autowireService($id, $extended) : fn () => $extended;
     }
 
     /**

@@ -603,17 +603,17 @@ class ContainerTest extends TestCase
             return $container['one'];
         };
 
-        $this->expectExceptionMessage('Circular reference detected for service "one", path: "one -> two -> one".');
-        $this->expectException(CircularReferenceException::class);
-
         try {
-            $rade['one'];
+            $rade->extend('one', fn ($one, $rade) => $rade);
         } catch (CircularReferenceException $e) {
             $this->assertEquals(['one', 'two', 'one'], $e->getPath());
             $this->assertEquals('one', $e->getServiceId());
-
-            throw $e;
         }
+
+        $this->expectExceptionMessage('Circular reference detected for service "one", path: "one -> two -> one".');
+        $this->expectException(CircularReferenceException::class);
+
+        $rade['one'];
     }
 
     public function testCallMethodResolution(): void
