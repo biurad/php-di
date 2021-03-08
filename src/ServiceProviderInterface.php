@@ -25,11 +25,12 @@ namespace Rade\DI;
 interface ServiceProviderInterface
 {
     /**
-     * Unique name for a given provider
-     *
-     * @return string
+     * This should be set if Symfony's config interface
+     * is extended to, and also set in TreeBuilder instance.
+     * 
+     * @var null|string Unique name for a given provider
      */
-    public function getName(): string;
+    public const NAME = null;
 
     /**
      * Registers services on the given container.
