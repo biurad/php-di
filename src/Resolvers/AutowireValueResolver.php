@@ -103,7 +103,10 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
             $parents = \class_parents($type) + \class_implements($type) + [$type];
 
             foreach ($parents as $parent) {
-                if (isset($this->excluded[$parent]) && \count($parents) > 1) {
+                if (
+                    (isset($this->excluded[$parent]) && \count($parents) > 1) ||
+                    \in_array($id, $this->wiring[$parent] ?? [], true)
+                ) {
                     continue;
                 }
 
