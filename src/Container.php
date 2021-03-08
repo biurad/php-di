@@ -410,7 +410,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         $this->providers[] = $provider;
 
         if (
-            ([] !== $values && \method_exists($provider, 'getName')) && 
+            ([] !== $values && \method_exists($provider, 'getName')) &&
             $provider instanceof ConfigurationInterface
         ) {
             $id = $provider->getName();

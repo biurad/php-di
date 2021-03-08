@@ -19,7 +19,7 @@ namespace Rade\DI;
 
 /**
  * Rade service provider interface.
- * 
+ *
  * @method string getName() This should be exist if Symfony's config interface
  *         is extended to, then set in TreeBuilder instance.
  *
