@@ -40,7 +40,7 @@ trait AutowireTrait
     private array $frozen = [];
 
     /** @var array<string,bool> service name => bool */
-    protected array $keys = [];
+    private array $keys = [];
 
     /** @var string[] alias => service name */
     protected array $aliases = [];
