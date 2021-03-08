@@ -314,9 +314,16 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @param string                  $id — Identifier of the entry to look for.
+     * @param array<int|string,mixed> $arguments
      */
-    public function get($id)
+    public function get($id, array $arguments = [])
     {
+        if (null !== $protected = $this->raw[$this->aliases[$id] ?? $id] ?? null) {
+            return (\is_callable($protected) && [] !== $arguments) ? $this->call($protected, $arguments) : $protected;
+        }
+
         try {
             return $this->offsetGet($id);
         } catch (NotFoundServiceException $serviceError) {
@@ -325,7 +332,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             } catch (NotFoundServiceException $typeError) {
                 if (\class_exists($id)) {
                     try {
-                        return $this->autowireClass($id, []);
+                        return $this->autowireClass($id, $arguments);
                     } catch (ContainerResolutionException $e) {
                     }
                 }
