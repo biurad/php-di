@@ -32,6 +32,9 @@ final class ScopedDefinition
     /** Non shareable service definition */
     public const FACTORY = 'factories';
 
+    /** Lazy class string service definition */
+    public const LAZY = 'values';
+
     /** A class property which can be found in container */
     public string $property;
 
@@ -45,6 +48,12 @@ final class ScopedDefinition
     {
         if ($definition instanceof self) {
             throw new ContainerResolutionException('Scoped definition cannot be a definiton of itself.');
+        } elseif (self::LAZY === $type) {
+            if (\is_string($definition) && class_exists($definition)) {
+                $type = $definition;
+            }
+
+            $definition = fn (Container $container) => $container->call($definition);
         }
 
         $this->property = $type;

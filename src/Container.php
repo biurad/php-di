@@ -217,6 +217,18 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
+     * Wraps a class string or callable with a `call` method.
+     *
+     * This is useful when you want to autowire a callable or class string lazily.
+     *
+     * @param callable|string $callable A class string or a callable
+     */
+    public function lazy($definition): ScopedDefinition
+    {
+        return new ScopedDefinition($definition, ScopedDefinition::LAZY);
+    }
+
+    /**
      * Marks a callable as being a factory service.
      *
      * @param callable $callable A service definition to be used as a factory
@@ -344,35 +356,28 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      */
-    public function set(string $id, $definition = null, bool $autowire = false): void
+    public function set(string $id, object $definition, bool $autowire = false): void
     {
-        if (isset($this->frozen[$id]) || isset(static::METHODS_MAP[$id])) {
+        if (isset($this->frozen[$id]) || isset($this->methodsMap[$id])) {
             throw new FrozenServiceException($id);
         }
 
         // Incase new service definition exists in aliases.
         unset($this->aliases[$id]);
 
-        // Create the definition for better mapping ...
-        $definition = $this->doCreate($definition ?? $id);
-
         if (!$definition instanceof ScopedDefinition) {
            // Resolving the closure of the service to return it's type hint or class.
             $this->values[$id] = !$autowire ? $definition : $this->autowireService($id, $definition);
         } else {
-            $service = $definition->service;
-
             // Lazy class-string service $definition
             if (\class_exists($property = $definition->property)) {
-                $property = 'values';
-                $service  = static fn (self $di) => $di->autowireClass($service, []);
-
                 if ($autowire) {
-                    $this->resolver->autowire($id, [$definition->property]);
+                    $this->resolver->autowire($id, [$property]);
                 }
+                $property = 'values';
             }
 
-            $this->{$property}[$id] = $service;
+            $this->{$property}[$id] = $definition->service;
         }
 
         $this->keys[$id] = true;
@@ -415,24 +420,6 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     protected function getServiceContainer(): self
     {
         return $this;
-    }
-
-    /**
-     * Creates a serive definition.
-     *
-     * @param mixed $definition
-     *
-     * @return callable|object
-     */
-    protected function doCreate($definition)
-    {
-        if (\is_string($definition) && \class_exists($definition)) {
-            $definition = new ScopedDefinition($definition, $definition);
-        } elseif (!(\is_callable($definition) || \is_object($definition))) {
-            $definition = new ScopedDefinition($definition, ScopedDefinition::RAW);
-        }
-
-        return $definition;
     }
 
     /**
