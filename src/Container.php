@@ -74,6 +74,29 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
+     * Dynamically access container services.
+     *
+     * @param  string  $key
+     * 
+     * @return mixed
+     */
+    public function __get($key)
+    {
+        return $this->offsetGet($key);
+    }
+
+    /**
+     * Dynamically set container services.
+     *
+     * @param  string  $key
+     * @param  object  $value
+     */
+    public function __set($key, $value): void
+    {
+        $this->offsetSet($key, $value);
+    }
+
+    /**
      * Sets a new service to a unique identifier.
      *
      * @param string $offset The unique identifier for the parameter or object
