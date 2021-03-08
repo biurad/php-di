@@ -76,8 +76,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /**
      * Dynamically access container services.
      *
-     * @param  string  $key
-     * 
+     * @param string $key
+     *
      * @return mixed
      */
     public function __get($key)
@@ -88,8 +88,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /**
      * Dynamically set container services.
      *
-     * @param  string  $key
-     * @param  object  $value
+     * @param string $key
+     * @param object $value
      */
     public function __set($key, $value): void
     {
@@ -221,7 +221,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * This is useful when you want to autowire a callable or class string lazily.
      *
-     * @param callable|string $callable A class string or a callable
+     * @param callable|string $definition A class string or a callable
      */
     public function lazy($definition): ScopedDefinition
     {
@@ -241,7 +241,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /**
      * Marks a definition from being interpreted as a service.
      *
-     * @param mixed $defintion from being evaluated
+     * @param mixed $definition from being evaluated
      */
     public function raw($definition): ScopedDefinition
     {
