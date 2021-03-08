@@ -34,7 +34,7 @@ class ContainerTest extends TestCase
     public function testWithString(): void
     {
         $rade = new Container();
-        $rade['param'] = 'value';
+        $rade['param'] = $rade->raw('value');
 
         $this->assertEquals('value', $rade['param']);
     }
@@ -64,6 +64,7 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade['container']));
         $this->assertTrue($rade->has('container'));
         $this->assertSame($rade, $rade['container']);
+        $this->assertSame($rade, $rade->container);
         $this->assertSame($rade, $rade->get('container'));
         $this->assertSame($rade, $rade->get(Container::class));
         $this->assertSame($rade, $rade->get(ContainerInterface::class));
@@ -73,17 +74,19 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade['container']));
         $this->assertTrue($rade->has('container'));
         $this->assertSame($rade, $rade['container']);
+        $this->assertSame($rade, $rade->container);
         $this->assertSame($rade, $rade->get('container'));
         $this->assertSame($rade, $rade->get(Container::class));
         $this->assertSame($rade, $rade->get(ContainerInterface::class));
     }
 
-    public function testProtect(): void
+    public function testRaw(): void
     {
         $rade = new Container();
-        $rade['protected'] = $rade->protect($protected = fn (string $string) => strlen($string));
+        $rade->protected = $rade->raw($protected = fn (string $string) => strlen($string));
 
         $this->assertEquals(6, $rade['protected']('strlen'));
+        $this->assertEquals(6, $rade->get('protected', ['strlen']));
         $this->assertSame($protected, $rade['protected']);
     }
 
@@ -155,6 +158,12 @@ class ContainerTest extends TestCase
         }
 
         try {
+            $rade->{Fixtures\Constructor::class};
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Identifier "Rade\DI\Tests\Fixtures\Constructor" is not defined.', $e->getMessage());
+        }
+
+        try {
             $rade->get('contain');
         } catch (NotFoundServiceException $e) {
             $this->assertEquals('Identifier "contain" is not defined. Did you mean: "container" ?', $e->getMessage());
@@ -183,7 +192,7 @@ class ContainerTest extends TestCase
     public function testAliases(): void
     {
         $rade = new Container();
-        $rade['foo'] = 'bar';
+        $rade['foo'] = $rade->raw('bar');
         $rade->alias('baz', 'foo');
         $rade->alias('bat', 'baz');
 
@@ -213,7 +222,7 @@ class ContainerTest extends TestCase
     public function testAliasesWithProtectedService(): void
     {
         $rade = new Container();
-        $rade['foo'] = $rade->protect(function (array $config) {
+        $rade['foo'] = $rade->raw(function (array $config) {
             return $config;
         });
         $rade->alias('baz', 'foo');
@@ -224,8 +233,8 @@ class ContainerTest extends TestCase
     public function testServicesCanBeOverridden(): void
     {
         $rade = new Container();
-        $rade['foo'] = 'bar';
-        $rade['foo'] = 'baz';
+        $rade['foo'] = $rade->raw('bar');
+        $rade['foo'] = $rade->raw('baz');
 
         $this->assertSame('baz', $rade['foo']);
     }
@@ -277,7 +286,7 @@ class ContainerTest extends TestCase
     public function testResolvingWithUsingAnInterface(): void
     {
         $rade = new Container();
-        $rade['logger'] = NullLogger::class;
+        $rade['logger'] = $rade->lazy(NullLogger::class);
         $instance = $rade->get(LoggerInterface::class);
 
         $this->assertInstanceOf(NullLogger::class, $instance);
@@ -286,10 +295,10 @@ class ContainerTest extends TestCase
     public function testNestedParameterOverrideWithProtectedServices(): void
     {
         $rade = new Container();
-        $rade['foo'] = $rade->protect(function ($config) use ($rade) {
+        $rade['foo'] = $rade->raw(function ($config) use ($rade) {
             return $rade['bar'](['name' => 'Divine']);
         });
-        $rade['bar'] = $rade->protect(function ($config) {
+        $rade['bar'] = $rade->raw(function ($config) {
             return $config;
         });
 
@@ -299,12 +308,12 @@ class ContainerTest extends TestCase
     public function testIsset(): void
     {
         $rade            = new Container();
-        $rade['param']   = 'value';
+        $rade['param']   = $rade->raw('value');
         $rade['service'] = function () {
             return new Fixtures\Service();
         };
 
-        $rade['null'] = null;
+        $rade['null'] = $rade->raw(null);
 
         $this->assertTrue(isset($rade['param']));
         $this->assertTrue(isset($rade['service']));
@@ -325,18 +334,10 @@ class ContainerTest extends TestCase
         $rade['foo'];
     }
 
-    public function testOffsetGetDoesNotHonorsNullValues(): void
-    {
-        $rade        = new Container();
-        $rade['foo'] = null;
-        $this->assertNotNull($rade['foo']);
-        $this->assertEquals('foo', $rade['foo']);
-    }
-
     public function testUnset(): void
     {
         $rade            = new Container();
-        $rade['param']   = 'value';
+        $rade['param']   = $rade->raw('value');
         $rade['service'] = function () {
             return new Fixtures\Service();
         };
@@ -354,8 +355,8 @@ class ContainerTest extends TestCase
 
         $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
 
-        $this->assertTrue(isset($rade['rade_di.config']['hello']));
-        $this->assertCount(5, $rade->keys());
+        $this->assertTrue(isset($rade->parameters['rade_di']['hello']));
+        $this->assertCount(4, $rade->keys());
     }
 
     public function testExtend(): void
@@ -392,7 +393,7 @@ class ContainerTest extends TestCase
     public function testExtendDoesNotSupportProtectedServices(): void
     {
         $rade = new Container();
-        $rade['foo'] = $rade->protect(fn () => new Fixtures\Service());
+        $rade['foo'] = $rade->raw(fn () => new Fixtures\Service());
 
         $this->expectExceptionMessage(
             'Service definition \'foo\' cannot be extended, was not meant to be resolved.'
@@ -435,8 +436,8 @@ class ContainerTest extends TestCase
     public function testKeys(): void
     {
         $rade = new Container();
-        $rade['foo'] = 123;
-        $rade['bar'] = 123;
+        $rade['foo'] = $rade->raw(123);
+        $rade['bar'] = $rade->raw(123);
 
         $this->assertEquals(['foo', 'bar', 'container'], $rade->keys());
     }
@@ -647,8 +648,8 @@ class ContainerTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade->set(Fixtures\Service::class);
-        $rade['baz'] = Fixtures\ServiceAutowire::class;
+        $rade->set('service', $rade->lazy(Fixtures\Service::class));
+        $rade['baz'] = $rade->lazy(Fixtures\ServiceAutowire::class);
 
         $this->assertInstanceOf(Fixtures\Service::class, $rade['baz']->value);
     }
@@ -665,9 +666,9 @@ class ContainerTest extends TestCase
     {
         $rade = new Container();
 
-        $rade['class_string'] = new ScopedDefinition(
+        $rade['lazy'] = new ScopedDefinition(
             Fixtures\ServiceAutowire::class,
-            Fixtures\ServiceAutowire::class
+            ScopedDefinition::LAZY
         );
         $rade['protected'] = new ScopedDefinition(
             fn (string $name) => "Hello {$name}",
@@ -676,8 +677,8 @@ class ContainerTest extends TestCase
         $rade['factory'] = new ScopedDefinition(new Fixtures\Invokable());
         $rade['service'] = new Fixtures\Service();
 
-        $this->assertIsObject($rade['class_string']);
-        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $rade['class_string']);
+        $this->assertIsObject($rade['lazy']);
+        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $rade['lazy']);
         $this->assertEquals('Hello Divine', $rade['protected']('Divine'));
         $this->assertIsObject($factory1 = $rade['factory']);
         $this->assertNotSame($factory1, $rade['factory']);

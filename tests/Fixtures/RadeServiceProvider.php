@@ -58,7 +58,7 @@ class RadeServiceProvider implements ConfigurationInterface, ServiceProviderInte
      */
     public function register(Container $rade): void
     {
-        $rade['param'] = 'value';
+        $rade['param'] = $rade->raw('value');
 
         $rade['service'] = function () {
             return new Service();
