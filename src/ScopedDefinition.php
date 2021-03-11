@@ -32,7 +32,7 @@ final class ScopedDefinition
     /** Non shareable service definition */
     public const FACTORY = 'factories';
 
-    /** Lazy class string service definition */
+    /** A lazy entry is created only when it is used. */
     public const LAZY = 'values';
 
     /** A class property which can be found in container */
