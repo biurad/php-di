@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use Nette\SmartObject;
 use Nette\Utils\Reflection;
 use Psr\Container\ContainerInterface;
@@ -33,7 +32,7 @@ use Symfony\Contracts\Service\ServiceSubscriberInterface;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class AutowireValueResolver implements ArgumentValueResolverInterface
+class AutowireValueResolver
 {
     use SmartObject;
 
@@ -72,7 +71,9 @@ class AutowireValueResolver implements ArgumentValueResolverInterface
     }
 
     /**
-     * {@inheritdoc}
+     * Resolve parameters for service definition.
+     *
+     * @param array<int|string,mixed> $providedParameters
      */
     public function resolve(\ReflectionParameter $parameter, array $providedParameters)
     {
