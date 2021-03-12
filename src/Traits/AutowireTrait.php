@@ -111,9 +111,7 @@ trait AutowireTrait
         }
 
         // Resolving wiring so we could call the service parent classes and interfaces.
-        if ([] !== $types) {
-            $this->resolver->autowire($id, $types);
-        }
+        $this->resolver->autowire($id, $types);
 
         return $definition;
     }

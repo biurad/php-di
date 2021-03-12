@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\SmartObject;
 use Nette\Utils\Helpers;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -37,7 +36,6 @@ use Symfony\Contracts\Service\ResetInterface;
 class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 {
     use Traits\AutowireTrait;
-    use SmartObject;
 
     protected array $types = [
         ContainerInterface::class => ['container'],
@@ -49,6 +47,12 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
     /** @var array<string,mixed> For handling a global config around services */
     public array $parameters = [];
+
+    /** If ContainerBuilder has compiled service definitions */
+    public bool $compiled = false;
+
+    /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
+    protected static array $services = [];
 
     /**
      * Instantiates the container.
@@ -120,11 +124,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function offsetGet($offset)
     {
-        // If alias is set
-        $id = $this->aliases[$offset] ?? $offset;
-
-        return isset($this->frozen[$id]) ? $this->values[$id] : $this->raw[$id]
-            ?? ($this->factories[$id] ?? [$this, 'getService'])($id);
+        return self::$services[$id = $this->aliases[$offset] ?? $offset] ?? $this->raw[$id]
+            ?? (($this->factories[$id]) ?? [$this, 'getService'])($id);
     }
 
     /**
@@ -147,7 +148,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     public function offsetUnset($offset): void
     {
         if ($this->offsetExists($offset)) {
-            unset($this->values[$offset], $this->factories[$offset], $this->frozen[$offset], $this->raw[$offset], $this->keys[$offset]);
+            unset($this->values[$offset], $this->factories[$offset], $this->frozen[$offset], $this->raw[$offset], $this->keys[$offset], self::$services[$offset]);
         }
     }
 
@@ -329,12 +330,19 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function get($id, array $arguments = [])
     {
-        if (null !== $protected = $this->raw[$this->aliases[$id] ?? $id] ?? null) {
-            return (\is_callable($protected) && [] !== $arguments) ? $this->call($protected, $arguments) : $protected;
+        // If service has already been requested and cached ...
+        if (isset(self::$services[$id = $this->aliases[$id] ?? $id])) {
+            return self::$services[$id];
         }
 
         try {
-            return $this->offsetGet($id);
+            $protected = $this->raw[$id] ?? null;
+
+            if ($protected instanceof \Closure && [] !== $arguments) {
+                $protected = $this->call($protected, $arguments);
+            }
+
+            return $protected ?? ($this->factories[$id] ?? [$this, 'getService'])($id);
         } catch (NotFoundServiceException $serviceError) {
             try {
                 return $this->resolver->getByType($id);
@@ -380,6 +388,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         unset($this->aliases[$id]);
 
         if (!$definition instanceof ScopedDefinition) {
+            if (\is_callable($definition) && !$definition instanceof \Closure) {
+                $definition = \Closure::fromCallable($definition);
+            }
+
            // Resolving the closure of the service to return it's type hint or class.
             $this->values[$id] = !$autowire ? $definition : $this->autowireService($id, $definition);
         } else {
@@ -446,32 +458,36 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     protected function getService(string $id)
     {
+        // Checking if service definition exist ...
+        $service = $this->values[$id] ?? $this->methodsMap[$id] ?? null;
+
+        // If service is not a closure, freeze service for later use ...
+        if (!$service instanceof \Closure) {
+            if (null === $service) {
+                if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
+                    $suggest = " Did you mean: \"{$suggest}\" ?";
+                }
+        
+                throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
+            }
+            $this->frozen[$id] ??= true;
+
+            return self::$services[$id] = !\is_string($service) ? $service : $this->$service();
+        }
+
         // Checking if circular reference exists ...
         if (isset($this->loading[$id])) {
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
-
         $this->loading[$id] = true;
 
         try {
-            if (isset($this->keys[$id])) {
-                if (\is_callable($service = $this->values[$id])) {
-                    $service = $this->call($service);
-                }
-                $this->frozen[$id] = true; // Freeze resolved service ...
-
-                return $this->values[$id] = $service;
-            } elseif (isset($this->methodsMap[$id])) {
-                return $this->{$this->methodsMap[$id]}();
-            }
+            $this->values[$id] = $this->call($service);
+            $this->frozen[$id] = true; // Freeze resolved service ...
         } finally {
             unset($this->loading[$id]);
         }
 
-        if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
-            $suggest = " Did you mean: \"{$suggest}\" ?";
-        }
-
-        throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
+        return $this->values[$id];
     }
 }
