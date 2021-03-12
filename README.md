@@ -53,7 +53,8 @@ $session = $container['session'];
 // $session = new Session($storage);
 ```
 
-By default, each time you get a service, Rade returns the **same instance** of it. Rade DI also supoorts autowiring except a return type of a callable is not define. If you want a different instance to be returned for all calls, wrap your anonymous function with the `factory()` method
+By default, each time you get a service, Rade returns the **same instance** of it. Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's `set` method.
+If you want a different instance to be returned for all calls, wrap your anonymous function with the `factory()` method
 
 ```php
 $container['session'] = $container->factory(function (Container $container): Session {
@@ -124,21 +125,13 @@ foreach ($container->tagged('process') as [$process, $enabled]) {
 }
 ```
 
-If you use the same libraries over and over, you might want to reuse some services from one project to the next one; package your services into a **provider** by implementing `Rade\DI\ServiceProviderInterface`:
+Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so musch. Just create a service provider for your project, and you done.
 
 ```php
 use Rade\DI\Container;
 
 class FooProvider implements Rade\DI\ServiceProviderInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function getName(): string
-    {
-        return 'foo_provider';
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -154,6 +147,12 @@ Then, register the provider on a Container:
 
 ```php
 $container->register(new FooProvider());
+```
+
+Service provider support [Symfony's config][symfony-config] for writing configuration for service definitions found in a provider. to be able to achieve that, implement service provider class to `Symfony\Component\Config\Definition\ConfigurationInterface` then add a method `getName` returning a string of a unique name that will be found in container's public `$parameters` property for usage.
+
+```bash
+$ composer require symfony/config
 ```
 
 Also the `Rade\DI\ServiceLocator` is intended to solve this problem by giving access to a set of predefined services while instantiating them only when actually needed.
@@ -194,9 +193,9 @@ class MyService implements ServiceSubscriberInterface
 $container['logger'] = new Monolog\Logger();
 $container['dispatcher'] = new EventDispatcher();
 
-$container['service'] = MyService::class;
+$container['service'] = $container->lazy(MyService::class);
 // or
-$container['service'] = $container->callInstance(MyService::class);
+$container['service'] = $container->call(MyService::class);
 ```
 
 ## 📓 Documentation
@@ -278,6 +277,7 @@ Check out the other cool things people are doing with `divineniiquaye/rade-di`: 
 [email]: support@biurad.com
 [message]: https://projects.biurad.com/message
 [nette-di]: https://github.com/nette/di
+[symfony-config]: https://github.com/symfony/config
 [Pimple]: https://github.com/silexphp/pimple
 [PSR-11]: http://www.php-fig.org/psr/psr-11/
 [PSR-12]: http://www.php-fig.org/psr/psr-12/
