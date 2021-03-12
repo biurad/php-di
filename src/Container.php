@@ -48,25 +48,22 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /** @var array<string,mixed> For handling a global config around services */
     public array $parameters = [];
 
-    /** If ContainerBuilder has compiled service definitions */
-    public bool $compiled = false;
-
     /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
-    protected static array $services = [];
+    private static array $services;
 
     /**
      * Instantiates the container.
      */
     public function __construct()
     {
-        $typesWiring = $this->types;
+        static::$services = [];
 
         // Incase this class it extended ...
         if (static::class !== __CLASS__) {
-            $typesWiring += [static::class => ['container']];
+            $this->types += [static::class => ['container']];
         }
 
-        $this->resolver = new AutowireValueResolver($this, $typesWiring);
+        $this->resolver = new AutowireValueResolver($this, $this->types);
     }
 
     /**
@@ -316,7 +313,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 $service->reset();
             }
 
-            unset($this->values[$id], $this->factories[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id]);
+            unset($this->values[$id], $this->factories[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
         }
 
         $this->tags = $this->aliases = [];
@@ -458,21 +455,11 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     protected function getService(string $id)
     {
-        // Checking if service definition exist ...
-        $service = $this->values[$id] ?? $this->methodsMap[$id] ?? null;
-
-        // If service is not a closure, freeze service for later use ...
-        if (!$service instanceof \Closure) {
-            if (null === $service) {
-                if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
-                    $suggest = " Did you mean: \"{$suggest}\" ?";
-                }
-        
-                throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
-            }
+        // If we found the real instance of $service, lets cache that ...
+        if (($service = $this->values[$id] ?? null) && !$service instanceof \Closure) {
             $this->frozen[$id] ??= true;
 
-            return self::$services[$id] = !\is_string($service) ? $service : $this->$service();
+            return self::$services[$id] = $service;
         }
 
         // Checking if circular reference exists ...
@@ -482,12 +469,23 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         $this->loading[$id] = true;
 
         try {
-            $this->values[$id] = $this->call($service);
-            $this->frozen[$id] = true; // Freeze resolved service ...
+            // Resolve lazy or the callable service ..
+            if (null !== $service) {
+                $this->values[$id] = $this->call($service);
+                $this->frozen[$id] = true; // Freeze resolved service ...
+
+                return $this->values[$id];
+            } elseif (isset($this->methodsMap[$id])) {
+                return self::$services[$id] = $this->{$this->methodsMap[$id]}();
+            }
         } finally {
             unset($this->loading[$id]);
         }
 
-        return $this->values[$id];
+        if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
+            $suggest = " Did you mean: \"{$suggest}\" ?";
+        }
+
+        throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
     }
 }

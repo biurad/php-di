@@ -659,6 +659,7 @@ class ContainerTest extends TestCase
         $newRade = new AppContainer();
 
         $this->assertSame($newRade, $newRade['container']);
+        $this->assertSame($newRade, $newRade->get(Container::class));
         $this->assertSame($newRade, $newRade->get(AppContainer::class));
     }
 
