@@ -74,6 +74,8 @@ class AutowireValueResolver
      * Resolve parameters for service definition.
      *
      * @param array<int|string,mixed> $providedParameters
+     *
+     * @return mixed
      */
     public function resolve(\ReflectionParameter $parameter, array $providedParameters)
     {

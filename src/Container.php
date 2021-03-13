@@ -456,7 +456,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     protected function getService(string $id)
     {
         // If we found the real instance of $service, lets cache that ...
-        if (($service = $this->values[$id] ?? null) && !$service instanceof \Closure) {
+        if (null !== ($service = $this->values[$id] ?? null) && !$service instanceof \Closure) {
             $this->frozen[$id] ??= true;
 
             return self::$services[$id] = $service;
