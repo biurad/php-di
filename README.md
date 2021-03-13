@@ -36,7 +36,7 @@ $container['session'] = function (Container $container): Session {
     return new Session($container['session_storage']);
 };
 // or
-$container['session'] = Session::class;
+$container['session'] = $container->lazy(Session::class);
 // or further
 $container['session'] = new Session($container['session_storage']);
 ```
@@ -87,7 +87,7 @@ Also Rade has a alias and tagging support for services. If you want to add a dif
 $container['film'] = new Movie('S1', 'EP202');
 $container->alias('movie', 'film');
 
-// Can be access by $container['firm'] or $container['movie']
+// Can be access by $container['film'] or $container['movie']
 ```
 
 For tagging, perhaps you are building a report aggregator that receives an array of many different `Report` interface implementations.
@@ -229,7 +229,7 @@ Contributions to this library are **welcome**, especially ones that:
 - Improve usability or flexibility without compromising our ability to adhere to [PSR-12] coding stardand.
 - Optimize performance and add new features
 - Fix issues with adhering to [PSR-11] support and backward compatability.
-- 
+-
 
 Please see [CONTRIBUTING] for additional details.
 
