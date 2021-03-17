@@ -25,6 +25,7 @@ use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\Resolvers\AutowireValueResolver;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Rade\DI\Services\ServiceProviderInterface;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -50,6 +51,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
     /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
     private static array $services;
+
+    /** @var ServiceProviderInterface[] A list of service providers */
+    protected array $providers = [];
 
     /**
      * Instantiates the container.

@@ -21,7 +21,6 @@ use Nette\Utils\Callback;
 use Nette\Utils\Reflection;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\AutowireValueResolver;
-use Rade\DI\ServiceProviderInterface;
 
 /**
  * The autowiring service used in Container class.
@@ -47,9 +46,6 @@ trait AutowireTrait
 
     /** @var array[] tag name => service name => tag value */
     protected array $tags = [];
-
-    /** @var ServiceProviderInterface[] */
-    protected array $providers = [];
 
     /** @var array<string,mixed> service name => instance */
     private array $factories = [];

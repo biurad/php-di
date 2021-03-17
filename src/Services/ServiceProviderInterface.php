@@ -15,13 +15,12 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI;
+namespace Rade\DI\Services;
+
+use Rade\DI\Container;
 
 /**
  * Rade service provider interface.
- *
- * @method string getName() This should be exist if Symfony's config interface
- *         is extended to, then set in TreeBuilder instance.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -33,7 +32,7 @@ interface ServiceProviderInterface
      * This method should only be used to configure services and parameters.
      * It should not get services.
      *
-     * @param Container $rade A container instance
+     * @param Container $app A container instance
      */
-    public function register(Container $rade): void;
+    public function register(Container $app): void;
 }
