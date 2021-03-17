@@ -17,12 +17,11 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use Nette\SmartObject;
 use Nette\Utils\Reflection;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\ServiceLocator;
+use Rade\DI\Services\ServiceLocator;
 use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
@@ -34,7 +33,6 @@ use Symfony\Contracts\Service\ServiceSubscriberInterface;
  */
 class AutowireValueResolver
 {
-    use SmartObject;
 
     /** a unique identifier for not found parameter value */
     private const NONE = '\/\/:oxo:\/\/';

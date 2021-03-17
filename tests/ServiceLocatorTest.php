@@ -20,7 +20,7 @@ namespace Rade\DI\Tests;
 use Psr\Container\NotFoundExceptionInterface;
 use Rade\DI\Container;
 use Rade\DI\Exceptions\CircularReferenceException;
-use Rade\DI\ServiceLocator;
+use Rade\DI\Services\ServiceLocator;
 use Symfony\Contracts\Service\Test\ServiceLocatorTest as BaseServiceLocatorTest;
 
 class ServiceLocatorTest extends BaseServiceLocatorTest
