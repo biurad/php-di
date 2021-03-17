@@ -285,19 +285,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     public function extend(string $id, callable $scope)
     {
-        if (!isset($this->keys[$id])) {
-            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
-        }
-
-        if (isset($this->frozen[$id]) || isset($this->methodsMap[$id])) {
-            throw new FrozenServiceException($id);
-        }
-
-        if (isset($this->raw[$id])) {
-            throw new ContainerResolutionException(
-                "Service definition '{$id}' cannot be extended, was not meant to be resolved."
-            );
-        }
+        $this->extendable($id);
 
         // Extended factories should always return new instance ...
         if (isset($this->factories[$id])) {
@@ -305,14 +293,48 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
             return $this->factories[$id] = fn () => $scope($factory(), $this);
         }
-        $extended = $scope($this->getService($id), $this);
 
-        // Unfreeze sevice if frozen ...
-        unset($this->frozen[$id]);
+        if (\is_object($extended = $this->values[$id] ?? null)) {
+            $this->autowireService($id, $extended);
+
+            if (\is_callable($extended)) {
+                $extended = $this->doCreate($id, $this->values[$id]);
+
+                // Unfreeze service if frozen ...
+               unset($this->frozen[$id]);
+            }
+        }
 
         // We bare in mind that $extended could return anyting, and does want to exist in $this->values.
         // This is a hungry implementation to autowire $extended if it's an object.
-        return $this->values[$id] = is_object($extended) ? $this->autowireService($id, $extended) : fn () => $extended;
+        return $this->values[$id] = $scope($extended, $this);
+    }
+
+    /**
+     * Check if servie if can be extended.
+     *
+     * @param string $id
+     *
+     * @throws NotFoundServiceException If the identifier is not defined
+     * @throws FrozenServiceException   If the service is frozen
+     *
+     * @return bool
+     */
+    public function extendable(string $id): bool
+    {
+        if (!isset($this->keys[$id])) {
+            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
+        }
+
+        if ($this->frozen[$id] ?? isset($this->methodsMap[$id])) {
+            throw new FrozenServiceException($id);
+        }
+
+        if (isset($this->raw[$id])) {
+            throw new ContainerResolutionException("Service definition '{$id}' cannot be extended, was not meant to be resolved.");
+        }
+
+        return true;
     }
 
     /**
