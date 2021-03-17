@@ -18,11 +18,12 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Fixtures;
 
 use Rade\DI\Container;
-use Rade\DI\ServiceProviderInterface;
+use Rade\DI\Services\ServiceProviderInterface;
+use Rade\DI\Services\ConfigurationInterface;
+use Rade\DI\Services\DependedInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
-use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider implements ConfigurationInterface, ServiceProviderInterface
+class RadeServiceProvider implements ConfigurationInterface, DependedInterface, ServiceProviderInterface
 {
     /**
      * {@inheritdoc}
@@ -49,19 +50,25 @@ class RadeServiceProvider implements ConfigurationInterface, ServiceProviderInte
     }
 
     /**
-     * Registers services on the given container.
-     *
-     * This method should only be used to configure services and parameters.
-     * It should not get services.
-     *
-     * @param Container $rade An Container instance
+     * {@inheritdoc}
+     */
+    public function dependencies(): array
+    {
+        return [OtherServiceProvider::class];
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function register(Container $rade): void
     {
         $rade['param'] = $rade->raw('value');
 
-        $rade['service'] = function () {
-            return new Service();
+        $rade['service'] = function () use ($rade) {
+            $service =  new Service();
+            $service->value = $rade['other'];
+
+            return $service;
         };
 
         $rade['factory'] = $rade->factory(function () {

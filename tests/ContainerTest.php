@@ -356,7 +356,11 @@ class ContainerTest extends TestCase
         $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
 
         $this->assertTrue(isset($rade->parameters['rade_di']['hello']));
-        $this->assertCount(4, $rade->keys());
+        $this->assertCount(5, $rade->keys());
+
+        $this->assertInstanceOf(Fixtures\Service::class, $service = $rade['service']);
+        $this->assertNotNull($service->value);
+        $this->assertInstanceOf(\stdClass::class, $service->value->get('bar'));
     }
 
     public function testExtend(): void

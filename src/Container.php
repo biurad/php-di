@@ -418,14 +418,18 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     {
         $this->providers[] = $provider;
 
-        if (
-            ([] !== $values && \method_exists($provider, 'getName')) &&
-            $provider instanceof ConfigurationInterface
-        ) {
+        if ([] !== $values && $provider instanceof Services\ConfigurationInterface) {
             $id = $provider->getName();
             $process = [new Processor(), 'processConfiguration'];
 
             $this->parameters[$id] = $process($provider, isset($values[$id]) ? $values : [$id => $values]);
+        }
+
+        // If service provider depends on other providers ...
+        if ($provider instanceof Services\DependedInterface) {
+            foreach ($provider->dependencies() as $dependency) {
+                $this->register($this->autowireClass($dependency, []));
+            }
         }
 
         $provider->register($this);
