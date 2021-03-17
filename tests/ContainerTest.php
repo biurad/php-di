@@ -27,7 +27,7 @@ use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\ScopedDefinition;
-use Rade\DI\ServiceProviderInterface;
+use Rade\DI\Services\ServiceProviderInterface;
 
 class ContainerTest extends TestCase
 {
@@ -692,8 +692,89 @@ class ContainerTest extends TestCase
 
         $rade['scoped'] = new ScopedDefinition(new ScopedDefinition(fn () => null));
     }
+
+    public function testFallbackContainerNameConflict(): void
+    {
+        $rade = new Container();
+
+        // Service before fallback
+        $rade[AppContainer::class] = $rade->raw('something');
+        $rade->fallback(new AppContainer());
+
+        $this->assertEquals('something', $rade[AppContainer::class]);
+        unset($rade[AppContainer::class]);
+        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
+
+        $rade->reset();
+
+        // Fallback before service
+        $rade->fallback(new AppContainer());
+        $rade[AppContainer::class] = $rade->raw('something');
+
+        $this->assertEquals('something', $rade[AppContainer::class]);
+        unset($rade[AppContainer::class]);
+        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
+    }
+
+    public function testFallbackContainerErrors(): void
+    {
+        $rade = new Container();
+        $rade->fallback(new AppContainer());
+
+        try {
+            $rade->get('broken');
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Identifier "broken" is not defined.', $e->getMessage());
+        }
+
+        $this->expectExceptionObject(new ContainerResolutionException('Service id is not found in container'));
+        $rade->alias('oops', 'nothing');
+
+        $this->expectException(NotFoundServiceException::class);
+        $this->expectExceptionMessage('Identifier "nothing" is not defined.');
+
+        $rade->has('nothing');
+    }
+
+    public function testFallbackContainer(): void
+    {
+        $rade = new Container();
+        $rade->fallback($fallback = new AppContainer());
+
+        $this->assertTrue(isset($rade[AppContainer::class]));
+        $this->assertSame($fallback, $rade[AppContainer::class]);
+        $this->assertSame($fallback, $rade->get(AppContainer::class));
+
+        $this->assertTrue(isset($rade['scoped']));
+        $this->assertInstanceOf(ScopedDefinition::class, $one = $rade['scoped']);
+        $this->assertSame($one, $rade->get(ScopedDefinition::class));
+
+        $rade->alias('aliased', 'scoped');
+        $this->assertSame($one, $rade->get('aliased'));
+    }
 }
 
 class AppContainer extends Container
 {
+    protected array $types = [
+        ContainerInterface::class => ['container'],
+        Container::class => ['container'],
+        ScopedDefinition::class => ['scoped'],
+    ];
+
+    protected array $methodsMap = [
+        'container' => 'getServiceContainer',
+        'scoped'    => 'getScopedDefinition',
+        'broken'    => 'getBrokenService',
+    ];
+
+    protected function getScopedDefinition(): ScopedDefinition
+    {
+        return new ScopedDefinition(null, ScopedDefinition::RAW);
+    }
+
+    protected function getBrokenService()
+    {
+        throw new NotFoundServiceException('Broken Service');
+    }
 }

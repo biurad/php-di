@@ -26,6 +26,7 @@ use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
+use Rade\DI\ScopedDefinition;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 
 class ContainerAutowireTest extends TestCase
@@ -362,6 +363,18 @@ class ContainerAutowireTest extends TestCase
 
         $this->assertNotSame($factory->service, $rade['factory']);
         $this->assertSame($protect->service, $rade['protect']);
+    }
+
+    public function testThatAFallbackContainerSupportAutowiring(): void
+    {
+        $rade = new Container();
+        $rade->fallback(new AppContainer());
+        $rade['t_call'] = fn (AppContainer $app) => $app['scoped'];
+
+        $this->assertInstanceOf(ScopedDefinition::class, $one = $rade['scoped']);
+        $this->assertSame($one, $rade['t_call']);
+        $this->assertSame($rade, $rade->get(ContainerInterface::class));
+        $this->assertNotSame($rade[AppContainer::class], $rade->get(ContainerInterface::class));
     }
 
     public function testAutowiringWithUnionType(): void

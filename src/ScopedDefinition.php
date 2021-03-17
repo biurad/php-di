@@ -54,8 +54,6 @@ final class ScopedDefinition
             }
 
             $definition = fn (Container $container) => $container->call($definition);
-        } elseif (\is_callable($definition) && !$definition instanceof \Closure) {
-            $definition = \Closure::fromCallable($definition);
         }
 
         $this->property = $type;
