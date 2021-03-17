@@ -54,6 +54,7 @@ class AutowireValueResolver
         \JsonSerializable::class => true,
         ServiceLocator::class => true,
         ServiceProviderInterface::class => true,
+        ContainerInterface::class => true,
         ResetInterface::class => true,
     ];
 
