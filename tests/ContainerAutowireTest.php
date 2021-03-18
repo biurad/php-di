@@ -377,6 +377,36 @@ class ContainerAutowireTest extends TestCase
         $this->assertNotSame($rade[AppContainer::class], $rade->get(ContainerInterface::class));
     }
 
+    public function testContainerAutwoireMethod(): void
+    {
+        $rade = new Container();
+        $rade->set('service', $rade->lazy(Fixtures\Constructor::class));
+        $rade->autowire('service', [Fixtures\Service::class]);
+        $service = fn (Fixtures\Service $service) => $service;
+
+        $this->assertInstanceOf(Fixtures\Service::class, $one = $rade->get('service'));
+        $this->assertSame($one, $rade->get(Fixtures\Service::class));
+        $this->assertSame($one, $rade->call($service));
+        $this->assertNotSame($one, $rade->get(Fixtures\Constructor::class));
+
+        unset($rade['service']);
+
+        try {
+            $rade->call($service);
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals(
+                $e->getMessage(),
+                'Parameter $service in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() typehint(s) ' .
+                '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
+            );
+        }
+
+        $this->expectExceptionMessage('Service id \'service\' is not found in container');
+        $this->expectException(ContainerResolutionException::class);
+
+        $rade->autowire('service', [Fixtures\Service::class]);
+    }
+
     public function testAutowiringWithUnionType(): void
     {
         if (PHP_VERSION_ID < 80000) {

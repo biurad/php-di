@@ -82,6 +82,25 @@ trait AutowireTrait
     }
 
     /**
+     * Add classes/interfaces for autowiring a service.
+     *
+     * @param string   $id The registered service id
+     * @param string[] $types
+     *
+     * @return static
+     */
+    public function autowire(string $id, array $types)
+    {
+        if (!$this->offsetExists($id)) {
+            throw new ContainerResolutionException("Service id '{$id}' is not found in container");
+        }
+
+        $this->resolver->autowire($id, $types);
+
+        return $this;
+    }
+
+    /**
      * Add a class or interface that should be excluded from autowiring.
      *
      * @param string ...$types
