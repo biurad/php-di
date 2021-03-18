@@ -217,8 +217,7 @@ class AutowireValueResolver
      */
     public function getByType(string $type, bool $single = null)
     {
-        if (!empty($this->wiring[$type])) {
-            $autowired  = $this->wiring[$type];
+        if (!empty($autowired = $this->wiring[$type] ?? null)) {
             $getService = $this->container instanceof \ArrayAccess ? 'offsetGet' : 'get';
 
             if (\count($autowired) === 1) {

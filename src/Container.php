@@ -189,7 +189,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         }
 
         if (!$this->offsetExists($serviceId)) {
-            throw new ContainerResolutionException('Service id is not found in container');
+            throw new ContainerResolutionException("Service id '{$serviceId}' is not found in container");
         }
 
         $this->aliases[$id] = $this->aliases[$serviceId] ?? $serviceId;
@@ -295,18 +295,18 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         }
 
         if (\is_object($extended = $this->values[$id] ?? null)) {
+            // This is a hungry implementation to autowire $extended if it's an object.
             $this->autowireService($id, $extended);
 
             if (\is_callable($extended)) {
                 $extended = $this->doCreate($id, $this->values[$id]);
 
                 // Unfreeze service if frozen ...
-               unset($this->frozen[$id]);
+                unset($this->frozen[$id]);
             }
         }
 
         // We bare in mind that $extended could return anyting, and does want to exist in $this->values.
-        // This is a hungry implementation to autowire $extended if it's an object.
         return $this->values[$id] = $scope($extended, $this);
     }
 
@@ -388,7 +388,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 $protected = $this->call($protected, $arguments);
             }
 
-            return ($protected ?? $this->fallback[$id]) ?? ($this->factories[$id] ?? [$this, 'getService'])($id);
+            return $protected ?? $this->fallback[$id] ?? ($this->factories[$id] ?? [$this, 'getService'])($id);
         } catch (NotFoundServiceException $serviceError) {
             try {
                 return $this->resolver->getByType($id);
@@ -477,7 +477,11 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         // If service provider depends on other providers ...
         if ($provider instanceof Services\DependedInterface) {
             foreach ($provider->dependencies() as $dependency) {
-                $this->register($this->autowireClass($dependency, []));
+                $dependency = $this->autowireClass($dependency, []);
+
+                if ($dependency instanceof ServiceProviderInterface) {
+                    $this->register($dependency);
+                }
             }
         }
 
@@ -500,6 +504,8 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
         // Autowire $fallback, incase services parametes
         // requires it, container is able to serve it.
         $this->resolver->autowire($name, [$name]);
+
+        return $this;
     }
 
     /**

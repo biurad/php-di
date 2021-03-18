@@ -27,4 +27,4 @@ parameters:
             path: src/Container.php
         -
             message: '#^Invalid type Psr\\Container\\(NotFound|Container)ExceptionInterface to throw|Only booleans are allowed in a ternary operator condition, ReflectionType\|null given.$#'
-            path: src/ServiceLocator.php
+            path: src/Services/ServiceLocator.php

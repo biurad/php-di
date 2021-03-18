@@ -212,7 +212,7 @@ class ContainerTest extends TestCase
 
     public function testItThrowsExceptionIfServiceIdNotFound(): void
     {
-        $this->expectExceptionMessage('Service id is not found in container');
+        $this->expectExceptionMessage('Service id \'nothing\' is not found in container');
         $this->expectException(ContainerResolutionException::class);
 
         $rade = new Container();
@@ -727,7 +727,7 @@ class ContainerTest extends TestCase
             $this->assertEquals('Identifier "broken" is not defined.', $e->getMessage());
         }
 
-        $this->expectExceptionObject(new ContainerResolutionException('Service id is not found in container'));
+        $this->expectExceptionObject(new ContainerResolutionException('Service id \'nothing\' is not found in container'));
         $rade->alias('oops', 'nothing');
 
         $this->expectException(NotFoundServiceException::class);

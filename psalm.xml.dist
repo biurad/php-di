@@ -50,6 +50,13 @@
             </errorLevel>
         </InvalidThrow>
 
+        <InvalidCatch>
+            <errorLevel type="suppress">
+                <referencedClass name="Psr\Container\NotFoundExceptionInterface"/>
+                <referencedClass name="Psr\Container\ContainerExceptionInterface"/>
+            </errorLevel>
+        </InvalidCatch>
+
         <TypeDoesNotContainType>
             <errorLevel type="suppress">
                 <file name="src/Resolvers/AutowireValueResolver.php"/>
