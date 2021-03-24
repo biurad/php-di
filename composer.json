@@ -26,6 +26,7 @@
     "require-dev": {
         "composer/package-versions-deprecated": "^1.11",
         "divineniiquaye/php-invoker": "^0.9",
+        "nikic/php-parser": "^4.10",
         "phpstan/phpstan": "^0.12",
         "phpstan/phpstan-strict-rules": "^0.12",
         "phpunit/phpunit": "^8.5 || ^9.5",
