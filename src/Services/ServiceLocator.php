@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Services;
 
-use DivineNii\Invoker\CallableReflection;
+use Nette\Utils\Callback;
 use Psr\Container\ContainerExceptionInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Symfony\Contracts\Service\ServiceLocatorTrait;
@@ -42,11 +42,9 @@ class ServiceLocator implements ServiceProviderInterface
         }
 
         if (isset($this->loading[$id])) {
-            $ids = array_values($this->loading);
-            $ids = \array_slice($this->loading, (int) array_search($id, $ids, true));
-            $ids[] = $id;
+            $ids = \array_splice($this->loading, 1);
 
-            throw $this->createCircularReferenceException($id, $ids);
+            throw $this->createCircularReferenceException($id, [...\array_keys($ids), $id]);
         }
 
         $this->loading[$id] = $id;
@@ -70,7 +68,7 @@ class ServiceLocator implements ServiceProviderInterface
 
             foreach ($this->factories as $name => $factory) {
                 if (\is_callable($factory)) {
-                    $type = CallableReflection::create($factory)->getReturnType();
+                    $type = Callback::toReflection($factory)->getReturnType();
 
                     $this->providedTypes[$name] = $type ? ($type->allowsNull() ? '?' : '') . ($type instanceof \ReflectionNamedType ? $type->getName() : $type) : '?';
                 } elseif (\is_object($factory) && !$factory instanceof \stdClass) {
