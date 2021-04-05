@@ -32,4 +32,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     public const IGNORE_MULTIPLE_SERVICE = 0;
 
     public const EXCEPTION_ON_MULTIPLE_SERVICE = 1;
+
+    /** @var array<string,mixed> For handling a global config around services */
+    public array $parameters = [];
 }

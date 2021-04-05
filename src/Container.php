@@ -47,9 +47,6 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     /** @var array<string,string> internal cached services */
     protected array $methodsMap = ['container' => 'getServiceContainer'];
 
-    /** @var array<string,mixed> For handling a global config around services */
-    public array $parameters = [];
-
     /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
     private static array $services;
 
