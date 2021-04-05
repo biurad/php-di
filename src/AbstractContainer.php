@@ -35,4 +35,15 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
     /** @var array<string,mixed> For handling a global config around services */
     public array $parameters = [];
+    /**
+     * {@inheritdoc}
+     *
+     * @param string $id              Identifier of the entry to look for.
+     * @param int    $invalidBehavior The behavior when multiple services returns for $id
+     */
+    abstract public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1);
+    /**
+     * {@inheritdoc}
+     */
+    abstract public function has(string $id): bool;
 }
