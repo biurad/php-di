@@ -42,8 +42,23 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      * @param int    $invalidBehavior The behavior when multiple services returns for $id
      */
     abstract public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1);
+
     /**
      * {@inheritdoc}
      */
     abstract public function has(string $id): bool;
+
+    /**
+     * Returns all defined value names.
+     *
+     * @return string[] An array of value names
+     */
+    abstract public function keys(): array;
+
+    /**
+     * Resets the container
+     */
+    public function reset(): void
+    {
+    }
 }
