@@ -35,6 +35,14 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
     /** @var array<string,mixed> For handling a global config around services */
     public array $parameters = [];
+
+    /**
+     * Container can not be cloned.
+     */
+    public function __clone()
+    {
+        throw new \LogicException('Container is not cloneable');
+    }
     /**
      * {@inheritdoc}
      *

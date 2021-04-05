@@ -72,14 +72,6 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
-     * Container can not be cloned.
-     */
-    public function __clone()
-    {
-        throw new \LogicException('Container is not clonable');
-    }
-
-    /**
      * Dynamically access container services.
      *
      * @param string $key
