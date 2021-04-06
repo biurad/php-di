@@ -35,7 +35,7 @@ use Symfony\Contracts\Service\ResetInterface;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Container implements \ArrayAccess, ContainerInterface, ResetInterface
+class Container extends AbstractContainer implements \ArrayAccess
 {
     use Traits\AutowireTrait;
 
