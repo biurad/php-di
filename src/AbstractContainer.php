@@ -16,6 +16,9 @@ declare(strict_types=1);
  */
 
 namespace Rade\DI;
+use Rade\DI\Exceptions\{
+    CircularReferenceException, ContainerResolutionException, NotFoundServiceException
+};
 /**
  * Internal shared container.
  *
@@ -36,6 +39,11 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array<string,mixed> For handling a global config around services */
     public array $parameters = [];
 
+    /** @var string[] alias => service name */
+    protected array $aliases = [];
+
+    /** @var array[] tag name => service name => tag value */
+    private array $tags = [];
     /**
      * Container can not be cloned.
      */
@@ -68,5 +76,68 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function reset(): void
     {
+
+    /**
+     * Marks an alias id to service id.
+     *
+     * @param string $id The alias id
+     * @param string $serviceId The registered service id
+     *
+     * @throws ContainerResolutionException Service id is not found in container
+     */
+    public function alias(string $id, string $serviceId): void
+    {
+        if ($id === $serviceId) {
+            throw new \LogicException("[{$id}] is aliased to itself.");
+        }
+
+        if (!$this->has($serviceId)) {
+            throw new ContainerResolutionException("Service id '{$serviceId}' is not found in container");
+        }
+
+        $this->aliases[$id] = $this->aliases[$serviceId] ?? $serviceId;
+    }
+
+    /**
+     * Assign a set of tags to service(s).
+     *
+     * @param string[]|string         $serviceIds
+     * @param array<int|string,mixed> $tags
+     */
+    public function tag($serviceIds, array $tags): void
+    {
+        foreach ((array) $serviceIds as $service) {
+            foreach ($tags as $tag => $attributes) {
+                // Exchange values if $tag is an integer
+                if (\is_int($tmp = $tag)) {
+                    $tag = $attributes;
+                    $attributes = $tmp;
+                }
+
+                $this->tags[$service][$tag] = $attributes;
+            }
+        }
+    }
+
+    /**
+     * Resolve all of the bindings for a given tag.
+     *
+     * @param string $tag
+     *
+     * @return mixed[] of [service, attributes]
+     */
+    public function tagged(string $tag): array
+    {
+        $tags = [];
+
+        foreach ($this->tags as $service => $tagged) {
+            if (isset($tagged[$tag])) {
+                $tags[] = [$this->get($service), $tagged[$tag]];
+            }
+        }
+
+        return $tags;
+    }
+
     }
 }
