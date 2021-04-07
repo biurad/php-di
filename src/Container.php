@@ -47,9 +47,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     /** @var array<string,string> internal cached services */
     protected array $methodsMap = ['container' => 'getServiceContainer'];
 
-    /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
-    protected static array $services;
-
     /** @var ServiceProviderInterface[] A list of service providers */
     protected array $providers = [];
 
@@ -61,7 +58,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function __construct()
     {
-        static::$services = [];
+        parent::__construct();
 
         // Incase this class it extended ...
         if (static::class !== __CLASS__) {

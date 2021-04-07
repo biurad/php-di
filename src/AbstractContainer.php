@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 
 namespace Rade\DI;
+
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\{
     CircularReferenceException, ContainerResolutionException, NotFoundServiceException
@@ -42,11 +43,19 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array<string,mixed> For handling a global config around services */
     public array $parameters = [];
 
+    /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
+    protected static array $services;
+
     /** @var string[] alias => service name */
     protected array $aliases = [];
 
     /** @var array[] tag name => service name => tag value */
     private array $tags = [];
+
+    public function __construct()
+    {
+        self::$services = [];
+    }
 
     /**
      * Container can not be cloned.
