@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use Nette\Utils\Helpers;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\{
     CircularReferenceException, ContainerResolutionException, NotFoundServiceException
@@ -152,5 +153,18 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         return $tags;
     }
 
+    protected function createNotFound(string $id, bool $throw = false): NotFoundServiceException
+    {
+        if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
+            $suggest = " Did you mean: \"$suggest\" ?";
+        }
+
+        $error = new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
+
+        if ($throw) {
+            throw $error;
+        }
+
+        return $error;
     }
 }
