@@ -47,6 +47,9 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
     protected static array $services;
 
+    /** @var array<string,bool> service name => bool */
+    protected array $loading = [];
+
     /** @var string[] alias => service name */
     protected array $aliases = [];
 
@@ -90,6 +93,8 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function reset(): void
     {
+        $this->tags = $this->aliases = [];
+    }
 
     /**
      * Marks an alias id to service id.
@@ -152,6 +157,17 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
         return $tags;
     }
+
+    /**
+     * @internal Prevent service looping.
+     *
+     * @param callable|string $service
+     *
+     * @throws CircularReferenceException
+     *
+     * @return mixed
+     */
+    abstract protected function doCreate(string $id, $service);
 
     protected function createNotFound(string $id, bool $throw = false): NotFoundServiceException
     {
