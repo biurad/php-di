@@ -364,13 +364,13 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function register(ServiceProviderInterface $provider, array $values = [])
     {
-        $this->providers[] = $provider;
+        $this->providers[\get_class($provider)] = $provider;
 
         if ([] !== $values && $provider instanceof Services\ConfigurationInterface) {
             $id = $provider->getName();
             $process = [new Processor(), 'processConfiguration'];
 
-            $this->parameters[$id] = $process($provider, isset($values[$id]) ? $values : [$id => $values]);
+            $provider->setConfiguration($process($provider, isset($values[$id]) ? $values : [$id => $values]), $this);
         }
 
         // If service provider depends on other providers ...

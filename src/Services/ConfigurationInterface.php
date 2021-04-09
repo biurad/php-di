@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Services;
 
+use Psr\Container\ContainerInterface;
 use Symfony\Component\Config\Definition\ConfigurationInterface as ConfigContextInterface;
 
 /**
@@ -27,8 +28,22 @@ use Symfony\Component\Config\Definition\ConfigurationInterface as ConfigContextI
 interface ConfigurationInterface extends ConfigContextInterface
 {
     /**
-     * The unqiue name of the service provider in finding
+     * The unique name of the service provider in finding
      * configurations belonging to this provider in container's $parameters.
      */
     public function getName(): string;
+
+    /**
+     * Sets service's provider or builder configuration.
+     *
+     * @param ContainerInterface $container either ContainerBuilder or Container instance.
+     */
+    public function setConfiguration(array $config, ContainerInterface $container): void;
+
+    /**
+     * Returns service's provider or builder configuration.
+     *
+     * @return array of resolved configurations
+     */
+    public function getConfiguration(): array;
 }
