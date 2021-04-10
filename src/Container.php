@@ -50,8 +50,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     /** @var ServiceProviderInterface[] A list of service providers */
     protected array $providers = [];
 
-    /** @var ContainerInterface[] A list of fallback PSR-11 containers */
-    protected array $fallback = [];
 
     /**
      * Instantiates the container.
@@ -109,18 +107,6 @@ class Container extends AbstractContainer implements \ArrayAccess
             return true;
         }
 
-        if ([] !== $this->fallback) {
-            if (isset($this->fallback[$offset])) {
-                return true;
-            }
-
-            foreach ($this->fallback as $container) {
-                try {
-                    return $container->has($offset);
-                } catch (NotFoundExceptionInterface $e) {
-                }
-            }
-        }
 
         return isset($this->aliases[$offset]) ? $this->offsetExists($this->aliases[$offset]) : false;
     }
@@ -237,9 +223,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Returns all defined value names.
-     *
-     * @return string[] An array of value names
+     * {@inheritdoc}
      */
     public function keys(): array
     {
@@ -263,13 +247,6 @@ class Container extends AbstractContainer implements \ArrayAccess
             }
 
             unset($this->values[$id], $this->factories[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
-        }
-
-        // A container such as Symfony DI support reset ...
-        foreach ($this->fallback as $fallback) {
-            if ($fallback instanceof ResetInterface) {
-                $fallback->reset();
-            }
         }
 
         self::$services = [];
@@ -307,7 +284,7 @@ class Container extends AbstractContainer implements \ArrayAccess
             }
 
             if (isset($this->aliases[$id])) {
-                return $this->get($this->aliases[$id], $arguments);
+                return $this->get($this->aliases[$id]);
             }
 
             throw $serviceError;
@@ -396,24 +373,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Register a PSR-11 fallback container.
-     *
-     * @param ContainerInterface $fallback
-     *
-     * @return static
-     */
-    public function fallback(ContainerInterface $fallback)
-    {
-        $this->fallback[$name = \get_class($fallback)] = $fallback;
-
-        // Autowire $fallback, incase services parametes
-        // requires it, container is able to serve it.
-        $this->resolver->autowire($name, [$name]);
-
-        return $this;
-    }
-
-    /**
      * @internal
      *
      * Get the mapped service container instance
@@ -426,10 +385,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * Build an entry of the container by its name.
      *
-     * @param string $id
-     *
-     * @throws CircularReferenceException
-     * @throws NotFoundServiceException
+     * @throws CircularReferenceException|NotFoundServiceException
      *
      * @return mixed
      */
@@ -449,22 +405,6 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $this->doCreate($id, $service);
         }
 
-        if ([] !== $this->fallback) {
-            // A bug is discovered here, if fallback is a dynamically autowired container like this one.
-            // Instead a return of fallback container, main container should be used.
-            if ($id === ContainerInterface::class) {
-                return $this;
-            }
-
-            foreach ($this->fallback as $container) {
-                try {
-                    return self::$services[$id] = $container->get($id);
-                } catch (ContainerExceptionInterface $e) {
-                }
-            }
-        } elseif (isset($this->aliases[$id])) {
-            return $this->offsetGet($this->aliases[$id]);
-        }
 
         if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
             $suggest = " Did you mean: \"{$suggest}\" ?";
