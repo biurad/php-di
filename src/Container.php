@@ -247,11 +247,17 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Resets the container
+     * {@inheritdoc}
      */
     public function reset(): void
     {
+        parent::reset();
+
         foreach ($this->values as $id => $service) {
+            if (isset(self::$services[$id])) {
+                $service = self::$services[$id];
+            }
+
             if ($service instanceof ResetInterface) {
                 $service->reset();
             }
@@ -266,7 +272,7 @@ class Container extends AbstractContainer implements \ArrayAccess
             }
         }
 
-        $this->tags = $this->aliases = self::$services = $this->fallback = [];
+        self::$services = [];
     }
 
     /**
