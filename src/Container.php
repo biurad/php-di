@@ -175,9 +175,9 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param mixed $definition from being evaluated
      */
-    public function raw($definition): ScopedDefinition
+    public function raw($definition): RawDefinition
     {
-        return new ScopedDefinition($definition, ScopedDefinition::RAW);
+        return new RawDefinition($definition);
     }
 
     /**

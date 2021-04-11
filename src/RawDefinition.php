@@ -22,7 +22,7 @@ namespace Rade\DI;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class RawService
+class RawDefinition
 {
     /** @var mixed */
     public $service;
