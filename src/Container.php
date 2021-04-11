@@ -126,21 +126,48 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * This is useful when you want to autowire a callable or class string lazily.
      *
+     * @see $this->definition() method
+     * @deprecated Since 1.0, use Definition class or container's definition method instead.
+     *
      * @param callable|string $definition A class string or a callable
      */
-    public function lazy($definition): ScopedDefinition
+    public function lazy($definition): Definition
     {
-        return new ScopedDefinition($definition, ScopedDefinition::LAZY);
+        return $this->definition($definition, Definition::LAZY);
     }
 
     /**
-     * Marks a callable as being a factory service.
+     * Marks a definition as being a factory service.
      *
-     * @param callable $callable A service definition to be used as a factory
+     * @see $this->definition() method
+     * @deprecated Since 1.0, use Definition class or container's definition method instead.
+     *
+     * @param callable|object|string $callable A service definition to be used as a factory
      */
-    public function factory($callable): ScopedDefinition
+    public function factory($callable): Definition
     {
-        return new ScopedDefinition(fn () => $this->call($callable));
+        return $this->definition($callable, Definition::FACTORY);
+    }
+
+    /**
+     * Create a definition service.
+     *
+     * @param string|callable|Definition|Statement $definition $service
+     * @param int|null $type of Definition::FACTORY | Definition::LAZY
+     *
+     * @return Definition
+     */
+    public function definition($service, int $type = null): Definition
+    {
+        if ($service instanceof RawDefinition) {
+            throw new ContainerResolutionException(
+                \sprintf('Use %s class or %s::raw instead.', RawDefinition::class, __CLASS__)
+            );
+        }
+
+        $definition = new Definition($service);
+
+        return null === $type ? $definition : $definition->should($type);
     }
 
     /**
