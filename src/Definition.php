@@ -35,7 +35,7 @@ use Rade\DI\Builder\Statement;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Definition
+class Definition implements \Stringable
 {
     use Traits\ResolveTrait;
 
@@ -71,6 +71,14 @@ class Definition
     {
         $this->entity     = $entity;
         $this->parameters = $arguments;
+    }
+
+    /**
+     * The method name generated for a service definition.
+     */
+    public function __toString(): string
+    {
+        return 'get' . \str_replace(['.', '_'], '', \ucwords($this->id, '._'));
     }
 
     /**
