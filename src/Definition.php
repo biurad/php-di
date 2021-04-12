@@ -62,7 +62,7 @@ class Definition
     private array $deprecated = [];
 
     /**
-     * DefinitionValueResolver constructor
+     * Definition constructor
      *
      * @param mixed                   $entity
      * @param array<int|string,mixed> $arguments
