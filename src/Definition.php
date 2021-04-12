@@ -72,7 +72,7 @@ class Definition implements \Stringable
      */
     public function __construct($entity, array $arguments = [])
     {
-        $this->entity     = $entity;
+        $this->replace($entity);
         $this->parameters = $arguments;
     }
 
@@ -88,10 +88,18 @@ class Definition implements \Stringable
      * Replace existing entity to a new entity.
      * NB: Using this method must be done before autowiring.
      *
+     * @param mixed $entity
+     *
      * @return $this
      */
     final public function replace($entity): self
     {
+        if ($entity instanceof RawDefinition) {
+            throw new ServiceCreationException(
+                \sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class)
+            );
+        }
+
         $this->entity = $entity;
 
         return $this;
