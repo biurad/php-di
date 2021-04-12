@@ -112,11 +112,7 @@ class Definition implements \Stringable
      */
     final public function args(array $arguments): self
     {
-        if ($this->entity instanceof Statement) {
-            $this->entity->args = $arguments;
-        } elseif (!$this->entity instanceof RawService) {
-            $this->parameters = $arguments;
-        }
+        $this->parameters = $arguments;
 
         return $this;
     }
@@ -131,11 +127,7 @@ class Definition implements \Stringable
      */
     final public function arg($key, $value): self
     {
-        if ($this->entity instanceof Statement) {
-            $this->entity->args[$key] = $value;
-        } elseif (!$this->entity instanceof RawService) {
-            $this->parameters[$key] = $value;
-        }
+        $this->parameters[$key] = $value;
 
         return $this;
     }
