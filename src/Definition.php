@@ -51,7 +51,10 @@ class Definition implements \Stringable
     /** Marks a definition as a private service. */
     public const PRIVATE = 4;
 
-    public ?string $id = null;
+    /** Use in second parameter of bind method. */
+    public const EXTRA_BIND = '@code@';
+
+    public string $id;
 
     private bool $factory = false;
 
@@ -130,9 +133,9 @@ class Definition implements \Stringable
     }
 
     /**
-     * Sets method, property, FNQC or php code bindings.
+     * Sets method, property, Class|@Ref::Method or php code bindings.
      *
-     * Binding map method name, property name, FNQC or php code that should be
+     * Binding map method name, property name, Class|@Ref::Method or php code that should be
      * injected in the definition's entity as assigned property, method or
      * extra code added in running that entity.
      *
