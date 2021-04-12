@@ -179,7 +179,11 @@ class Definition implements \Stringable
      */
     final public function type($types): self
     {
-        $this->type = \PHP_VERSION_ID >= 80000 ? $types : (\current($types) ?: null);
+        if (\PHP_VERSION_ID < 80000 && \is_array($types)) {
+            $types = \current($types) ?: null;
+        }
+
+        $this->type = $types;
 
         return $this;
     }
