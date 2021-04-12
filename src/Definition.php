@@ -67,18 +67,10 @@ class Definition
      * @param mixed                   $entity
      * @param array<int|string,mixed> $arguments
      */
-    public function __construct($entity, array $arguments = [], int $type = null)
+    public function __construct($entity, array $arguments = [])
     {
         $this->entity     = $entity;
         $this->parameters = $arguments;
-
-        if (self::FACTORY === $type) {
-            $this->factory = true;
-        } elseif (self::LAZY === $type) {
-            $this->lazy = true;
-        } elseif (self::PRIVATE === $type) {
-            $this->public = false;
-        }
     }
 
     /**
