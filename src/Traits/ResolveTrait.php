@@ -52,31 +52,36 @@ trait ResolveTrait
      */
     public function __invoke()
     {
-        $resolved = $this->entity;
-
-        if ($resolved instanceof RawService) {
-            throw new ContainerResolutionException('Not supported service entity as it\'s an instance of RawService');
+        if (($resolved = $this->entity) instanceof Statement) {
+            $resolved = $resolved->value;
+            $this->parameters += $resolved->args;
         }
 
-        if (\is_callable($resolved)) {
-            return $this->resolver->resolve($resolved, $this->parameters);
+        $resolved = $this->resolver->resolve($resolved, $this->resolveArguments($this->parameters, null, false));
+
+        if (\function_exists('trigger_deprecation') && [] !== $deprecation = $this->deprecated) {
+            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message']);
         }
 
-        if (\is_string($resolved) && \class_exists($resolved)) {
-            $resolved = $this->resolver->resolveClass($resolved, $this->parameters);
-        }
+        foreach ($this->calls as $bind => $value) {
+            $arguments = $this->resolveArguments(\is_array($value) ? $value : [$value], null, false);
 
-        if ([] !== $this->calls && \is_object($resolved)) {
-            foreach ($this->calls as $bind => $value) {
+            if (\is_object($resolved) && !\is_callable($resolved)) {
                 if (\property_exists($resolved, $bind)) {
-                    $resolved->{$bind} = $value;
+                    $resolved->{$bind} = \is_string($value) ? \current($arguments) : $arguments;
 
                     continue;
                 }
 
                 if (\method_exists($resolved, $bind)) {
-                    $this->resolver->resolve([$resolved, $bind], !\is_array($value) ? [$value] : $value);
+                    $this->resolver->resolve([$resolved, $bind], $arguments);
+
+                    continue;
                 }
+            }
+
+            if (\str_starts_with($bind, '@') && \str_contains($bind, '::')) {
+                $this->resolver->resolve(\explode('::', \substr($bind, 1), 2), $arguments);
             }
         }
 

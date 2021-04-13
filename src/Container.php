@@ -159,12 +159,6 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function definition($service, int $type = null): Definition
     {
-        if ($service instanceof RawDefinition) {
-            throw new ContainerResolutionException(
-                \sprintf('Use %s class or %s::raw instead.', RawDefinition::class, __CLASS__)
-            );
-        }
-
         $definition = new Definition($service);
 
         return null === $type ? $definition : $definition->should($type);
