@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use Rade\DI\Exceptions\ContainerResolutionException;
+
 /**
  * Represents a service which should not be resolved.
  *
@@ -32,6 +34,10 @@ class RawDefinition
      */
     public function __construct($service)
     {
+        if ($service instanceof self) {
+            throw new ContainerResolutionException('unresolvable definition cannot contain itself.');
+        }
+
         $this->service = $service;
     }
 }
