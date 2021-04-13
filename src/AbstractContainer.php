@@ -89,6 +89,18 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     abstract public function keys(): array;
 
     /**
+     * Returns true if the given service has actually been initialized.
+     *
+     * @param string $id The service identifier
+     *
+     * @return bool true if service has already been initialized, false otherwise
+     */
+    public function initialized(string $id): bool
+    {
+        return isset(self::$services[$id]) || (isset($this->aliases[$id]) && $this->initialized($this->aliases[$id]));
+    }
+
+    /**
      * Resets the container
      */
     public function reset(): void
