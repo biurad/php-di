@@ -153,17 +153,15 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * Resolve all of the bindings for a given tag.
      *
-     * @param string $tag
-     *
-     * @return mixed[] of [service, attributes]
+     * @return array of [service, attributes]
      */
-    public function tagged(string $tag): array
+    public function tagged(string $tag, bool $resolve = true): array
     {
         $tags = [];
 
         foreach ($this->tags as $service => $tagged) {
             if (isset($tagged[$tag])) {
-                $tags[] = [$this->get($service), $tagged[$tag]];
+                $tags[] = [$resolve ? $this->get($service) : $service, $tagged[$tag]];
             }
         }
 
