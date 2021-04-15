@@ -46,9 +46,7 @@ trait ResolveTrait
     private array $calls = [];
 
     /**
-     * Resolves the Definition
-     *
-     * @throws \ReflectionException
+     * Resolves the Definition when in use in Container.
      */
     public function __invoke()
     {
@@ -57,7 +55,14 @@ trait ResolveTrait
             $this->parameters += $resolved->args;
         }
 
-        $resolved = $this->resolver->resolve($resolved, $this->resolveArguments($this->parameters, null, false));
+        try {
+            $resolved = $this->resolver->resolve($resolved, $this->resolveArguments($this->parameters, null, false));
+        } catch (ContainerResolutionException $e) {
+            // May be a valid object class
+            if (!\is_object($resolved)) {
+                throw $e;
+            }
+        }
 
         if (\function_exists('trigger_deprecation') && [] !== $deprecation = $this->deprecated) {
             \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message']);
@@ -68,7 +73,7 @@ trait ResolveTrait
 
             if (\is_object($resolved) && !\is_callable($resolved)) {
                 if (\property_exists($resolved, $bind)) {
-                    $resolved->{$bind} = \is_string($value) ? \current($arguments) : $arguments;
+                    $resolved->{$bind} = !\is_array($value) ? \current($arguments) : $arguments;
 
                     continue;
                 }
