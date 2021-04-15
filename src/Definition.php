@@ -52,6 +52,9 @@ class Definition implements \Stringable
     /** Marks a definition as a private service. */
     public const PRIVATE = 4;
 
+    /** Use to check if definition is autowired. */
+    public const AUTOWIRED = 5;
+
     /** Use in second parameter of bind method. */
     public const EXTRA_BIND = '@code@';
 
@@ -170,12 +173,12 @@ class Definition implements \Stringable
     /**
      * Enables autowiring.
      *
-     * @throws \ReflectionException
-     *
      * @return $this
      */
     final public function autowire(array $types = []): self
     {
+        $this->autowire = true;
+
         if ([] === $types) {
             if (\is_string($service = $this->entity) && \class_exists($service)) {
                 $types = [$service];
@@ -186,7 +189,7 @@ class Definition implements \Stringable
 
         $this->resolver->autowire($this->id, $types);
 
-        return $this->type($types);
+        return $this->typeOf($types);
     }
 
     /**
@@ -196,9 +199,9 @@ class Definition implements \Stringable
      *
      * @return $this
      */
-    final public function type($types): self
+    final public function typeOf($types): self
     {
-        if (\PHP_VERSION_ID < 80000 && \is_array($types)) {
+        if (\is_array($types) && (\count($types) === 1 || \PHP_VERSION_ID < 80000)) {
             $types = \current($types) ?: null;
         }
 
@@ -248,6 +251,10 @@ class Definition implements \Stringable
 
         if (self::PRIVATE === $type) {
             return !$this->public;
+        }
+
+        if (self::AUTOWIRED === $type) {
+            return $this->autowire;
         }
 
         return false;

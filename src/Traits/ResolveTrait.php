@@ -45,6 +45,8 @@ trait ResolveTrait
 
     private array $calls = [];
 
+    private bool $autowire = false;
+
     /**
      * Resolves the Definition when in use in Container.
      */
