@@ -55,7 +55,7 @@ class Definition implements \Stringable
     /** Use in second parameter of bind method. */
     public const EXTRA_BIND = '@code@';
 
-    public string $id;
+    private string $id;
 
     private bool $factory = false;
 
@@ -83,6 +83,21 @@ class Definition implements \Stringable
     public function __toString(): string
     {
         return 'get' . \str_replace(['.', '_'], '', \ucwords($this->id, '._'));
+    }
+
+    /**
+     * Attach the missing id and resolver to this definition.
+     * NB: This method is used internally and should not be used directly.
+     *
+     * @param string             $id
+     * @param Resolvers\Resolver $resolver
+     *
+     * @internal
+     */
+    final public function attach(string $id, Resolvers\Resolver $resolver): void
+    {
+        $this->id = $id;
+        $this->resolver = $resolver;
     }
 
     /**

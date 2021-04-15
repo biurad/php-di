@@ -33,7 +33,7 @@ use Rade\DI\{
  */
 trait ResolveTrait
 {
-    public ?Resolver $resolver = null;
+    private Resolver $resolver;
 
     /** @var mixed */
     private $entity;
