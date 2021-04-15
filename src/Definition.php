@@ -18,17 +18,18 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Nette\Utils\{Callback, Reflection};
-use PhpParser\Node\{Expr\ArrayDimFetch,
-    Expr\ArrowFunction,
+use PhpParser\Node\{
+    Expr\ArrayDimFetch,
     Expr\Assign,
-    Expr\New_,
+    Expr\BinaryOp,
     Expr\StaticPropertyFetch,
     Name,
     Scalar\String_,
     Stmt\Return_,
-    UnionType};
-use PhpParser\ParserFactory;
-use Rade\DI\Builder\Statement;
+    UnionType
+};
+use PhpParser\BuilderFactory;
+use Rade\DI\Exceptions\ServiceCreationException;
 
 /**
  * Represents definition of standard service.
