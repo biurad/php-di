@@ -187,60 +187,27 @@ class Container extends AbstractContainer implements \ArrayAccess
      * @throws FrozenServiceException   If the service is frozen
      * @throws CircularReferenceException If infinite loop among service is detected
      *
-     * @return mixed The wrapped scope
+     * @return mixed The wrapped scope or Definition instance
      */
     public function extend(string $id, callable $scope)
     {
-        $this->extendable($id);
-
-        // Extended factories should always return new instance ...
-        if (isset($this->factories[$id])) {
-            $factory = $this->factories[$id];
-
-            return $this->factories[$id] = fn () => $scope($factory(), $this);
-        }
-
-        if (\is_object($extended = $this->values[$id] ?? null)) {
-            // This is a hungry implementation to autowire $extended if it's an object.
-            $this->autowireService($id, $extended);
-
-            if (\is_callable($extended)) {
-                $extended = $this->doCreate($id, $this->values[$id]);
-
-                // Unfreeze service if frozen ...
-                unset($this->frozen[$id]);
-            }
-        }
-
-        // We bare in mind that $extended could return anyting, and does want to exist in $this->values.
-        return $this->values[$id] = $scope($extended, $this);
-    }
-
-    /**
-     * Check if servie if can be extended.
-     *
-     * @param string $id
-     *
-     * @throws NotFoundServiceException If the identifier is not defined
-     * @throws FrozenServiceException   If the service is frozen
-     *
-     * @return bool
-     */
-    public function extendable(string $id): bool
-    {
-        if (!isset($this->keys[$id])) {
-            throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
-        }
-
         if ($this->frozen[$id] ?? isset($this->methodsMap[$id])) {
             throw new FrozenServiceException($id);
         }
 
-        if (isset($this->raw[$id])) {
-            throw new ContainerResolutionException("Service definition '{$id}' cannot be extended, was not meant to be resolved.");
+        if (null !== $extended = $this->values[$id] ?? null) {
+            if ($extended instanceof RawDefinition) {
+                return $this->values[$id] = new RawDefinition($scope($extended(), $this));
+            }
+
+            if (!$extended instanceof Definition && \is_callable($extended)) {
+                $extended = $this->doCreate($id, $extended);
+            }
+
+            return $this->values[$id] = $scope($extended, $this);
         }
 
-        return true;
+        throw $this->createNotFound($id);
     }
 
     /**
