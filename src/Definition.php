@@ -46,7 +46,7 @@ class Definition implements \Stringable
     /** This is useful when you want to autowire a callable or class string lazily. */
     public const LAZY = 2;
 
-    /** Marks a definition as being deprecated. */
+    /** Use to check if definition is deprecated. */
     public const DEPRECATED = 3;
 
     /** Marks a definition as a private service. */
