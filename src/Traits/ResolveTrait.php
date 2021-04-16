@@ -63,6 +63,8 @@ trait ResolveTrait
 
     /**
      * Resolves the Definition when in use in Container.
+     *
+     * @return mixed
      */
     public function __invoke()
     {

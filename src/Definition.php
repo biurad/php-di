@@ -260,6 +260,12 @@ class Definition implements \Stringable
         return false;
     }
 
+    /**
+     * Should the this definition be a type of
+     * self::FACTORY|self::PRIVATE|self::LAZY, then set enabled or not.
+     *
+     * @return $this
+     */
     public function should(int $be = self::FACTORY, bool $enabled = true): self
     {
         switch ($be) {

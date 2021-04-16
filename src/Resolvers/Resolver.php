@@ -90,7 +90,7 @@ class Resolver implements ContainerInterface, ResetInterface
                 continue;
             }
 
-            $parents += \class_implements($type, false) + [$type];
+            $parents += (\class_implements($type, false) ?: []) + [$type];
 
             foreach ($parents as $resolved) {
                 if ($this->excluded[$resolved] ?? \in_array($id, $this->find($resolved), true)) {
@@ -228,10 +228,7 @@ class Resolver implements ContainerInterface, ResetInterface
                 $services += $this->resolveServiceSubscriber(\is_int($name) ? $service : $name, $service);
             }
 
-            /** @var ContainerBuilder $container */
-            $container = $this->container;
-
-            return !$this->isBuilder() ? new ServiceLocator($services) : $container->builder()->new(ServiceLocator::class, $services);
+            return !$this->isBuilder() ? new ServiceLocator($services) : $this->container->getBuilder()->new(ServiceLocator::class, $services);
         }
 
         if (!empty($autowired = $this->wiring[$id] ?? '')) {

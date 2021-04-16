@@ -151,7 +151,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * Create a definition service.
      *
-     * @param string|callable|Definition|Statement $definition $service
+     * @param Definition|Statement|object|callable|string $service
      * @param int|null $type of Definition::FACTORY | Definition::LAZY
      *
      * @return Definition

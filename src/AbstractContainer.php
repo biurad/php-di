@@ -165,11 +165,11 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     public function alias(string $id, string $serviceId): void
     {
         if ($id === $serviceId) {
-            throw new \LogicException("[{$id}] is aliased to itself.");
+            throw new \LogicException("[$id] is aliased to itself.");
         }
 
         if (!$this->has($serviceId)) {
-            throw new ContainerResolutionException("Service id '{$serviceId}' is not found in container");
+            throw new ContainerResolutionException("Service id '$serviceId' is not found in container");
         }
 
         $this->aliases[$id] = $this->aliases[$serviceId] ?? $serviceId;

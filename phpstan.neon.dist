@@ -11,20 +11,20 @@ parameters:
     ignoreErrors:
         - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
         -
-            message: '#^Binary operation "+" between array<string, class-string>\\|false and array<string, string>\\|false results in an error.$#'
-            path: src/Resolvers/AutowireValueResolver.php
-        -
-            message: '#^Foreach overwrites \$type with its value variable|Only booleans are allowed in a negated boolean, bool\|null given.$#'
-            path: src/Resolvers/AutowireValueResolver.php
-        -
-            message: "#^Parameter \\#1 \\$callback of function array_map expects \\(callable\\(\\): mixed\\)\\|null, array\\(Psr\\\\Container\\\\ContainerInterface, 'get'\\|'offsetGet'\\) given.|Variable method call on Psr\\\\Container\\\\ContainerInterface.$#"
-            path: src/Resolvers/AutowireValueResolver.php
-        -
-            message: "#^Method Rade\\\\DI\\\\Container\\:\\:(factory|protect)\\(\\) should return callable\\(\\): mixed but returns object.|Variable method|property call|access on \\$this\\(Rade\\\\DI\\\\Container\\).|Method Rade\\\\DI\\\\Container\\:\\:keys\\(\\) should return array<string> but returns array<int, int\\|string>.$#"
+            message: "#^Call to function is_callable\\(\\) with mixed will always evaluate to false.$#"
             path: src/Container.php
         -
-            message: "#^Parameter \\#1 \\$offset (string) of method Rade\\\\DI\\\\Container\\:\\:offset|Set|Get|Exists|Unset\\(\\) should be contravariant with parameter \\$offset (mixed) of method ArrayAccess<mixed,mixed>\\:\\:offset|Set|Get|Exists|Unset\\(\\)|Call to function method_exists\\(\\) with Rade\\\\DI\\\\ServiceProviderInterface and 'getName' will always evaluate to true.$#"
+            message: "#^Parameter \\#1 \\$offset (string) of method Rade\\\\DI\\\\Container\\:\\:offset|Set|Get|Exists|Unset\\(\\) should be contravariant with parameter \\$offset (mixed) of method ArrayAccess<mixed,mixed>\\:\\:offset|Set|Get|Exists|Unset\\(\\)|Variable method call on \\$this\\(Rade\\\\DI\\\\Container\\).$#"
             path: src/Container.php
         -
             message: '#^Invalid type Psr\\Container\\(NotFound|Container)ExceptionInterface to throw|Only booleans are allowed in a ternary operator condition, ReflectionType\|null given.$#'
             path: src/Services/ServiceLocator.php
+        -
+            message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.|PHPDoc tag @param references unknown parameter: (\\$message|\\$package|\\$version)$#"
+            path: src/Definition.php
+        -
+            message: "#^Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:getBuilder\\(\\)|Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"
+            path: src/Resolvers/Resolver.php
+        -
+            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates.$#"
+            path: src/Traits/ResolveTrait.php
