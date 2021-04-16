@@ -27,7 +27,7 @@ use Rade\DI\Exceptions\ContainerResolutionException;
 class RawDefinition
 {
     /** @var mixed */
-    public $service;
+    private $service;
 
     /**
      * @param mixed $service
@@ -39,5 +39,13 @@ class RawDefinition
         }
 
         $this->service = $service;
+    }
+
+    /**
+     * @return mixed $service
+     */
+    public function __invoke()
+    {
+        return $this->service;
     }
 }
