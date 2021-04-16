@@ -396,11 +396,9 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * This is a performance sensitive method, please do not modify.
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    protected function doCreate(string $id, callable $service)
+    protected function doCreate(string $id, $service, bool $freeze = false)
     {
         // Checking if circular reference exists ...
         if (isset($this->loading[$id])) {
@@ -409,12 +407,16 @@ class Container extends AbstractContainer implements \ArrayAccess
         $this->loading[$id] = true;
 
         try {
-            $this->values[$id] = $this->call($service);
-            $this->frozen[$id] = true; // Freeze resolved service ...
-
-            return $this->values[$id];
+            return $this->resolver->resolve($service);
         } finally {
             unset($this->loading[$id]);
+
+            if ($freeze) {
+                $this->frozen[$id] = true; // Freeze resolved service ...
+            }
+        }
+    }
+
     /**
      * @param mixed $definition
      *
