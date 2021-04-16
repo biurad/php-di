@@ -112,15 +112,13 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Unsets a service by given offset.
+     * Unset a service by given offset.
      *
      * @param string $offset The unique identifier for service definition
      */
     public function offsetUnset($offset): void
     {
-        if ($this->offsetExists($offset)) {
-            unset($this->values[$offset], $this->factories[$offset], $this->frozen[$offset], $this->raw[$offset], $this->keys[$offset], self::$services[$offset]);
-        }
+        unset($this->values[$offset], $this->frozen[$offset], $this->keys[$offset], self::$services[$offset], $this->providers[$offset], $this->aliases[$offset]);
     }
 
     /**
@@ -234,7 +232,7 @@ class Container extends AbstractContainer implements \ArrayAccess
                 $service->reset();
             }
 
-            unset($this->values[$id], $this->factories[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
+            unset($this->values[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
         }
 
         self::$services = [];
