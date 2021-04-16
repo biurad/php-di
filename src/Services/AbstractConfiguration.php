@@ -21,7 +21,7 @@ use Psr\Container\ContainerInterface;
 
 abstract class AbstractConfiguration implements ConfigurationInterface
 {
-    private array $config = [];
+    protected array $config = [];
 
     /**
      * {@inheritdoc}
