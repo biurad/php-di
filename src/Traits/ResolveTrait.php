@@ -108,6 +108,27 @@ trait ResolveTrait
 
         return $resolved;
     }
+
+    protected function resolveReference(Reference $reference, bool $callback = false)
+    {
+        if ('[]' === \substr($referenced = (string) $reference, -2)) {
+            $referenced = \substr($referenced, 0, -2);
+
+            if ($callback) {
+                throw new ServiceCreationException(
+                    \sprintf('Using a array like service %s reference for callable service is not supported.', $referenced)
+                );
+            }
+
+            if ($this->resolver->has($referenced)) {
+                return $this->resolver->get($referenced);
+            }
+
+            return [$this->resolver->getContainer()->get($referenced)];
+        }
+
+        return $this->resolver->getContainer()->get($referenced);
+    }
         );
         $node->setDocComment($deprecatedComment);
 
