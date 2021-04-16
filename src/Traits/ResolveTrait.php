@@ -131,6 +131,28 @@ trait ResolveTrait
 
         return $this->resolver->getContainer()->get($referenced);
     }
+
+    protected function resolveDeprecation(array $deprecation, Method $node): Method
+    {
+        if ([] === $deprecation) {
+            return $node;
+        }
+
+        if (\function_exists('trigger_deprecation')) {
+            return $node->addStmt(
+                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message']])
+            );
+        }
+
+        $comment = <<<'COMMENT'
+/**
+ * @deprecated %s
+ */
+COMMENT;
+
+        $deprecatedComment = sprintf(
+            $comment,
+            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '') . $deprecation['message']
         );
         $node->setDocComment($deprecatedComment);
 
