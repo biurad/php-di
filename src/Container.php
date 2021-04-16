@@ -294,11 +294,13 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * Set a service definition
      *
-     * @param object $definition
+     * @param Definition|RawDefinition|Statement|\Closure|object $definition
      *
      * @throws FrozenServiceException Prevent override of a frozen service
+     *
+     * @return Definition|RawDefinition|mixed of Definition, RawService, class object or closure.
      */
-    public function set(string $id, object $definition, bool $autowire = false): void
+    public function set(string $id, object $definition, bool $autowire = false)
     {
         if ($this->frozen[$id] ?? isset($this->methodsMap[$id])) {
             throw new FrozenServiceException($id);
@@ -307,22 +309,16 @@ class Container extends AbstractContainer implements \ArrayAccess
         // Incase new service definition exists in aliases.
         unset($this->aliases[$id]);
 
-        if (!$definition instanceof ScopedDefinition) {
-           // Resolving the closure of the service to return it's type hint or class.
-            $this->values[$id] = !$autowire ? $definition : $this->autowireService($id, $definition);
-        } else {
-            // Lazy class-string service $definition
-            if (\class_exists($property = $definition->property)) {
-                if ($autowire) {
-                    $this->resolver->autowire($id, [$property]);
-                }
-                $property = 'values';
-            }
-
-            $this->{$property}[$id] = $definition->service;
+        if ($definition instanceof Definition) {
+            $definition->attach($id, $this->resolver);
+        } elseif ($definition instanceof Statement) {
+            $definition = $this->resolver->resolve($definition->value, $definition->args);
         }
 
         $this->keys[$id] = true;
+        $this->values[$id] = $definition;
+
+        return ($autowire && !$definition instanceof RawDefinition) ? $this->autowireService($id, $definition) : $definition;
     }
 
     /**
