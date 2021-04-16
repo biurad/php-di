@@ -2,7 +2,7 @@ includes:
     - vendor/phpstan/phpstan-strict-rules/rules.neon
 
 parameters:
-    level: max
+    level: 4
     paths: [src]
     checkGenericClassInNonGenericObjectType: false
     checkMissingIterableValueType: false
