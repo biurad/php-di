@@ -47,6 +47,8 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
     protected static array $services;
 
+    protected Resolvers\Resolver $resolver;
+
     /** @var array<string,bool> service name => bool */
     protected array $loading = [];
 
@@ -68,6 +70,48 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     {
         throw new \LogicException('Container is not cloneable');
     }
+
+    /**
+     * @throws \ReflectionException
+     *
+     * @return mixed
+     */
+    public function __call(string $name, array $args)
+    {
+        switch ($name) {
+            case 'resolveClass':
+                return $this->resolver->resolveClass($args[0], $args[1] ?? []);
+
+            case 'call':
+                return $this->resolver->resolve($args[0], $args[1] ?? []);
+
+            case 'autowire':
+                if (!$this->has($args[0])) {
+                    throw $this->createNotFound($args[0]);
+                }
+
+                $this->resolver->autowire($args[0], $args[1] ?? []);
+
+                break;
+
+            case 'exclude':
+                $this->resolver->exclude($args[0]);
+
+                break;
+
+            default:
+                if (\method_exists($this, $name)) {
+                    $message = \sprintf('Method call \'%s()\' is either a member of container or a protected service method.', $name);
+                }
+
+                throw new \BadMethodCallException(
+                    $message ?? \sprintf('Method call %s->%s() invalid, "%2$s" doesn\'t exist.', __CLASS__, $name)
+                );
+        }
+
+        return $this;
+    }
+
     /**
      * {@inheritdoc}
      *
@@ -105,6 +149,8 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function reset(): void
     {
+        $this->resolver->reset();
+
         $this->tags = $this->aliases = [];
     }
 

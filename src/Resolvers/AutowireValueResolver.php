@@ -18,13 +18,8 @@ declare(strict_types=1);
 namespace Rade\DI\Resolvers;
 
 use Nette\Utils\Reflection;
-use Psr\Container\ContainerInterface;
-use Rade\DI\Exceptions\ContainerResolutionException;
-use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\Services\ServiceLocator;
-use Symfony\Contracts\Service\ResetInterface;
-use Symfony\Contracts\Service\ServiceProviderInterface;
-use Symfony\Contracts\Service\ServiceSubscriberInterface;
+use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
+use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
 /**
  * An advanced autowiring used for PSR-11 implementation.
@@ -33,41 +28,8 @@ use Symfony\Contracts\Service\ServiceSubscriberInterface;
  */
 class AutowireValueResolver
 {
-
     /** a unique identifier for not found parameter value */
     private const NONE = '\/\/:oxo:\/\/';
-
-    /** @var array type => services */
-    protected array $wiring;
-
-    /** @var array<string,bool> of classes excluded from autowiring */
-    protected array $excluded = [
-        \ArrayAccess::class => true,
-        \Countable::class => true,
-        \IteratorAggregate::class => true,
-        \SplDoublyLinkedList::class => true,
-        \stdClass::class => true,
-        \SplStack::class => true,
-        \Iterator::class => true,
-        \Traversable::class => true,
-        \Serializable::class => true,
-        \JsonSerializable::class => true,
-        ServiceLocator::class => true,
-        ServiceProviderInterface::class => true,
-        ContainerInterface::class => true,
-        ResetInterface::class => true,
-    ];
-
-    private ContainerInterface $container;
-
-    /**
-     * AutowireValueResolver constructor.
-     */
-    public function __construct(ContainerInterface $container, array $wiring = [])
-    {
-        $this->wiring = $wiring;
-        $this->container = $container;
-    }
 
     /**
      * Resolve parameters for service definition.
@@ -76,7 +38,7 @@ class AutowireValueResolver
      *
      * @return mixed
      */
-    public function resolve(\ReflectionParameter $parameter, array $providedParameters)
+    public function resolve(callable $resolver, \ReflectionParameter $parameter, array $providedParameters)
     {
         $paramName = $parameter->name;
         $position  = $parameter->getPosition();
@@ -84,52 +46,14 @@ class AutowireValueResolver
         try {
             return $providedParameters[$position]
                 ?? $providedParameters[$paramName]
-                ?? $this->autowireArgument($parameter, [$this, 'getByType']);
+                ?? $this->autowireArgument($parameter, $resolver);
         } finally {
             unset($providedParameters[$position], $providedParameters[$paramName]);
         }
     }
 
     /**
-     * Resolve wiring classes + interfaces.
-     *
-     * @param string   $id
-     * @param string[] $types
-     */
-    public function autowire(string $id, array $types): void
-    {
-        foreach ($types as $type) {
-            if (!$this->isValidType($type)) {
-                continue;
-            }
-            $parents = \class_parents($type) + \class_implements($type) + [$type];
-
-            foreach ($parents as $parent) {
-                if (
-                    (isset($this->excluded[$parent]) && \count($parents) > 1) ||
-                    \in_array($id, $this->wiring[$parent] ?? [], true)
-                ) {
-                    continue;
-                }
-
-                $this->wiring[$parent][] = $id;
-            }
-        }
-    }
-
-    /**
-     * Add a class or interface that should be excluded from autowiring.
-     */
-    public function exclude(string $type): void
-    {
-        $this->excluded[$type] = true;
-    }
-
-    /**
      * Resolves missing argument using autowiring.
-     *
-     * @param \ReflectionParameter $parameter
-     * @param callable             $getter
      *
      * @throws ContainerResolutionException
      *
@@ -203,34 +127,6 @@ class AutowireValueResolver
     }
 
     /**
-     * Resolves service by type.
-     *
-     * @param string $type
-     * @param bool   $single
-     *
-     * @return mixed
-     */
-    public function getByType(string $type, bool $single = null)
-    {
-        if (!empty($autowired = $this->wiring[$type] ?? null)) {
-            $getService = $this->container instanceof \ArrayAccess ? 'offsetGet' : 'get';
-
-            if (\count($autowired) === 1) {
-                return $this->container->{$getService}(reset($autowired));
-            }
-
-            if (!$single) {
-                return \array_map([$this->container, $getService], $autowired);
-            }
-            \natsort($autowired);
-
-            throw new ContainerResolutionException("Multiple services of type $type found: " . \implode(', ', $autowired) . '.');
-        }
-
-        throw new NotFoundServiceException("Service of type '$type' not found. Check class name because it cannot be found.");
-    }
-
-    /**
      * Resolve services which may or not exist in container.
      *
      * @return mixed
@@ -255,6 +151,7 @@ class AutowireValueResolver
             return self::NONE;
         }
 
+        $desc    = Reflection::toString($parameter);
         $message = "Type '$type' needed by $desc not found. Check type hint and 'use' statements.";
 
         if (Reflection::isBuiltinType($type)) {

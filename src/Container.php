@@ -37,8 +37,6 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 class Container extends AbstractContainer implements \ArrayAccess
 {
-    use Traits\AutowireTrait;
-
     protected array $types = [
         ContainerInterface::class => ['container'],
         Container::class => ['container'],
@@ -50,6 +48,14 @@ class Container extends AbstractContainer implements \ArrayAccess
     /** @var ServiceProviderInterface[] A list of service providers */
     protected array $providers = [];
 
+    /** @var array<string,mixed> service name => instance */
+    private array $values = [];
+
+    /** @var array<string,bool> service name => bool */
+    private array $frozen = [];
+
+    /** @var array<string,bool> service name => bool */
+    private array $keys = [];
 
     /**
      * Instantiates the container.
@@ -63,7 +69,7 @@ class Container extends AbstractContainer implements \ArrayAccess
             $this->types += [static::class => ['container']];
         }
 
-        $this->resolver = new AutowireValueResolver($this, $this->types);
+        $this->resolver = new Resolvers\Resolver($this, $this->types);
     }
 
     /**
@@ -409,6 +415,28 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $this->values[$id];
         } finally {
             unset($this->loading[$id]);
+    /**
+     * @param mixed $definition
+     *
+     * @return mixed
+     */
+    private function autowireService(string $id, $definition)
+    {
+        if ($definition instanceof Definition) {
+            return $definition->autowire();
         }
+
+        static $types = [];
+
+        if (\is_callable($definition)) {
+            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
+        } elseif (\is_object($definition) && !$definition instanceof \stdClass) {
+            $types = [\get_class($definition)];
+        }
+
+        // Resolving wiring so we could call the service parent classes and interfaces.
+        $this->resolver->autowire($id, $types);
+
+        return $definition;
     }
 }
