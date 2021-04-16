@@ -96,8 +96,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function offsetGet($offset)
     {
-        return self::$services[$offset] ?? $this->raw[$offset] ?? $this->fallback[$offset]
-            ?? ($this->factories[$offset] ?? [$this, 'getService'])($offset);
+        return $this->get($offset);
     }
 
     /**
@@ -243,32 +242,16 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /**
      * {@inheritdoc}
-     *
-     * @param string                  $id — Identifier of the entry to look for.
-     * @param array<int|string,mixed> $arguments
      */
-    public function get($id, array $arguments = [])
+    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        // If service has already been requested and cached ...
-        if (isset(self::$services[$id])) {
-            return self::$services[$id];
-        }
-
         try {
-            if (\is_callable($protected = $this->raw[$id] ?? null) && [] !== $arguments) {
-                $protected = $this->call($protected, $arguments);
-            }
-
-            return $protected ?? $this->fallback[$id] ?? ($this->factories[$id] ?? [$this, 'getService'])($id);
+            return self::$services[$id] ?? $this->providers[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
         } catch (NotFoundServiceException $serviceError) {
-            try {
-                return $this->resolver->getByType($id);
-            } catch (NotFoundServiceException $typeError) {
-                if (\class_exists($id)) {
-                    try {
-                        return $this->autowireClass($id, $arguments);
-                    } catch (ContainerResolutionException $e) {
-                    }
+            if (\class_exists($id)) {
+                try {
+                    return $this->resolver->resolveClass($id);
+                } catch (ContainerResolutionException  $e) {
                 }
             }
 
@@ -361,7 +344,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     protected function getServiceContainer(): self
     {
-        return $this;
+        return self::$services['container'] = $this;
     }
 
     /**
@@ -371,28 +354,29 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @return mixed
      */
-    protected function getService(string $id)
+    protected function getService(string $id, int $invalidBehavior)
     {
-        if (isset($this->methodsMap[$id])) {
-            return self::$services[$id] = $this->{$this->methodsMap[$id]}();
-        } elseif (isset($this->values[$id])) {
-            // If we found the real instance of $service, lets cache that ...
-            if (!\is_callable($service = $this->values[$id])) {
-                $this->frozen[$id] ??= true;
+        if ($this->resolver->has($id)) {
+            return $this->resolver->get($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+        }
 
-                return self::$services[$id] = $service;
+        if (!\is_callable($definition = $this->values[$id] ?? $this->createNotFound($id, true))) {
+            $this->frozen[$id] = true;
+
+            return self::$services[$id] = $definition; // If definition is frozen, cache it ...
+        }
+
+        if ($definition instanceof Definition) {
+            if ($definition->is(Definition::PRIVATE)) {
+                throw new ContainerResolutionException(\sprintf('Using service definition for \'%s\' as private is not supported.', $id));
             }
 
-            // we have to create the object and avoid infinite lopp.
-            return $this->doCreate($id, $service);
+            if ($definition->is(Definition::FACTORY)) {
+                return $this->doCreate($id, $definition);
+            }
         }
 
-
-        if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
-            $suggest = " Did you mean: \"{$suggest}\" ?";
-        }
-
-        throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id), 0, $e ?? null);
+        return $this->values[$id] = self::$services[$id] = $this->doCreate($id, $definition, true);
     }
 
     /**
