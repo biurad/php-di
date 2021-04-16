@@ -132,6 +132,47 @@ trait ResolveTrait
         return $this->resolver->getContainer()->get($referenced);
     }
 
+    protected function resolveArguments(array $arguments = [], ?\ReflectionFunctionAbstract $bind = null, bool $compile = true): array
+    {
+        $arguments = array_map(function ($value) use ($bind, $compile) {
+            if ($value instanceof RawDefinition) {
+                return !$compile ? $value() : $this->builder->val($value());
+            }
+
+            if ($value instanceof self) {
+                return $this->resolver->getContainer()->get($value->id);
+            }
+
+            if ($value instanceof Reference) {
+                return $this->resolveReference($value);
+            }
+
+            if (!$compile) {
+                if ($value instanceof Statement) {
+                    return $this->resolver->resolve($value->value, $value->args);
+                }
+
+                if (\is_array($value)) {
+                    return $this->resolveArguments($value, $bind, $compile);
+                }
+
+                return $value;
+            }
+
+            try {
+                return $this->resolveEntity($value);
+            } catch (ContainerResolutionException $e) {
+                if (\is_array($value)) {
+                    return $this->resolveArguments($value, $bind, $compile);
+                }
+            }
+
+            return $this->builder->val($value);
+        }, $arguments);
+
+        return null === $bind ? $arguments : $this->resolver->autowireArguments($bind, $arguments);
+    }
+
     protected function resolveDeprecation(array $deprecation, Method $node): Method
     {
         if ([] === $deprecation) {
