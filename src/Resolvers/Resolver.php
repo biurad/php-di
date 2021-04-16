@@ -314,7 +314,7 @@ class Resolver implements ContainerInterface, ResetInterface
     /**
      * Resolves services for ServiceLocator.
      *
-     * @return array<string,mixed>
+     * @return (\Closure|array|mixed|null)[]
      */
     private function resolveServiceSubscriber(string $id, string $value): array
     {

@@ -3,7 +3,7 @@
        xmlns="https://getpsalm.org/schema/config"
        name="Psalm for PHP Rade DI"
        useDocblockTypes="true"
-       errorLevel="3"
+       errorLevel="8"
        strictBinaryOperands="false"
        rememberPropertyAssignmentsAfterCall="true"
        checkForThrowsDocblock="false"
@@ -25,23 +25,11 @@
     </stubs>
 
     <issueHandlers>
-        <PossiblyInvalidArgument>
+        <PossiblyInvalidArrayAssignment>
             <errorLevel type="suppress">
-                <referencedFunction name="SplObjectStorage::offsetGet"/>
+                <file name="src/Traits/ResolveTrait.php"/>
             </errorLevel>
-        </PossiblyInvalidArgument>
-
-        <PossiblyNullArgument>
-            <errorLevel type="suppress">
-                <referencedFunction name="DivineNii\Invoker\CallableReflection::create"/>
-            </errorLevel>
-        </PossiblyNullArgument>
-
-        <ArgumentTypeCoercion>
-            <errorLevel type="suppress">
-                <file name="src/Traits/AutowireTrait.php"/>
-            </errorLevel>
-        </ArgumentTypeCoercion>
+        </PossiblyInvalidArrayAssignment>
 
         <InvalidThrow>
             <errorLevel type="suppress">
@@ -52,15 +40,8 @@
 
         <InvalidCatch>
             <errorLevel type="suppress">
-                <referencedClass name="Psr\Container\NotFoundExceptionInterface"/>
                 <referencedClass name="Psr\Container\ContainerExceptionInterface"/>
             </errorLevel>
         </InvalidCatch>
-
-        <TypeDoesNotContainType>
-            <errorLevel type="suppress">
-                <file name="src/Resolvers/AutowireValueResolver.php"/>
-            </errorLevel>
-        </TypeDoesNotContainType>
     </issueHandlers>
 </psalm>
