@@ -17,13 +17,14 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
+use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
+use Rade\DI\Services\AbstractConfiguration;
 use Rade\DI\Services\ServiceProviderInterface;
-use Rade\DI\Services\ConfigurationInterface;
 use Rade\DI\Services\DependedInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 
-class RadeServiceProvider implements ConfigurationInterface, DependedInterface, ServiceProviderInterface
+class RadeServiceProvider extends AbstractConfiguration implements DependedInterface, ServiceProviderInterface
 {
     /**
      * {@inheritdoc}
@@ -47,6 +48,15 @@ class RadeServiceProvider implements ConfigurationInterface, DependedInterface, 
         ;
 
         return $treeBuilder;
+    }
+
+    public function setConfiguration(array $config, ContainerInterface $container): void
+    {
+        $this->config = $config;
+
+        if ($container instanceof Container) {
+            $container->parameters[$this->getName()] = $config;
+        }
     }
 
     /**

@@ -23,10 +23,15 @@ use DivineNii\Invoker\ArgumentResolver\TypeHintValueResolver;
 use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Rade\DI\Container;
+use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
-use Rade\DI\ScopedDefinition;
+use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\FallbackContainer;
+use Rade\DI\Tests\Fixtures\AppContainer;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 
 class ContainerAutowireTest extends TestCase
@@ -49,11 +54,23 @@ class ContainerAutowireTest extends TestCase
         $rade['baz'] = new Fixtures\SomeServiceSubscriber();
         $this->assertNull($rade['baz']->container);
 
-        $rade['bar'] = (object) ['name' => 'Divine'];
+        $rade->set('logger', new NullLogger(), true);
+        $rade->set('service', $service = new Fixtures\Service(), true);
+        $rade->set('non_array', new Fixtures\ServiceAutowire($service, null));
+        $rade['service_one'] = $rade->lazy(Fixtures\Constructor::class);
         $rade['foo'] = $rade->lazy(Fixtures\SomeServiceSubscriber::class);
 
         $this->assertInstanceOf(ServiceProviderInterface::class, $rade['foo']->container);
-        $this->assertInstanceOf('stdClass', $rade['foo']->container->get('bar'));
+        $this->assertInstanceOf(LoggerInterface::class, $rade['foo']->container->get('logger'));
+        $this->assertCount(1, $rade['foo']->container->get('loggers'));
+        $this->assertCount(2, $rade['foo']->container->get(Fixtures\Service::class));
+        $this->assertCount(1, $rade['foo']->container->get(Fixtures\Invokable::class));
+        $this->assertCount(1, $rade['foo']->container->get('non_array'));
+        $this->assertNull($rade['foo']->container->get('none'));
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['foo']->container->get(Fixtures\Constructor::class));
+        $this->assertInstanceOf(LoggerInterface::class, $rade['foo']->container->get(NullLogger::class));
+        $this->assertInstanceOf(LoggerInterface::class, $rade['foo']->container->get('o_logger'));
+        $this->assertInstanceOf(NullLogger::class, $rade['foo']->container->get(LoggerInterface::class));
     }
 
     public function testShouldFailContainerSubscriberType(): void
@@ -133,9 +150,10 @@ class ContainerAutowireTest extends TestCase
     public function testShouldPassOnExcludedType(): void
     {
         $rade = new Container();
-        $rade->exclude(Fixtures\Service::class);
 
         $rade['foo'] = $bound = new Fixtures\Service();
+        $rade->exclude(Fixtures\Service::class);
+
         $rade['bar'] = $rade->lazy(Fixtures\Constructor::class);
         $rade['baz'] = $rade->lazy(Fixtures\ServiceAutowire::class);
 
@@ -146,16 +164,23 @@ class ContainerAutowireTest extends TestCase
     public function testShouldFailOExcludedTypeWithServiceParameter(): void
     {
         $rade = new Container();
-        $rade->exclude(Fixtures\Service::class);
 
         $rade['construct'] = $rade->lazy(Fixtures\Constructor::class);
-        $rade['service']   = function (Fixtures\Service $container) {
-            return $container;
-        };
+        $rade->exclude(Fixtures\Service::class);
+        $rade['service'] = static fn (Fixtures\Service $container) => $container;
+
+        $this->assertInstanceOf(Fixtures\Constructor::class, $one = $rade['service']);
+        $this->assertSame($one, $rade['service']);
+
+        $rade->reset();
+
+        $rade['string']  = new \Rade\DI\Builder\Reference('scoped');
+        $rade['service'] = static fn (\Stringable $string) => $string;
+
 
         $this->expectExceptionMessage(
-            'Parameter $container in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() typehint(s) ' .
-            '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
+            'Parameter $string in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() typehint(s) ' .
+            '\'Stringable\' not found, and no default value specified.'
         );
         $this->expectException(ContainerResolutionException::class);
 
@@ -169,7 +194,7 @@ class ContainerAutowireTest extends TestCase
         $rade['foo'] = new Fixtures\Service();
         $rade['bar'] = $rade->lazy(Fixtures\Constructor::class);
 
-        $services = $rade->get(Fixtures\Service::class);
+        $services = $rade->get(Fixtures\Service::class, $rade::IGNORE_MULTIPLE_SERVICE);
         $this->assertIsArray($services);
 
         foreach ($services as $service) {
@@ -324,7 +349,10 @@ class ContainerAutowireTest extends TestCase
         try {
             $rade->call(new Fixtures\Service());
         } catch (ContainerResolutionException $e) {
-            $this->assertEquals('Method Rade\DI\Tests\Fixtures\Service::__invoke() does not exist', $e->getMessage());
+            $this->assertEquals(
+                'Unable to resolve value provided \'Rade\DI\Tests\Fixtures\Service\' in $callback parameter.',
+                $e->getMessage()
+            );
         }
 
         try {
@@ -336,19 +364,17 @@ class ContainerAutowireTest extends TestCase
 
             if (PHP_VERSION_ID >= 80000) {
                 $message = 'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}(): ' .
-                'Argument #1 must be of type Rade\DI\Tests\Fixtures\Service, null given,';
+                'Argument #1 must be of type Rade\DI\Tests\Fixtures\Service, null given';
             }
 
             $this->assertStringStartsWith($message, $e->getMessage());
         }
 
-        $this->expectExceptionMessage(
-            'Builtin Type \'string\' needed by $service in ' .
-            'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() is not supported for autowiring.'
-        );
         $this->expectException(ContainerResolutionException::class);
         $rade['bar'] = fn (string ...$service) => $service;
-        $rade['bar'];
+
+        $this->assertIsArray($rade['bar']);
+        $this->assertEmpty($rade['bar']);
     }
 
     public function testProtectAndFactoryAutowired(): void
@@ -361,23 +387,31 @@ class ContainerAutowireTest extends TestCase
         $rade['factory'] = $factory = $rade->factory($callable);
         $rade['protect'] = $protect = $rade->raw($callable);
 
-        $this->assertNotSame($factory->service, $rade['factory']);
-        $this->assertSame($protect->service, $rade['protect']);
+        $this->assertNotSame($factory, $rade['factory']);
+        $this->assertSame($protect(), $rade['protect']);
     }
 
     public function testThatAFallbackContainerSupportAutowiring(): void
     {
-        $rade = new Container();
-        $rade->fallback(new AppContainer());
+        $rade = new FallbackContainer();
+        $rade->fallback($fallback = new AppContainer());
         $rade['t_call'] = fn (AppContainer $app) => $app['scoped'];
 
-        $this->assertInstanceOf(ScopedDefinition::class, $one = $rade['scoped']);
+        $this->assertInstanceOf(Definition::class, $one = $rade['scoped']);
         $this->assertSame($one, $rade['t_call']);
         $this->assertSame($rade, $rade->get(ContainerInterface::class));
         $this->assertNotSame($rade[AppContainer::class], $rade->get(ContainerInterface::class));
+
+        $this->assertTrue(isset($rade['scoped']));
+        $this->assertInstanceOf(Definition::class, $def = $rade['scoped']);
+        $this->assertSame($def, $rade->get(Definition::class));
+
+        $this->assertInstanceOf(Definition::class, $rade->call(fn (Definition $def) => $def));
+        $this->assertSame($def, $rade->call(fn (Definition $def) => $def));
+        $this->assertSame($fallback, $rade->call(fn (AppContainer $app) => $app));
     }
 
-    public function testContainerAutwoireMethod(): void
+    public function testContainerAutowireMethod(): void
     {
         $rade = new Container();
         $rade->set('service', $rade->lazy(Fixtures\Constructor::class));
@@ -401,10 +435,24 @@ class ContainerAutowireTest extends TestCase
             );
         }
 
-        $this->expectExceptionMessage('Service id \'service\' is not found in container');
-        $this->expectException(ContainerResolutionException::class);
+        $this->expectExceptionMessage('Identifier "service" is not defined.');
+        $this->expectException(NotFoundServiceException::class);
 
         $rade->autowire('service', [Fixtures\Service::class]);
+    }
+
+    public function testResolverMethods(): void
+    {
+        $rade = new Container();
+        $rade['service'] = $class = $rade->resolveClass(Fixtures\Constructor::class);
+        $callable = $rade->call(fn (Fixtures\Constructor $service) => $service);
+
+        $this->assertInstanceOf(Fixtures\Service::class, $class);
+        $this->assertInstanceOf(Fixtures\Constructor::class, $callable);
+        $this->assertSame($class, $callable);
+
+        $this->expectException(\BadMethodCallException::class);
+        $rade->nothing();
     }
 
     public function testAutowiringWithUnionType(): void

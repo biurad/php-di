@@ -38,7 +38,7 @@ class AppContainer extends Container
 
     protected function getDefinition(): Definition
     {
-        return new Definition(null);
+        return self:: $services['scoped'] = new Definition('scoped');
     }
 
     protected function getBrokenService()
