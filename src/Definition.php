@@ -312,5 +312,4 @@ class Definition implements \Stringable
 
         return $this;
     }
-
 }
