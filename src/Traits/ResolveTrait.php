@@ -17,14 +17,28 @@ declare(strict_types=1);
 
 namespace Rade\DI\Traits;
 
+use Nette\Utils\{Callback, Reflection};
+use PhpParser\Builder\Method;
+use PhpParser\BuilderFactory;
+use PhpParser\Node\{
+    Expr,
+    Expr\Array_,
+    Expr\ArrayItem,
+    Expr\Assign,
+    Expr\New_,
+    Expr\Variable,
+    Scalar\String_
+};
+use PhpParser\ParserFactory;
 use Rade\DI\{
     Builder\Statement,
-    ContainerBuilder,
-    Exceptions\ContainerResolutionException,
-    RawService,
+    Exceptions\ServiceCreationException,
+    RawDefinition,
     Builder\Reference,
+    Definition,
     Resolvers\Resolver
 };
+use Rade\DI\Exceptions\ContainerResolutionException;
 
 /**
  * Resolves entity, parameters and calls in definition tree.
