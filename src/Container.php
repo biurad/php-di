@@ -103,12 +103,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function offsetExists($offset): bool
     {
-        if ($this->keys[$offset] ?? isset($this->methodsMap[$offset])) {
-            return true;
-        }
-
-
-        return isset($this->aliases[$offset]) ? $this->offsetExists($this->aliases[$offset]) : false;
+        return $this->has($offset);
     }
 
     /**
@@ -282,13 +277,10 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * {@inheritdoc}
      */
-    public function has($id): bool
+    public function has(string $id): bool
     {
-        if ($this->offsetExists($id)) {
-            return true;
-        }
-
-        throw new NotFoundServiceException(sprintf('Identifier "%s" is not defined.', $id));
+        return $this->keys[$id] ?? isset($this->methodsMap[$id]) ||
+            (isset($this->providers[$id]) || isset($this->aliases[$id]));
     }
 
     /**
