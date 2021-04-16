@@ -322,7 +322,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         // If service provider depends on other providers ...
         if ($provider instanceof Services\DependedInterface) {
             foreach ($provider->dependencies() as $dependency) {
-                $dependency = $this->autowireClass($dependency, []);
+                $dependency = $this->resolver->resolveClass($dependency);
 
                 if ($dependency instanceof ServiceProviderInterface) {
                     $this->register($dependency);
