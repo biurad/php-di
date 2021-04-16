@@ -17,16 +17,17 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\Helpers;
-use Psr\Container\ContainerExceptionInterface;
+use Nette\Utils\Callback;
+use Nette\Utils\Reflection;
 use Psr\Container\ContainerInterface;
-use Psr\Container\NotFoundExceptionInterface;
-use Rade\DI\Exceptions\CircularReferenceException;
-use Rade\DI\Exceptions\ContainerResolutionException;
-use Rade\DI\Exceptions\FrozenServiceException;
-use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\Resolvers\AutowireValueResolver;
-use Rade\DI\Services\ServiceProviderInterface;
+use Rade\DI\{
+    Builder\Statement,
+    Exceptions\CircularReferenceException,
+    Exceptions\FrozenServiceException,
+    Exceptions\NotFoundServiceException,
+    Exceptions\ContainerResolutionException,
+    Services\ServiceProviderInterface
+};
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Contracts\Service\ResetInterface;
 
