@@ -217,7 +217,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * @internal Prevent service looping.
      *
-     * @param callable|string $service
+     * @param Definition|RawDefinition|callable $service
      *
      * @throws CircularReferenceException
      *

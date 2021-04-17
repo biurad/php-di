@@ -49,6 +49,8 @@ trait ResolveTrait
 {
     private Resolver $resolver;
 
+    private BuilderFactory $builder;
+
     /** @var mixed */
     private $entity;
 
@@ -111,6 +113,108 @@ trait ResolveTrait
         return $resolved;
     }
 
+    /**
+     * Processes a entity found in a definition tree.
+     *
+     * @throws \ReflectionException
+     */
+    protected function resolveEntity($entity, array $arguments = [])
+    {
+        if ($entity instanceof Statement) {
+            $arguments += $entity->args;
+            $entity = $entity->value;
+        }
+
+        if (!$entity instanceof Reference && \is_string($entity)) {
+            // normalize Class::method to [Class, method]
+            if (\str_contains($entity, '::')) {
+                [$ref, $method] = \explode('::', $entity, 2);
+
+                return $this->resolveCallable([$ref, $method], $arguments, $ref);
+            }
+
+            if (\function_exists($entity)) {
+                return $this->resolveCallable([$entity], $arguments, $entity);
+            }
+
+            if (\method_exists($entity, '__invoke')) {
+                return $this->resolveCallable([$entity, '__invoke'], $arguments, $entity);
+            }
+
+            if (\class_exists($entity)) {
+                if (empty($this->type)) {
+                    $this->typeOf($entity);
+                }
+
+                $arguments = $this->resolveArguments($arguments);
+
+                if ($this->lazy) {
+                    $entity = $this->builder->constFetch($entity . '::class');
+
+                    return $this->builder->methodCall(
+                        $this->builder->propertyFetch($this->builder->var('this'), 'resolver'),
+                        'resolveClass',
+                        [] !== $arguments ? [$entity, $arguments] : [$entity]
+                    );
+                }
+
+                return $this->resolver->getContainer()->resolveClass($entity, $arguments);
+            }
+        }
+
+        if (\is_callable($entity)) {
+            if ($entity instanceof \Closure || \is_object($entity[0])) {
+                throw new \OutOfBoundsException('Using closure or object callable as service definition is not supported.');
+            }
+
+            if (empty($this->type)) {
+                $this->typeOf(Reflection::getReturnTypes(Callback::toReflection($entity)));
+            }
+
+            return $this->resolveCallable($entity, $arguments, $entity[0]);
+        }
+
+        if (\is_array($entity) && \count($entity) === 2) {
+            static $class;
+
+            switch (true) {
+                case $entity[0] instanceof Statement:
+                    $entity[0] = $this->resolveEntity($class = $entity[0]->value, $entity[0]->args);
+
+                    if (!\is_string($class)) {
+                        $class = null;
+                    }
+
+                    break;
+
+                case $entity[0] instanceof self:
+                    $entity[0] = $this->resolver->getContainer()->get($class = $entity[0]->id);
+
+                    break;
+
+                case \is_string($entity[0]) && \class_exists($class = $entity[0], false):
+                    break;
+
+                case \is_string($entity[0]) && str_starts_with($entity[0], '@'):
+                    $entity[0] = new Reference(\substr($entity[0], 1));
+                    /* intentionally miss break */
+
+                case $entity[0] instanceof Reference:
+                    $class = (string) $entity[0];
+                    $entity[0] = $this->resolveReference($entity[0], true);
+
+                    break;
+
+                default:
+                    throw new ServiceCreationException('Definition entity is not a valid callable type.');
+            }
+
+            return $this->resolveCallable($entity, $arguments, $class);
+        }
+
+        throw new ServiceCreationException('Definition entity is provided is not valid or supported.');
+    }
+
     protected function resolveReference(Reference $reference, bool $callback = false)
     {
         if ('[]' === \substr($referenced = (string) $reference, -2)) {
@@ -130,6 +234,110 @@ trait ResolveTrait
         }
 
         return $this->resolver->getContainer()->get($referenced);
+    }
+
+    /**
+     * @param array|callable $service
+     *
+     * @throws \ReflectionException
+     */
+    protected function resolveCallable($service, array $arguments, ?string $class = null): Expr
+    {
+        if (null !== $class) {
+            static $bind;
+
+            if ($this->resolver->getContainer()->has($class)) {
+                if (!$service[0] instanceof Expr) {
+                    $service[0] = $this->resolveReference(new Reference($class));
+                }
+
+                if (\count($found = $this->resolver->find($class)) > 1) {
+                    throw new ServiceCreationException(\sprintf('Multiple services found for %s.', $class));
+                }
+
+                $class = $this->resolver->getContainer()->extend([] === $found ? $class : \current($found))->entity;
+
+                if ($class instanceof Statement && $service[0] instanceof Expr) {
+                    $class = $class->value;
+                }
+            }
+
+            if (isset($service[1]) && (\is_string($class) && \class_exists($class))) {
+                $bind = new \ReflectionMethod($class, $service[1]);
+            } elseif (null === $service[1] ?? null) {
+                $bind = new \ReflectionFunction($class);
+            }
+
+            if (null !== $bind && empty($this->type)) {
+                $this->typeOf($types = Reflection::getReturnTypes($bind));
+
+                if ($this->autowire) {
+                    $this->resolver->autowire($this->id, $types);
+                }
+            }
+
+            if ($this->lazy) {
+                $arguments = $this->resolveArguments($arguments);
+
+                return $this->builder->methodCall(
+                    $this->builder->propertyFetch($this->builder->var('this'), 'resolver'),
+                    'resolve',
+                    [$service, $this->resolveArguments($arguments)]
+                );
+            }
+
+            $arguments = $this->resolveArguments($arguments, $bind);
+
+            if ($bind instanceof \ReflectionFunction) {
+                return $this->builder->funcCall($class, $arguments);
+            }
+
+            $service[0] = $service[0] instanceof Expr ? $service[0] : $this->resolveEntity($service[0], $arguments);
+
+            if ($bind instanceof \ReflectionMethod) {
+                return $this->builder->{$bind->isStatic() ? 'staticCall' : 'methodCall'}($service[0], $service[1], $arguments);
+            }
+        }
+
+        return $this->builder->funcCall(new Array_([new ArrayItem($service[0]), new ArrayItem(new String_($service[1]))]), $arguments);
+    }
+
+    protected function resolveCalls(Variable $service, Expr $factory, Method $node): Method
+    {
+        $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
+
+        foreach ($this->calls as $name => $value) {
+            if ($factory instanceof New_ || ($factory instanceof Expr\MethodCall && 'resolveClass' === (string) $factory->name)) {
+                $arguments = \is_array($value) ? $value : [$value];
+
+                if (\property_exists($class = $this->entity, $name)) {
+                    $arguments = $this->resolveArguments($arguments);
+                    $node->addStmt(new Assign($this->builder->propertyFetch($service, $name), !\is_array($value) ? \current($arguments) : $arguments));
+
+                    continue;
+                }
+
+                if (\method_exists($class, $name)) {
+                    $arguments = $this->resolveArguments($arguments, new \ReflectionMethod($class, $name));
+                    $node->addStmt($this->builder->methodCall($service, $name, $arguments));
+
+                    continue;
+                }
+            }
+
+            if (\str_starts_with($name, '@') && \str_contains($name, '::')) {
+                $name = \substr($name, 1);
+                $node->addStmt($this->resolveEntity($name, \is_array($value) ? $value : [$value]));
+
+                continue;
+            }
+
+            if (Definition::EXTRA_BIND === $value) {
+                $node->addStmts($parser->parse("<?php\n" . $name));
+            }
+        }
+
+        return $node;
     }
 
     protected function resolveArguments(array $arguments = [], ?\ReflectionFunctionAbstract $bind = null, bool $compile = true): array

@@ -312,4 +312,60 @@ class Definition implements \Stringable
 
         return $this;
     }
+
+    /**
+     * Resolves the Definition when in use in ContainerBuilder.
+     */
+    public function resolve(BuilderFactory $builder): \PhpParser\Node\Expr
+    {
+        $di = $builder->var('this');
+
+        $arguments  = (!$this->lazy || $this->public) ? [$di, (string) $this] : [$di, 'get', [$this->id]];
+        $resolved = [$builder, 'methodCall'](...$arguments);
+
+        if ($this->factory) {
+            return $resolved;
+        }
+
+        return new BinaryOp\Coalesce(
+            new ArrayDimFetch(
+                new StaticPropertyFetch(new Name('self'), $this->public ? 'services' : 'privates'),
+                new String_($this->id)
+            ),
+            $resolved
+        );
+    }
+
+    /**
+     * Build the definition service.
+     *
+     * @throws \ReflectionException
+     */
+    public function build(BuilderFactory $builder): \PhpParser\Builder\Method
+    {
+        $this->builder = $builder;
+
+        $node = $this->resolveDeprecation($this->deprecated, $builder->method((string) $this)->makeProtected());
+        $factory = $this->resolveEntity($this->entity, $this->parameters);
+
+        if ([] !== $this->calls) {
+            $node->addStmt(new Assign($resolved = $builder->var($this->public ? 'service' : 'private'), $factory));
+            $node = $this->resolveCalls($resolved, $factory, $node);
+        }
+
+        if (!empty($types = $this->type)) {
+            if (\is_array($types)) {
+                $types = new UnionType(\array_map(fn ($type) => new Name($type), $types));
+            }
+
+            $node->setReturnType($types);
+        }
+
+        if (!$this->factory) {
+            $cached = new StaticPropertyFetch(new Name('self'), $this->public ? 'services' : 'privates');
+            $resolved = new Assign(new ArrayDimFetch($cached, new String_($this->id)), $resolved ?? $factory);
+        }
+
+        return $node->addStmt(new Return_($resolved ?? $factory));
+    }
 }
