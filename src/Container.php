@@ -260,7 +260,7 @@ class Container extends AbstractContainer implements \ArrayAccess
             if (\class_exists($id)) {
                 try {
                     return $this->resolver->resolveClass($id);
-                } catch (ContainerResolutionException  $e) {
+                } catch (ContainerResolutionException $e) {
                 }
             }
 

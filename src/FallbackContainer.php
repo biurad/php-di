@@ -33,7 +33,7 @@ class FallbackContainer extends Container
     /**
      * Register a PSR-11 fallback container.
      */
-    public function fallback(ContainerInterface $fallback): FallbackContainer
+    public function fallback(ContainerInterface $fallback): self
     {
         $this->fallbacks[\get_class($fallback)] = $fallback;
 
