@@ -145,6 +145,14 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * Remove an alias, service definition id, or a tagged service.
+     */
+    public function remove(string $id): void
+    {
+        unset($this->aliases[$id], $this->tags[$id]);
+    }
+
+    /**
      * Resets the container
      */
     public function reset(): void

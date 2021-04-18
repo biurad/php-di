@@ -119,7 +119,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function offsetUnset($offset): void
     {
-        unset($this->values[$offset], $this->frozen[$offset], $this->keys[$offset], self::$services[$offset], $this->providers[$offset], $this->aliases[$offset]);
+        $this->remove($offset);
     }
 
     /**
@@ -233,10 +233,20 @@ class Container extends AbstractContainer implements \ArrayAccess
                 $service->reset();
             }
 
+            $this->remove($id);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function remove(string $id): void
+    {
+        if (isset($this->keys[$id])) {
             unset($this->values[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
         }
 
-        self::$services = [];
+        parent::remove($id);
     }
 
     /**

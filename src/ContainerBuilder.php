@@ -211,6 +211,18 @@ class ContainerBuilder extends AbstractContainer
     /**
      * {@inheritdoc}
      */
+    public function remove(string $id): void
+    {
+        if (isset($this->definitions[$id])) {
+            unset($this->definitions[$id], self::$services[$id]);
+        }
+
+        parent::remove($id);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function keys(): array
     {
         return \array_keys($this->definitions);
