@@ -35,7 +35,6 @@ use Rade\DI\{
     Exceptions\ServiceCreationException,
     RawDefinition,
     Builder\Reference,
-    Definition,
     Resolvers\Resolver
 };
 use Rade\DI\Exceptions\ContainerResolutionException;
@@ -61,6 +60,8 @@ trait ResolveTrait
 
     private array $calls = [];
 
+    private array $extras = [];
+
     private bool $autowire = false;
 
     /**
@@ -71,8 +72,8 @@ trait ResolveTrait
     public function __invoke()
     {
         if (($resolved = $this->entity) instanceof Statement) {
-            $resolved = $resolved->value;
             $this->parameters += $resolved->args;
+            $resolved = $resolved->value;
         }
 
         try {
@@ -104,10 +105,15 @@ trait ResolveTrait
                     continue;
                 }
             }
+        }
 
-            if (\str_starts_with($bind, '@') && \str_contains($bind, '::')) {
-                $this->resolver->resolve(\explode('::', \substr($bind, 1), 2), $arguments);
+        foreach ($this->extras as $code) {
+            if ($code instanceof Statement) {
+                $args = $this->resolveArguments($code->args, null, false);
+                $code = $code->value;
             }
+
+            $this->resolver->resolve($code, $args ?? []);
         }
 
         return $resolved;
@@ -304,8 +310,6 @@ trait ResolveTrait
 
     protected function resolveCalls(Variable $service, Expr $factory, Method $node): Method
     {
-        $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
-
         foreach ($this->calls as $name => $value) {
             if ($factory instanceof New_ || ($factory instanceof Expr\MethodCall && 'resolveClass' === (string) $factory->name)) {
                 $arguments = \is_array($value) ? $value : [$value];
@@ -324,16 +328,19 @@ trait ResolveTrait
                     continue;
                 }
             }
+        }
 
-            if (\str_starts_with($name, '@') && \str_contains($name, '::')) {
-                $name = \substr($name, 1);
-                $node->addStmt($this->resolveEntity($name, \is_array($value) ? $value : [$value]));
+        if ([] !== $this->extras) {
+            $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
 
-                continue;
-            }
-
-            if (Definition::EXTRA_BIND === $value) {
-                $node->addStmts($parser->parse("<?php\n" . $name));
+            foreach ($this->extras as $code) {
+                if ($code instanceof Statement) {
+                    $node->addStmt($this->resolveEntity($code->value, $code->args));
+    
+                    continue;
+                }
+    
+                $node->addStmts($parser->parse("<?php\n" . $code));
             }
         }
 

@@ -154,17 +154,23 @@ class Definition implements \Stringable
     /**
      * Sets method, property, Class|@Ref::Method or php code bindings.
      *
-     * Binding map method name, property name, Class|@Ref::Method or php code that should be
+     * Binding map method name, property name, mixed type or php code that should be
      * injected in the definition's entity as assigned property, method or
      * extra code added in running that entity.
      *
-     * @param string $nameOrMethod A parameter name, or a method name
-     * @param mixed  $valueOrRef   The value or reference to bind
+     * @param string $nameOrMethod A parameter name, a method name, or self::EXTRA_BIND
+     * @param mixed  $valueOrRef   The value, reference or statement to bind
      *
      * @return $this
      */
     final public function bind(string $nameOrMethod, $valueOrRef): self
     {
+        if ($nameOrMethod === self::EXTRA_BIND) {
+            $this->extras[] = $valueOrRef;
+
+            return $this;
+        }
+
         $this->calls[$nameOrMethod] = $valueOrRef;
 
         return $this;
@@ -348,7 +354,7 @@ class Definition implements \Stringable
         $node = $this->resolveDeprecation($this->deprecated, $builder->method((string) $this)->makeProtected());
         $factory = $this->resolveEntity($this->entity, $this->parameters);
 
-        if ([] !== $this->calls) {
+        if (!empty($this->calls + $this->extras)) {
             $node->addStmt(new Assign($resolved = $builder->var($this->public ? 'service' : 'private'), $factory));
             $node = $this->resolveCalls($resolved, $factory, $node);
         }
