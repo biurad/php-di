@@ -465,7 +465,7 @@ class ContainerAutowireTest extends TestCase
         } catch (\BadMethodCallException $e) {
             $this->assertEquals('Method call Rade\DI\AbstractContainer->nothing() invalid, "nothing" doesn\'t exist.', $e->getMessage());
         }
-        
+
         $this->expectExceptionMessage('Method call \'getServiceContainer()\' is either a member of container or a protected service method.');
         $this->expectException(\BadMethodCallException::class);
 

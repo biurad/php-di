@@ -336,10 +336,10 @@ trait ResolveTrait
             foreach ($this->extras as $code) {
                 if ($code instanceof Statement) {
                     $node->addStmt($this->resolveEntity($code->value, $code->args));
-    
+
                     continue;
                 }
-    
+
                 $node->addStmts($parser->parse("<?php\n" . $code));
             }
         }
