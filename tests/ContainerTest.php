@@ -21,6 +21,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Rade\DI\Builder\Reference;
+use Rade\DI\Builder\Statement;
 use Rade\DI\Container;
 use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -676,17 +678,54 @@ class ContainerTest extends TestCase
     public function testDefinition(): void
     {
         $rade = new Container();
+        $nVal = $rade->set('name.value', $rade->lazy('DivineNii\Invoker\ArgumentResolver\NamedValueResolver'), true);
+        $rade['default.value'] = $rade->definition(new Statement('DivineNii\Invoker\ArgumentResolver\DefaultValueResolver'));
 
-        $rade['lazy'] = $rade->lazy(Fixtures\ServiceAutowire::class)
-            ->bind('invoke', new Fixtures\Invokable());
+        $def = $rade->set('lazy', $rade->lazy(Fixtures\ServiceAutowire::class), true)
+            ->bind('invoke', new Fixtures\Invokable())
+            ->bind('autowireTypesArray', new Reference('DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface[]'))
+            ->bind('autowireTypesArray', [[$rade->raw('none'), $rade['default.value'], new Reference('Rade\DI\Tests\Fixtures\Service[]')]])
+            ->bind('missingService', new Statement(Fixtures\Service::class))
+            ->bind('multipleAutowireTypesNotFound', $nVal)
+            ->deprecate('divineniiquaye/php-invoker', '0.9');
         $rade['factory'] = $rade->factory(new Fixtures\Invokable());
-        $rade['service'] = new Fixtures\Service();
+
+        $count = 0;
+        $rade['service'] = $rade->definition(Fixtures\Constructor::class)
+            ->arg('value', $rade)
+            ->bind(Definition::EXTRA_BIND, new Statement(function () use (&$count) {
+                $count += 10;
+            }))
+            ->bind(Definition::EXTRA_BIND, function () use (&$count) {
+                $count += 5;
+            })
+            ->bind(Definition::EXTRA_BIND, function () use (&$count) {
+                $count -= 12;
+            });
+
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
+        $this->assertEquals(3, $count);
 
         $this->assertIsObject($rade['lazy']);
         $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
+        $this->assertNotTrue($def->is(333));
+        $this->assertNotTrue($def->is(Definition::FACTORY));
+        $this->assertTrue($def->is(Definition::LAZY));
+        $this->assertTrue($def->is(Definition::AUTOWIRED));
+        $this->assertTrue($def->is(Definition::DEPRECATED));
+        $this->assertEquals('getLazy', (string) $def);
         $this->assertNotNull($lazy->invoke);
         $this->assertIsObject($factory1 = $rade['factory']);
         $this->assertNotSame($factory1, $rade['factory']);
+
+        $rade->set('callable', new Statement(Fixtures\Invokable::class));
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['callable']);
+
+        try {
+            $rade->set('raw', $rade->raw(new RawDefinition('')));
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals('unresolvable definition cannot contain itself.', $e->getMessage());
+        }
 
         $this->expectExceptionMessage(\sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class));
         $this->expectException(ServiceCreationException::class);
@@ -763,6 +802,8 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade[AppContainer::class]));
         $this->assertSame($fallback, $rade[AppContainer::class]);
         $this->assertSame($fallback, $rade->get(AppContainer::class));
+        $this->assertSame($rade, $rade->get(Container::class));
+        $this->assertSame($rade, $rade->get(ContainerInterface::class));
 
         $rade->alias('aliased', 'scoped');
         $this->assertSame($fallback->get('scoped'), $rade->get('aliased'));

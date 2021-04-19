@@ -25,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Rade\DI\Builder\Reference;
 use Rade\DI\Container;
 use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
@@ -451,8 +452,24 @@ class ContainerAutowireTest extends TestCase
         $this->assertInstanceOf(Fixtures\Constructor::class, $callable);
         $this->assertSame($class, $callable);
 
+        $rade['autowire'] = $autowireClass = $rade->resolveClass(Fixtures\ServiceAutowire::class);
+        $autowired = $rade->call([new Reference('autowire'), 'missingService']);
+        $this->assertInstanceOf(Fixtures\Constructor::class, $autowired);
+
+        $rade['callable_autowire'] = $rade->raw(fn () => $autowireClass);
+        $autowired = $rade->call([new Reference('callable_autowire'), 'missingService']);
+        $this->assertInstanceOf(Fixtures\Constructor::class, $autowired);
+
+        try {
+            $rade->nothing();
+        } catch (\BadMethodCallException $e) {
+            $this->assertEquals('Method call Rade\DI\AbstractContainer->nothing() invalid, "nothing" doesn\'t exist.', $e->getMessage());
+        }
+        
+        $this->expectExceptionMessage('Method call \'getServiceContainer()\' is either a member of container or a protected service method.');
         $this->expectException(\BadMethodCallException::class);
-        $rade->nothing();
+
+        $rade->getServiceContainer();
     }
 
     public function testAutowiringWithUnionType(): void

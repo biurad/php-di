@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
+use PHPUnit\Framework\Assert;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
 use Rade\DI\Services\AbstractConfiguration;
@@ -52,10 +53,18 @@ class RadeServiceProvider extends AbstractConfiguration implements DependedInter
 
     public function setConfiguration(array $config, ContainerInterface $container): void
     {
+        try {
+            $this->getConfiguration();
+        } catch (\RuntimeException $e) {
+            Assert::assertEquals(
+                'Configurations for this provider is empty. See \'setConfiguration\' method.',
+                $e->getMessage()
+            );
+        }
         $this->config = $config;
 
         if ($container instanceof Container) {
-            $container->parameters[$this->getName()] = $config;
+            $container->parameters[$this->getName()] = $this->getConfiguration();
         }
     }
 
