@@ -168,7 +168,7 @@ class Resolver implements ContainerInterface, ResetInterface
             return $this->resolveClass($callback, $args);
         }
 
-        if ((\is_array($callback) && \count($callback) === 2) && \is_string($callback[0])) {
+        if ((\is_array($callback) && \count($callback) === 2) && $callback[0] instanceof Reference) {
             $callback[0] = $this->container->get((string) $callback[0]);
 
             if (\is_callable($callback[0])) {

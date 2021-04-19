@@ -103,7 +103,7 @@ class AutowireValueResolver
      * @param \ReflectionParameter $parameter
      * @param callable             $getter
      *
-     * @return mixed
+     * @return string|object[]
      */
     private function findByMethod(\ReflectionParameter $parameter, callable $getter)
     {

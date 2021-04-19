@@ -20,15 +20,14 @@ namespace Rade\DI\Services;
 use Nette\Utils\Callback;
 use Psr\Container\ContainerExceptionInterface;
 use Rade\DI\Exceptions\CircularReferenceException;
-use Symfony\Contracts\Service\ServiceLocatorTrait;
-use Symfony\Contracts\Service\ServiceProviderInterface;
+use Symfony\Contracts\Service\{ServiceLocatorTrait, ServiceProviderInterface as ServiceProviderContext};
 
 /**
  * Rade PSR-11 service locator.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class ServiceLocator implements ServiceProviderInterface
+class ServiceLocator implements ServiceProviderContext
 {
     use ServiceLocatorTrait;
 

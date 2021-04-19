@@ -261,6 +261,7 @@ class Container extends AbstractContainer implements \ArrayAccess
                 try {
                     return $this->resolver->resolveClass($id);
                 } catch (ContainerResolutionException $e) {
+                    // Only resolves class string and not throw it's error.
                 }
             }
 
@@ -288,7 +289,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      *
-     * @return Definition|RawDefinition|mixed of Definition, RawService, class object or closure.
+     * @return Definition|RawDefinition|object|\Closure of Definition, RawService, class object or closure.
      */
     public function set(string $id, object $definition, bool $autowire = false)
     {
@@ -413,7 +414,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * @param mixed $definition
      *
-     * @return mixed
+     * @return object|\Closure
      */
     private function autowireService(string $id, $definition)
     {

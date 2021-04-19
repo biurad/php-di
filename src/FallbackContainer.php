@@ -45,17 +45,19 @@ class FallbackContainer extends Container
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        $service = self::$services[$id] ?? $this->fallbacks[$id]
-            ?? (\in_array($id, ['container', Container::class, ContainerInterface::class], true) ? $this : null);
-
-        if (null !== $service) {
+        if (null !== $service = self::$services[$id] ?? $this->fallbacks[$id] ?? null) {
             return $service;
+        }
+
+        if ('container' === $id || \in_array($id, [Container::class, ContainerInterface::class], true)) {
+            return $this;
         }
 
         foreach ($this->fallbacks as $container) {
             try {
                 return self::$services[$id] = $container->get($id);
             } catch (ContainerExceptionInterface $e) {
+                // Fallback services not allowed to throw a PSR-11 exception.
             }
         }
 
