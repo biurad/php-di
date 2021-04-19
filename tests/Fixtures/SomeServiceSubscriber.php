@@ -17,8 +17,10 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
+use Psr\Log\NullLogger;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
+use Psr\Log\LoggerInterface;
 
 class SomeServiceSubscriber extends SomeService implements ServiceSubscriberInterface
 {
@@ -29,6 +31,17 @@ class SomeServiceSubscriber extends SomeService implements ServiceSubscriberInte
 
     public static function getSubscribedServices(): array
     {
-        return ['bar' => 'stdClass'];
+        return [
+            'logger' => LoggerInterface::class,
+            'loggers' => 'Psr\Log\LoggerInterface[]',
+            Service::class => 'Rade\DI\Tests\Fixtures\Service[]',
+            'Rade\DI\Tests\Fixtures\Invokable[]',
+            '?non_array[]',
+            Constructor::class => Constructor::class,
+            NullLogger::class,
+            'o_logger' => '?Psr\Log\LoggerInterface',
+            '?Psr\Log\LoggerInterface',
+            '?none',
+        ];
     }
 }

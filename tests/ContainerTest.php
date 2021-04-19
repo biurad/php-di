@@ -21,13 +21,19 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Rade\DI\Builder\Reference;
+use Rade\DI\Builder\Statement;
 use Rade\DI\Container;
+use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\ScopedDefinition;
+use Rade\DI\Exceptions\ServiceCreationException;
+use Rade\DI\FallbackContainer;
+use Rade\DI\RawDefinition;
 use Rade\DI\Services\ServiceProviderInterface;
+use Rade\DI\Tests\Fixtures\AppContainer;
 
 class ContainerTest extends TestCase
 {
@@ -49,9 +55,9 @@ class ContainerTest extends TestCase
         $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
     }
 
-    public function testContainerIsClonable(): void
+    public function testContainerIsCloneable(): void
     {
-        $this->expectExceptionMessage('Container is not clonable');
+        $this->expectExceptionMessage('Container is not cloneable');
         $this->expectException(\LogicException::class);
 
         $cloned = clone new Container();
@@ -64,7 +70,6 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade['container']));
         $this->assertTrue($rade->has('container'));
         $this->assertSame($rade, $rade['container']);
-        $this->assertSame($rade, $rade->container);
         $this->assertSame($rade, $rade->get('container'));
         $this->assertSame($rade, $rade->get(Container::class));
         $this->assertSame($rade, $rade->get(ContainerInterface::class));
@@ -74,19 +79,21 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade['container']));
         $this->assertTrue($rade->has('container'));
         $this->assertSame($rade, $rade['container']);
-        $this->assertSame($rade, $rade->container);
         $this->assertSame($rade, $rade->get('container'));
-        $this->assertSame($rade, $rade->get(Container::class));
-        $this->assertSame($rade, $rade->get(ContainerInterface::class));
+        $this->assertNotSame($rade, $rade->get(Container::class));
+
+        $this->expectExceptionObject(new NotFoundServiceException('Identifier "Psr\Container\ContainerInterface" is not defined.'));
+
+        $rade->get(ContainerInterface::class);
     }
 
     public function testRaw(): void
     {
         $rade = new Container();
-        $rade->protected = $rade->raw($protected = fn (string $string) => strlen($string));
+        $rade['protected'] = $rade->raw($protected = fn (string $string) => strlen($string));
 
         $this->assertEquals(6, $rade['protected']('strlen'));
-        $this->assertEquals(6, $rade->get('protected', ['strlen']));
+        $this->assertEquals(6, $rade->call('protected', ['strlen']));
         $this->assertSame($protected, $rade['protected']);
     }
 
@@ -95,7 +102,8 @@ class ContainerTest extends TestCase
         $rade = new Container();
         $rade['factory'] = $rade->factory($factory = fn () => 6);
 
-        $this->assertNotSame($factory, $rade['factory']);
+        $this->assertNotSame($factory, $one = $rade['factory']);
+        $this->assertSame($one, $rade['factory']);
     }
 
     public function testGlobalFunctionNameAsParameterValue(): void
@@ -112,6 +120,7 @@ class ContainerTest extends TestCase
         $rade['foo'] = $bound = new Fixtures\Service();
 
         $this->assertSame($bound, $rade['foo']);
+        $this->assertTrue($rade->initialized('foo'));
     }
 
     public function testServicesShouldBeSame(): void
@@ -125,11 +134,12 @@ class ContainerTest extends TestCase
         $secondInstantiation = $rade['class'];
 
         $this->assertSame($firstInstantiation, $secondInstantiation);
+        $this->assertTrue($rade->initialized('class'));
     }
 
     public function testServicesShouldBeDifferent(): void
     {
-        $rade            = new Container();
+        $rade = new Container();
         $rade['service'] = $rade->factory(function () {
             return new Fixtures\Service();
         });
@@ -138,6 +148,7 @@ class ContainerTest extends TestCase
         $serviceTwo = $rade['service'];
 
         $this->assertNotSame($serviceOne, $serviceTwo);
+        $this->assertFalse($rade->initialized('service'));
     }
 
     public function testGettingServiceResolution(): void
@@ -152,15 +163,14 @@ class ContainerTest extends TestCase
         }
 
         try {
-            $rade->get(Fixtures\Unstantiable::class);
-        } catch (NotFoundServiceException $e) {
-            $this->assertEquals('Identifier "Rade\DI\Tests\Fixtures\Unstantiable" is not defined.', $e->getMessage());
-        }
+            $rade->set('service_1', new Fixtures\Constructor($rade), true);
+            $rade->set('service_2', new Fixtures\Service(), true);
 
-        try {
-            $rade->{Fixtures\Constructor::class};
-        } catch (NotFoundServiceException $e) {
-            $this->assertEquals('Identifier "Rade\DI\Tests\Fixtures\Constructor" is not defined.', $e->getMessage());
+            $this->assertIsArray($rade->get(Fixtures\Service::class, $rade::IGNORE_MULTIPLE_SERVICE));
+
+            $rade[Fixtures\Service::class];
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals('Multiple services of type Rade\DI\Tests\Fixtures\Service found: service_1, service_2.', $e->getMessage());
         }
 
         try {
@@ -169,10 +179,10 @@ class ContainerTest extends TestCase
             $this->assertEquals('Identifier "contain" is not defined. Did you mean: "container" ?', $e->getMessage());
         }
 
-        $this->expectExceptionMessage('Identifier "Rade\DI\Tests\Fixtures\Service" is not defined.');
+        $this->expectExceptionMessage('Identifier "Rade\DI\Tests\Fixtures\Unstantiable" is not defined.');
         $this->expectException(NotFoundServiceException::class);
 
-        $rade[Fixtures\Service::class];
+        $rade[Fixtures\Unstantiable::class];
     }
 
     public function testArrayAccess(): void
@@ -266,7 +276,7 @@ class ContainerTest extends TestCase
             $rade->call(Fixtures\Service::class, ['me', 'cool']);
         } catch (ContainerResolutionException $e) {
             $this->assertEquals(
-                'Unable to pass arguments, class Rade\DI\Tests\Fixtures\Service has no constructor.',
+                'Unable to pass arguments, class Rade\DI\Tests\Fixtures\Service has no constructor or constructor is not public.',
                 $e->getMessage()
             );
         }
@@ -274,10 +284,10 @@ class ContainerTest extends TestCase
         try {
             $rade->call(Fixtures\Unstantiable::class);
         } catch (ContainerResolutionException $e) {
-            $this->assertEquals('Class Rade\DI\Tests\Fixtures\Unstantiable is not instantiable.', $e->getMessage());
+            $this->assertEquals('Class Rade\DI\Tests\Fixtures\Unstantiable is an abstract type or instantiable.', $e->getMessage());
         }
 
-        $this->expectExceptionMessage('Class Psr\Log\LoggerInterface is not instantiable.');
+        $this->expectExceptionMessage('Class Psr\Log\LoggerInterface is an abstract type or instantiable.');
         $this->expectException(ContainerResolutionException::class);
 
         $rade->call('Psr\Log\LoggerInterface');
@@ -319,9 +329,6 @@ class ContainerTest extends TestCase
         $this->assertTrue(isset($rade['service']));
         $this->assertTrue($rade->has('null'));
 
-        $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "non_existent" is not defined.');
-
         $this->assertFalse($rade->has('non_existent'));
     }
 
@@ -353,14 +360,15 @@ class ContainerTest extends TestCase
         $rade = new Container();
         $this->assertSame($rade, $rade->register($this->getMockBuilder(ServiceProviderInterface::class)->getMock()));
 
+        $rade['logger'] = new NullLogger();
         $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
 
         $this->assertTrue(isset($rade->parameters['rade_di']['hello']));
-        $this->assertCount(5, $rade->keys());
+        $this->assertCount(6, $rade->keys());
 
         $this->assertInstanceOf(Fixtures\Service::class, $service = $rade['service']);
         $this->assertNotNull($service->value);
-        $this->assertInstanceOf(\stdClass::class, $service->value->get('bar'));
+        $this->assertInstanceOf(NullLogger::class, $service->value->get('o_logger'));
     }
 
     public function testExtend(): void
@@ -373,8 +381,12 @@ class ContainerTest extends TestCase
             return new Fixtures\Service();
         });
 
-        $service = function (Fixtures\Service $service, $container) {
-            $service->value = (object) [$container];
+        $service = function ($service, $container) {
+            if ($service instanceof Fixtures\Service) {
+                $service->value = (object) [$container];
+            } elseif ($service instanceof Definition) {
+                $service->bind('value', (object) [$container]);
+            }
 
             return $service;
         };
@@ -391,40 +403,36 @@ class ContainerTest extends TestCase
         $serviceTwo = $rade['factory_service'];
 
         $this->assertNotSame($serviceOne, $serviceTwo);
-        $this->assertNotSame($serviceOne->value, $serviceTwo->value);
+        $this->assertSame($serviceOne->value, $serviceTwo->value);
     }
 
-    public function testExtendDoesNotSupportProtectedServices(): void
+    public function testExtendDoesSupportRawServices(): void
     {
         $rade = new Container();
-        $rade['foo'] = $rade->raw(fn () => new Fixtures\Service());
+        $rade['num'] = $rade->raw(5);
+        $rade['service'] = $rade->raw(new Fixtures\Service());
+        $rade['call'] = $rade->raw(fn (Container $container) => new Fixtures\Constructor($container));
 
-        $this->expectExceptionMessage(
-            'Service definition \'foo\' cannot be extended, was not meant to be resolved.'
-        );
-        $this->expectException(ContainerResolutionException::class);
+        $service = static function ($service, $container) {
+            if ($service instanceof Fixtures\Service) {
+                $service->value = 'extended';
 
-        $rade->extend('foo', fn (Fixtures\Service $service) => $service);
-    }
+                return $service;
+            } elseif (\is_callable($service)) {
+                return $service($container);
+            }
 
-    public function testExtendDoesNotLeakWithFactories(): void
-    {
-        $rade = new Container();
+            return $service + 5;
+        };
 
-        $rade['foo'] = $rade->factory(function (): void {
-        });
-        $rade->extend('foo', function ($foo, $rade): void {
-        });
-        unset($rade['foo']);
+        $rade->extend('num', $service);
+        $this->assertEquals(10, $rade['num']);
 
-        $p = new \ReflectionProperty($rade, 'values');
-        $p->setAccessible(true);
-        $this->assertEmpty($p->getValue($rade));
-        $this->assertArrayNotHasKey('foo', $p->getValue($rade));
+        $rade->extend('service', $service);
+        $this->assertEquals('extended', $rade['service']->value);
 
-        $p = new \ReflectionProperty($rade, 'factories');
-        $p->setAccessible(true);
-        $this->assertCount(0, $p->getValue($rade));
+        $rade->extend('call', $service);
+        $this->assertInstanceOf(Fixtures\Constructor::class, $rade['call']);
     }
 
     public function testExtendValidatesKeyIsPresent(): void
@@ -667,58 +675,108 @@ class ContainerTest extends TestCase
         $this->assertSame($newRade, $newRade->get(AppContainer::class));
     }
 
-    public function testScopedDefinition(): void
+    public function testDefinition(): void
     {
         $rade = new Container();
+        $nVal = $rade->set('name.value', $rade->lazy('DivineNii\Invoker\ArgumentResolver\NamedValueResolver'), true);
+        $rade['default.value'] = $rade->definition(new Statement('DivineNii\Invoker\ArgumentResolver\DefaultValueResolver'));
 
-        $rade['lazy'] = new ScopedDefinition(
-            Fixtures\ServiceAutowire::class,
-            ScopedDefinition::LAZY
-        );
-        $rade['protected'] = new ScopedDefinition(
-            fn (string $name) => "Hello {$name}",
-            ScopedDefinition::RAW
-        );
-        $rade['factory'] = new ScopedDefinition(new Fixtures\Invokable());
-        $rade['service'] = new Fixtures\Service();
+        $def = $rade->set('lazy', $rade->lazy(Fixtures\ServiceAutowire::class), true)
+            ->bind('invoke', new Fixtures\Invokable())
+            ->bind('autowireTypesArray', new Reference('DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface[]'))
+            ->bind('autowireTypesArray', [[$rade->raw('none'), $rade['default.value'], new Reference('Rade\DI\Tests\Fixtures\Service[]')]])
+            ->bind('missingService', new Statement(Fixtures\Service::class))
+            ->bind('multipleAutowireTypesNotFound', $nVal)
+            ->deprecate('divineniiquaye/php-invoker', '0.9');
+        $rade['factory'] = $rade->factory(new Fixtures\Invokable());
+
+        $count = 0;
+        $rade['service'] = $rade->definition(Fixtures\Constructor::class)
+            ->arg('value', $rade)
+            ->bind(Definition::EXTRA_BIND, new Statement(function () use (&$count) {
+                $count += 10;
+            }))
+            ->bind(Definition::EXTRA_BIND, function () use (&$count) {
+                $count += 5;
+            })
+            ->bind(Definition::EXTRA_BIND, function () use (&$count) {
+                $count -= 12;
+            });
+
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
+        $this->assertEquals(3, $count);
 
         $this->assertIsObject($rade['lazy']);
-        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $rade['lazy']);
-        $this->assertEquals('Hello Divine', $rade['protected']('Divine'));
+        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
+        $this->assertNotTrue($def->is(333));
+        $this->assertNotTrue($def->is(Definition::FACTORY));
+        $this->assertTrue($def->is(Definition::LAZY));
+        $this->assertTrue($def->is(Definition::AUTOWIRED));
+        $this->assertTrue($def->is(Definition::DEPRECATED));
+        $this->assertEquals('getLazy', (string) $def);
+        $this->assertNotNull($lazy->invoke);
         $this->assertIsObject($factory1 = $rade['factory']);
         $this->assertNotSame($factory1, $rade['factory']);
 
-        $this->expectExceptionObject(new ContainerResolutionException('Scoped definition cannot be a definiton of itself.'));
+        $rade->set('callable', new Statement(Fixtures\Invokable::class));
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['callable']);
 
-        $rade['scoped'] = new ScopedDefinition(new ScopedDefinition(fn () => null));
+        try {
+            $rade->set('raw', $rade->raw(new RawDefinition('')));
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals('unresolvable definition cannot contain itself.', $e->getMessage());
+        }
+
+        $this->expectExceptionMessage(\sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class));
+        $this->expectException(ServiceCreationException::class);
+
+        $rade->set('raw', $rade->definition(new RawDefinition('')));
+    }
+
+    public function testPrivateDefinition(): void
+    {
+        $rade = new Container();
+        $rade->set('protected', $rade->definition(Fixtures\Service::class, Definition::PRIVATE));
+
+        $this->expectExceptionMessage('Using service definition for \'protected\' as private is not supported.');
+        $this->expectException(ContainerResolutionException::class);
+
+        $rade->get('protected');
     }
 
     public function testFallbackContainerNameConflict(): void
     {
-        $rade = new Container();
+        $rade = new FallbackContainer();
 
         // Service before fallback
         $rade[AppContainer::class] = $rade->raw('something');
-        $rade->fallback(new AppContainer());
+        $rade->fallback($fallback = new AppContainer());
 
-        $this->assertEquals('something', $rade[AppContainer::class]);
+        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
+        $this->assertSame($fallback, $rade[AppContainer::class]);
+
+        // Unset to check if fallback will still exist.
         unset($rade[AppContainer::class]);
+
+        $this->assertSame($fallback, $rade[AppContainer::class]);
         $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
 
         $rade->reset();
 
         // Fallback before service
-        $rade->fallback(new AppContainer());
+        $rade->fallback($fallback = new AppContainer());
         $rade[AppContainer::class] = $rade->raw('something');
 
-        $this->assertEquals('something', $rade[AppContainer::class]);
+        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
         unset($rade[AppContainer::class]);
+
+        $this->assertSame($fallback, $rade[AppContainer::class]);
         $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
     }
 
     public function testFallbackContainerErrors(): void
     {
-        $rade = new Container();
+        $rade = new FallbackContainer();
         $rade->fallback(new AppContainer());
 
         try {
@@ -738,43 +796,16 @@ class ContainerTest extends TestCase
 
     public function testFallbackContainer(): void
     {
-        $rade = new Container();
+        $rade = new FallbackContainer();
         $rade->fallback($fallback = new AppContainer());
 
         $this->assertTrue(isset($rade[AppContainer::class]));
         $this->assertSame($fallback, $rade[AppContainer::class]);
         $this->assertSame($fallback, $rade->get(AppContainer::class));
-
-        $this->assertTrue(isset($rade['scoped']));
-        $this->assertInstanceOf(ScopedDefinition::class, $one = $rade['scoped']);
-        $this->assertSame($one, $rade->get(ScopedDefinition::class));
+        $this->assertSame($rade, $rade->get(Container::class));
+        $this->assertSame($rade, $rade->get(ContainerInterface::class));
 
         $rade->alias('aliased', 'scoped');
-        $this->assertSame($one, $rade->get('aliased'));
-    }
-}
-
-class AppContainer extends Container
-{
-    protected array $types = [
-        ContainerInterface::class => ['container'],
-        Container::class => ['container'],
-        ScopedDefinition::class => ['scoped'],
-    ];
-
-    protected array $methodsMap = [
-        'container' => 'getServiceContainer',
-        'scoped'    => 'getScopedDefinition',
-        'broken'    => 'getBrokenService',
-    ];
-
-    protected function getScopedDefinition(): ScopedDefinition
-    {
-        return new ScopedDefinition(null, ScopedDefinition::RAW);
-    }
-
-    protected function getBrokenService()
-    {
-        throw new NotFoundServiceException('Broken Service');
+        $this->assertSame($fallback->get('scoped'), $rade->get('aliased'));
     }
 }
