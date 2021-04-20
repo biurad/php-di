@@ -151,6 +151,22 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * Sets a autowired service definition.
+     *
+     * @param string|array|Definition|Statement $definition
+     */
+    public function autowire(string $id, $definition): Definition
+    {
+        if ($definition instanceof RawDefinition) {
+            throw new ServiceCreationException(
+                \sprintf('Service %s using %s instance is not supported for autowiring.', $id, RawDefinition::class)
+            );
+        }
+
+        return $this->set($id, $definition)->autowire();
+    }
+
+    /**
      * Sets a service definition.
      *
      * @param string|callable|Definition|Statement|RawDefinition $definition
