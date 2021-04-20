@@ -85,7 +85,7 @@ class Definition implements \Stringable
      */
     public function __toString(): string
     {
-        return 'get'.\str_replace(['.', '_'], '', \ucwords($this->id, '._'));
+        return 'get' . \str_replace(['.', '_'], '', \ucwords($this->id, '._'));
     }
 
     /**

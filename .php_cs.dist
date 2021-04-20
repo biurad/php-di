@@ -89,7 +89,7 @@ return PhpCsFixer\Config::create()
         'clean_namespace'                    => true,
         'no_leading_namespace_whitespace'    => true,
         'binary_operator_spaces'             => true,
-        'concat_space'                       => true,
+        'concat_space'                       => ['spacing' => 'one'],
         'increment_style'                    => true,
         'object_operator_without_whitespace' => true,
         'standardize_increment'              => true,

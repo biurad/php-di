@@ -239,7 +239,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             $suggest = " Did you mean: \"$suggest\" ?";
         }
 
-        $error = new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.'.$suggest, $id));
+        $error = new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
 
         if ($throw) {
             throw $error;

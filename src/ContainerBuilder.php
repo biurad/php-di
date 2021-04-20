@@ -405,7 +405,7 @@ COMMENT
             foreach ($ids as $id) {
                 if (isset($methodsMap[$id])) {
                     $backupIds[$type][] = new ArrayItem($this->builder->val($id));
-                    $typeName = $this->builder->constFetch($type.'::class');
+                    $typeName = $this->builder->constFetch($type . '::class');
 
                     $wiredTypes[$type] = new ArrayItem(new Array_($backupIds[$type]), $typeName);
                 }
@@ -417,20 +417,20 @@ COMMENT
 
     protected function printToFile(array $options): callable
     {
-        $printer = new class($options) extends Standard {
+        $printer = new class ($options) extends Standard {
             protected function pStmt_Return(\PhpParser\Node\Stmt\Return_ $node): string
             {
-                return $this->nl.parent::pStmt_Return($node);
+                return $this->nl . parent::pStmt_Return($node);
             }
 
             protected function pStmt_Declare(\PhpParser\Node\Stmt\Declare_ $node)
             {
-                return parent::pStmt_Declare($node).$this->nl;
+                return parent::pStmt_Declare($node) . $this->nl;
             }
 
             protected function pStmt_Property(\PhpParser\Node\Stmt\Property $node): string
             {
-                return parent::pStmt_Property($node).$this->nl;
+                return parent::pStmt_Property($node) . $this->nl;
             }
 
             protected function pStmt_ClassMethod(\PhpParser\Node\Stmt\ClassMethod $node): string
@@ -441,7 +441,7 @@ COMMENT
                     $classMethod = \str_replace(') :', '):', $classMethod);
                 }
 
-                return $classMethod.$this->nl;
+                return $classMethod . $this->nl;
             }
         };
 

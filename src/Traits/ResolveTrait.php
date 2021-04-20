@@ -155,7 +155,7 @@ trait ResolveTrait
                 $arguments = $this->resolveArguments($arguments);
 
                 if ($this->lazy) {
-                    $entity = $this->builder->constFetch($entity.'::class');
+                    $entity = $this->builder->constFetch($entity . '::class');
 
                     return $this->builder->methodCall(
                         $this->builder->propertyFetch($this->builder->var('this'), 'resolver'),
@@ -340,7 +340,7 @@ trait ResolveTrait
                     continue;
                 }
 
-                $node->addStmts($parser->parse("<?php\n".$code));
+                $node->addStmts($parser->parse("<?php\n" . $code));
             }
         }
 
@@ -408,7 +408,7 @@ COMMENT;
 
         $deprecatedComment = \sprintf(
             $comment,
-            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '').$deprecation['message']
+            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '') . $deprecation['message']
         );
         $node->setDocComment($deprecatedComment);
 

@@ -657,7 +657,7 @@ class ContainerTest extends TestCase
         $rade = new Container();
 
         $this->expectExceptionMessage(
-            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::__construct() typehint(s) '.
+            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::__construct() typehint(s) ' .
             '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
         );
         $this->expectException(ContainerResolutionException::class);
