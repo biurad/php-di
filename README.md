@@ -8,7 +8,7 @@
 [![Quality Score](https://img.shields.io/scrutinizer/g/divineniiquaye/rade-di.svg?style=flat-square)](https://scrutinizer-ci.com/g/divineniiquaye/rade-di)
 [![Sponsor development of this project](https://img.shields.io/badge/sponsor%20this%20package-%E2%9D%A4-ff69b4.svg?style=flat-square)](https://biurad.com/sponsor)
 
-**divineniiquaye/rade-di** is a smart tool for managing class dependencies and performing dependency injection for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenceed by [Nette DI][nette-di] and [Pimple]. This library provides a smart way of autowiring, that essentially means this: class dependencies are "injected" into the class via the constructor, in some cases "setter" methods.
+**divineniiquaye/rade-di** is a HIGH performance smart tool for performing simple to complex dependency injection in your application for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenced by [Nette DI][nette-di] and [Pimple]. This library provides has an advance way of resolving services for best performance to your application.
 
 ## 📦 Installation & Basic Usage
 
@@ -26,17 +26,39 @@ use Rade\DI\Container;
 $container = new Container();
 ```
 
-For registering services into container, a service can be anything that is a real PHP valid type. Container implements `ArrayAccess`, so here's an example to demonstrate:
+For registering services into container, a service must be a real valid PHP object type. Container implements both PSR-11 `ContainerInterface` and `ArrayAccess`, so here's an example to demonstrate:
+
+> Using Container without `ArrayAccess`
+
+```php
+// Should service be autowired or not ...
+$autowire = true;
+
+// define some services
+$container->set('session_storage', new SessionStorage('SESSION_ID'), $autowire);
+
+$container->set(
+    'session', // The unique service id identifier
+    static fn(): Session => new Session($container['session_storage']),
+    $autowire
+);
+// or
+$container->set('session', $container->resolveClass(Session::class), $autowire);
+// or further
+$container->set('session', $container->lazy(Session::class), $autowire);
+```
+
+> Using Container with `ArrayAccess`
 
 ```php
 // define some services
 $container['session_storage'] = new SessionStorage('SESSION_ID');
 
-$container['session'] = function (Container $container): Session {
-    return new Session($container['session_storage']);
-};
+$container['session'] = fn(): Session => new Session($container['session_storage']);
 // or
 $container['session'] = $container->lazy(Session::class);
+// or
+$container['session'] = $container->resolveClass(Session::class);
 // or further
 $container['session'] = new Session($container['session_storage']);
 ```
@@ -46,23 +68,35 @@ Using the defined services is also very easy:
 ```php
 // get the session object
 $session = $container['session'];
-// or $session = $container->get('session');
+// or
+$session = $container->get('session');
+// or using ArrayAccess
+$session = $container['session'];
+// or use it's service class name, parent classes or interfaces
+$session = $container->get(Session::class);
+
 
 // the above call is roughly equivalent to the following code:
-// $storage = new SessionStorage('SESSION_ID');
-// $session = new Session($storage);
+$storage = new SessionStorage('SESSION_ID');
+$session = new Session($storage);
 ```
 
 By default, each time you get a service, Rade returns the **same instance** of it. Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's `set` method.
 If you want a different instance to be returned for all calls, wrap your anonymous function with the `factory()` method
 
+By default, registering services with `ArrayAccess` implementation are all autowired except for container's **set** method.
+
+Container supports reuseable service instance. This is means, a registered service which is resolved is frozen and object's id doesn't change throughout your application using Rade DI.
+
+>To prevent registered services from being shared, use the container's **factory** method.
+
 ```php
-$container['session'] = $container->factory(function (Container $container): Session {
-    return new Session($container['session_storage']);
-});
+$container['session'] = $container->factory(
+    static fn(): Session => new Session($container['session_storage'])
+);
 ```
 
-Now, each call to `$container['session']` returns a new instance of the session.
+With the example above, each call to `$container['session']` returns a new instance of the session.
 
 In some cases you may want to modify a service definition after it has been defined. You can use the ``extend()`` method to define additional code to be run on your service just after it is created:
 
@@ -71,7 +105,7 @@ $container['session_storage'] = function (Container $container) {
     return new $container['session_storage_class']($container['cookie_name']);
 };
 
-// By default container is passed unto second parameter, but can be ommitted.
+// By default container is passed unto second parameter, but can be omitted.
 $container->extend('session_storage', function ($storage) {
     $storage->...();
 
@@ -81,7 +115,7 @@ $container->extend('session_storage', function ($storage) {
 
 The first argument is the name of the service to extend, the second a function that gets access to the object instance and the container.
 
-Also Rade has a alias and tagging support for services. If you want to add a diffirent nanme to a registered service, use `alias` method.
+Also Rade has a alias and tagging support for services. If you want to add a different name to a registered service, use `alias` method.
 
 ```php
 $container['film'] = new Movie('S1', 'EP202');
@@ -125,7 +159,7 @@ foreach ($container->tagged('process') as [$process, $enabled]) {
 }
 ```
 
-Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so musch. Just create a service provider for your project, and you done.
+Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so must. Just create a service provider for your project, and you done.
 
 ```php
 use Rade\DI\Container;
@@ -135,10 +169,10 @@ class FooProvider implements Rade\DI\ServiceProviderInterface
     /**
      * {@inheritdoc}
      */
-    public function register(Container $rade)
+    public function register(Container $app)
     {
         // register some services and parameters
-        // on $rade
+        // on $app
     }
 }
 ```
@@ -149,7 +183,9 @@ Then, register the provider on a Container:
 $container->register(new FooProvider());
 ```
 
-Service provider support [Symfony's config][symfony-config] for writing configuration for service definitions found in a provider. to be able to achieve that, implement service provider class to `Symfony\Component\Config\Definition\ConfigurationInterface` then add a method `getName` returning a string of a unique name that will be found in container's public `$parameters` property for usage.
+Service provider support [Symfony's config component][symfony-config] for writing configuration for service definitions found in a provider. to be able to achieve that, implement service provider class to `Rade\DI\Services\ConfigurationInterface`, add a method `getName` returning a string of a unique name that will be used to resolve configs, after which a `setConfiguration` method is needed to receive the resolved configurations, then a `getConfiguration` method to return the configurations resolved.
+
+>Using [Symfony's config component][symfony-config] + `Rade\DI\ContainerBuilder` class is highly recommended.
 
 ```bash
 $ composer require symfony/config
@@ -157,9 +193,9 @@ $ composer require symfony/config
 
 Also the `Rade\DI\ServiceLocator` is intended to solve this problem by giving access to a set of predefined services while instantiating them only when actually needed.
 
-For sevice locators, Rade uses [symfony's service contracts](https://github.com/symfony/service-contracts).
+For service locators, Rade uses [symfony's service contracts](https://github.com/symfony/service-contracts).
 
-It also allows you to make your services available under a different name than the one used to register them. For instance, you may want to use an object that expects an instance of `EventDispatcherInterface` to be available under the name `event_dispatcher` while your event dispatcher has been registered under the name `dispatcher`:
+It also allows you to make your services available under different naming. For instance, you may want to use an object that expects an instance of `EventDispatcherInterface` to be available under the name `event_dispatcher` while your event dispatcher has been registered under the name `dispatcher`:
 
 ```php
 use Monolog\Logger;
@@ -194,8 +230,6 @@ $container['logger'] = new Monolog\Logger();
 $container['dispatcher'] = new EventDispatcher();
 
 $container['service'] = $container->lazy(MyService::class);
-// or
-$container['service'] = $container->call(MyService::class);
 ```
 
 ## 📓 Documentation
@@ -226,9 +260,9 @@ To report a security vulnerability, please use the [Biurad Security](https://sec
 
 Contributions to this library are **welcome**, especially ones that:
 
-- Improve usability or flexibility without compromising our ability to adhere to [PSR-12] coding stardand.
+- Improve usability or flexibility without compromising our ability to adhere to [PSR-12] coding standard.
 - Optimize performance and add new features
-- Fix issues with adhering to [PSR-11] support and backward compatability.
+- Fix issues with adhering to [PSR-11] support and backward compatibility.
 -
 
 Please see [CONTRIBUTING] for additional details.
