@@ -125,9 +125,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * This is useful when you want to autowire a callable or class string lazily.
      *
-     * @see $this->definition() method
-     * @deprecated Since 1.0, use Definition class or container's definition method instead.
-     *
      * @param callable|string $definition A class string or a callable
      */
     public function lazy($definition): Definition
@@ -137,9 +134,6 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /**
      * Marks a definition as being a factory service.
-     *
-     * @see $this->definition() method
-     * @deprecated Since 1.0, use Definition class or container's definition method instead.
      *
      * @param callable|object|string $callable A service definition to be used as a factory
      */
