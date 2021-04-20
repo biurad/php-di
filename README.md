@@ -8,7 +8,7 @@
 [![Quality Score](https://img.shields.io/scrutinizer/g/divineniiquaye/rade-di.svg?style=flat-square)](https://scrutinizer-ci.com/g/divineniiquaye/rade-di)
 [![Sponsor development of this project](https://img.shields.io/badge/sponsor%20this%20package-%E2%9D%A4-ff69b4.svg?style=flat-square)](https://biurad.com/sponsor)
 
-**divineniiquaye/rade-di** is a HIGH performance smart tool for performing simple to complex dependency injection in your application for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenced by [Nette DI][nette-di] and [Pimple]. This library provides has an advance way of resolving services for best performance to your application.
+**divineniiquaye/rade-di** is a HIGH performance smart tool for performing simple to complex dependency injection in your application for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenced to [Nette DI][nette-di] and [Pimple]. This library provides an advance way of resolving services for best performance to your application.
 
 ## 📦 Installation & Basic Usage
 
