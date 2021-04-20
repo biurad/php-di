@@ -36,7 +36,7 @@ interface ConfigurationInterface extends ConfigContextInterface
     /**
      * Sets service's provider or builder configuration.
      *
-     * @param ContainerInterface $container either ContainerBuilder or Container instance.
+     * @param ContainerInterface $container either ContainerBuilder or Container instance
      */
     public function setConfiguration(array $config, ContainerInterface $container): void;
 

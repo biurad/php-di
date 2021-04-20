@@ -19,7 +19,7 @@ namespace Rade\DI\Tests\Fixtures;
 
 class NonInvokable
 {
-    public function __call($a, $b)
+    public function __call($a, $b): void
     {
     }
 }

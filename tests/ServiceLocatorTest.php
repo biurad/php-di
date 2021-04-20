@@ -30,7 +30,7 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
         return new ServiceLocator($factories);
     }
 
-    public function testThrowsOnCircularReference()
+    public function testThrowsOnCircularReference(): void
     {
         $this->expectException(CircularReferenceException::class);
         $this->expectExceptionMessage('Circular reference detected for service "bar", path: "bar -> baz -> bar".');
@@ -38,7 +38,7 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
         parent::testThrowsOnCircularReference();
     }
 
-    public function testThrowsInServiceSubscriber()
+    public function testThrowsInServiceSubscriber(): void
     {
         $this->expectException(NotFoundExceptionInterface::class);
         $this->expectExceptionMessage('Service "foo" not found: the current service locator only knows about the "bar" service.');
@@ -46,13 +46,13 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
         $container = new Container();
         $container['foo'] = new \stdClass();
         $subscriber = new Fixtures\SomeServiceSubscriber();
-        $subscriber->container = $this->getServiceLocator(['bar' => function () {
+        $subscriber->container = $this->getServiceLocator(['bar' => function (): void {
         }]);
 
         $subscriber->getFoo();
     }
 
-    public function testGetThrowsServiceNotFoundException()
+    public function testGetThrowsServiceNotFoundException(): void
     {
         $this->expectException(NotFoundExceptionInterface::class);
         $this->expectExceptionMessage('Service "foo" not found: the current service locator is empty...');
@@ -61,27 +61,27 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
         $locator->get('foo');
     }
 
-    public function testProvidesServicesInformation()
+    public function testProvidesServicesInformation(): void
     {
         $locator = new ServiceLocator([
-            'foo'  => function () {
+            'foo' => function () {
                 return 'bar';
             },
-            'bar'  => function (): string {
+            'bar' => function (): string {
                 return 'baz';
             },
-            'bat'  => function (): ?string {
+            'bat' => function (): ?string {
                 return 'zaz';
             },
-            'baz'  => new \ArrayObject(),
+            'baz' => new \ArrayObject(),
             'null' => null,
         ]);
 
         $this->assertSame($locator->getProvidedServices(), [
-            'foo'  => '?',
-            'bar'  => 'string',
-            'bat'  => '?string',
-            'baz'  => 'ArrayObject',
+            'foo' => '?',
+            'bar' => 'string',
+            'bat' => '?string',
+            'baz' => 'ArrayObject',
             'null' => '?',
         ]);
     }

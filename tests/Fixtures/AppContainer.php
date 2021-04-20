@@ -32,8 +32,8 @@ class AppContainer extends Container
 
     protected array $methodsMap = [
         'container' => 'getServiceContainer',
-        'scoped'    => 'getDefinition',
-        'broken'    => 'getBrokenService',
+        'scoped' => 'getDefinition',
+        'broken' => 'getBrokenService',
     ];
 
     protected function getDefinition(): Definition
@@ -41,7 +41,7 @@ class AppContainer extends Container
         return self:: $services['scoped'] = new Definition('scoped');
     }
 
-    protected function getBrokenService()
+    protected function getBrokenService(): void
     {
         throw new NotFoundServiceException('Broken Service');
     }

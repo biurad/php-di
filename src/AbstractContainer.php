@@ -115,7 +115,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * {@inheritdoc}
      *
-     * @param string $id              Identifier of the entry to look for.
+     * @param string $id              identifier of the entry to look for
      * @param int    $invalidBehavior The behavior when multiple services returns for $id
      */
     abstract public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1);
@@ -153,7 +153,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
-     * Resets the container
+     * Resets the container.
      */
     public function reset(): void
     {
@@ -165,7 +165,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * Marks an alias id to service id.
      *
-     * @param string $id The alias id
+     * @param string $id        The alias id
      * @param string $serviceId The registered service id
      *
      * @throws ContainerResolutionException Service id is not found in container
@@ -223,7 +223,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
-     * @internal Prevent service looping.
+     * @internal prevent service looping
      *
      * @param Definition|RawDefinition|callable $service
      *
@@ -239,7 +239,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             $suggest = " Did you mean: \"$suggest\" ?";
         }
 
-        $error = new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
+        $error = new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.'.$suggest, $id));
 
         if ($throw) {
             throw $error;

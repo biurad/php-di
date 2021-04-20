@@ -35,7 +35,7 @@ use Symfony\Contracts\Service\{
 };
 
 /**
- * Class Resolver
+ * Class Resolver.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -72,15 +72,14 @@ class Resolver implements ContainerInterface, ResetInterface
 
     public function __construct(ContainerInterface $container, array $wiring = [])
     {
-        $this->wiring    = $wiring;
+        $this->wiring = $wiring;
         $this->container = $container;
-        $this->resolver  = new AutowireValueResolver();
+        $this->resolver = new AutowireValueResolver();
     }
 
     /**
      * Resolve wiring classes + interfaces.
      *
-     * @param string   $id
      * @param string[] $types
      */
     public function autowire(string $id, array $types): void
@@ -103,16 +102,15 @@ class Resolver implements ContainerInterface, ResetInterface
     }
 
     /**
-     * Resolves arguments for callable
+     * Resolves arguments for callable.
      *
-     * @param \ReflectionFunctionAbstract $function
-     * @param array<int|string,mixed>     $args
+     * @param array<int|string,mixed> $args
      *
      * @return array<int,mixed>
      */
     public function autowireArguments(\ReflectionFunctionAbstract $function, array $args = []): array
     {
-        $resolvedParameters   = [];
+        $resolvedParameters = [];
         $reflectionParameters = $function->getParameters();
 
         foreach ($reflectionParameters as $parameter) {
@@ -168,7 +166,7 @@ class Resolver implements ContainerInterface, ResetInterface
             return $this->resolveClass($callback, $args);
         }
 
-        if ((\is_array($callback) && \count($callback) === 2) && $callback[0] instanceof Reference) {
+        if ((\is_array($callback) && 2 === \count($callback)) && $callback[0] instanceof Reference) {
             $callback[0] = $this->container->get((string) $callback[0]);
 
             if (\is_callable($callback[0])) {
@@ -179,17 +177,14 @@ class Resolver implements ContainerInterface, ResetInterface
         }
 
         throw new ContainerResolutionException(
-            sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback))
+            \sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback))
         );
     }
 
     /**
-     * @param string                  $class
      * @param array<int|string,mixed> $args
      *
      * @throws ContainerResolutionException if class string unresolvable
-     *
-     * @return object
      */
     public function resolveClass(string $class, array $args = []): object
     {
@@ -215,7 +210,6 @@ class Resolver implements ContainerInterface, ResetInterface
      * Resolves service by type.
      *
      * @param string $id A class or an interface name
-     * @param bool   $single
      *
      * @return mixed
      */
@@ -232,7 +226,7 @@ class Resolver implements ContainerInterface, ResetInterface
         }
 
         if (!empty($autowired = $this->wiring[$id] ?? '')) {
-            if (\count($autowired) === 1) {
+            if (1 === \count($autowired)) {
                 if ('container' !== $id = \reset($autowired)) {
                     return $single ? $this->container->get($id) : [$this->container->get($id)];
                 }
@@ -258,7 +252,7 @@ class Resolver implements ContainerInterface, ResetInterface
     }
 
     /**
-     * Check if service type exist
+     * Check if service type exist.
      *
      * @param string $id A class or an interface name
      */
@@ -318,30 +312,30 @@ class Resolver implements ContainerInterface, ResetInterface
      */
     private function resolveServiceSubscriber(string $id, string $value): array
     {
-        if ($value[0] === '?') {
-            $resolved  = \substr($value, 1);
+        if ('?' === $value[0]) {
+            $resolved = \substr($value, 1);
 
             if ($id === $value) {
                 $id = $resolved;
             }
 
-            if (\substr($resolved, -2) === '[]') {
+            if ('[]' === \substr($resolved, -2)) {
                 $arrayLike = $resolved;
-                $resolved  = \substr($resolved, 0, -2);
+                $resolved = \substr($resolved, 0, -2);
 
                 if ($this->container->has($resolved) || $this->has($resolved)) {
                     return $this->resolveServiceSubscriber($id, $arrayLike);
                 }
             }
 
-            $service  = fn () => ($this->container->has($resolved) || $this->has($resolved)) ? $this->container->get($resolved) : null;
+            $service = fn () => ($this->container->has($resolved) || $this->has($resolved)) ? $this->container->get($resolved) : null;
 
             return [$id => !$this->isBuilder() ? $service : $service()];
         }
 
-        if (\substr($value, -2) === '[]') {
+        if ('[]' === \substr($value, -2)) {
             $resolved = \substr($value, 0, -2);
-            $service  = function () use ($resolved) {
+            $service = function () use ($resolved) {
                 if ($this->has($resolved)) {
                     return $this->get($resolved);
                 }

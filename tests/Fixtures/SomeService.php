@@ -35,7 +35,7 @@ class SomeService implements ResetInterface
         return $this->container->get('foo');
     }
 
-    public function reset()
+    public function reset(): void
     {
         $this->container = null;
     }

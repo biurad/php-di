@@ -41,7 +41,7 @@ class AutowireValueResolver
     public function resolve(callable $resolver, \ReflectionParameter $parameter, array $providedParameters)
     {
         $paramName = $parameter->name;
-        $position  = $parameter->getPosition();
+        $position = $parameter->getPosition();
 
         try {
             return $providedParameters[$position]
@@ -61,7 +61,7 @@ class AutowireValueResolver
      */
     private function autowireArgument(\ReflectionParameter $parameter, callable $getter)
     {
-        $types   = Reflection::getParameterTypes($parameter);
+        $types = Reflection::getParameterTypes($parameter);
         $invalid = [];
 
         foreach ($types as $typeName) {
@@ -76,7 +76,7 @@ class AutowireValueResolver
             } catch (ContainerResolutionException $e) {
                 $res = $this->findByMethod($parameter, $getter);
 
-                if (self::NONE !== $res && \count($res) === 1) {
+                if (self::NONE !== $res && 1 === \count($res)) {
                     return \current($res);
                 }
 
@@ -98,10 +98,7 @@ class AutowireValueResolver
     }
 
     /**
-     * Parses a methods doc comments or return default value
-     *
-     * @param \ReflectionParameter $parameter
-     * @param callable             $getter
+     * Parses a methods doc comments or return default value.
      *
      * @return string|object[]
      */
@@ -133,9 +130,9 @@ class AutowireValueResolver
      */
     private function resolveNotFoundService(\ReflectionParameter $parameter, callable $getter, string $type)
     {
-        if ($type === ServiceProviderInterface::class && null !== $class = $parameter->getDeclaringClass()) {
+        if (ServiceProviderInterface::class === $type && null !== $class = $parameter->getDeclaringClass()) {
             if (!$class->isSubclassOf(ServiceSubscriberInterface::class)) {
-                throw new ContainerResolutionException(sprintf(
+                throw new ContainerResolutionException(\sprintf(
                     'Service of type %s needs parent class %s to implement %s.',
                     $type,
                     $class->getName(),
@@ -151,7 +148,7 @@ class AutowireValueResolver
             return self::NONE;
         }
 
-        $desc    = Reflection::toString($parameter);
+        $desc = Reflection::toString($parameter);
         $message = "Type '$type' needed by $desc not found. Check type hint and 'use' statements.";
 
         if (Reflection::isBuiltinType($type)) {
@@ -162,7 +159,7 @@ class AutowireValueResolver
     }
 
     /**
-     * Get the parameter's default value else null
+     * Get the parameter's default value else null.
      *
      * @param string[] $invalid
      *
@@ -177,7 +174,7 @@ class AutowireValueResolver
             return $parameter->isDefaultValueAvailable() ? Reflection::getParameterDefaultValue($parameter) : null;
         }
 
-        $desc    = Reflection::toString($parameter);
+        $desc = Reflection::toString($parameter);
         $message = "Parameter $desc has no class type hint or default value, so its value must be specified.";
 
         if (!empty($invalid)) {
@@ -190,8 +187,6 @@ class AutowireValueResolver
 
     /**
      * @param mixed $type
-     *
-     * @return bool
      */
     private function isValidType($type): bool
     {

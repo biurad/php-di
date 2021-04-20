@@ -90,7 +90,7 @@ class ContainerTest extends TestCase
     public function testRaw(): void
     {
         $rade = new Container();
-        $rade['protected'] = $rade->raw($protected = fn (string $string) => strlen($string));
+        $rade['protected'] = $rade->raw($protected = fn (string $string) => \strlen($string));
 
         $this->assertEquals(6, $rade['protected']('strlen'));
         $this->assertEquals(6, $rade->call('protected', ['strlen']));
@@ -317,8 +317,8 @@ class ContainerTest extends TestCase
 
     public function testIsset(): void
     {
-        $rade            = new Container();
-        $rade['param']   = $rade->raw('value');
+        $rade = new Container();
+        $rade['param'] = $rade->raw('value');
         $rade['service'] = function () {
             return new Fixtures\Service();
         };
@@ -343,8 +343,8 @@ class ContainerTest extends TestCase
 
     public function testUnset(): void
     {
-        $rade            = new Container();
-        $rade['param']   = $rade->raw('value');
+        $rade = new Container();
+        $rade['param'] = $rade->raw('value');
         $rade['service'] = function () {
             return new Fixtures\Service();
         };
@@ -418,7 +418,9 @@ class ContainerTest extends TestCase
                 $service->value = 'extended';
 
                 return $service;
-            } elseif (\is_callable($service)) {
+            }
+
+            if (\is_callable($service)) {
                 return $service($container);
             }
 
@@ -457,7 +459,7 @@ class ContainerTest extends TestCase
     /** @test */
     public function settingAnInvokableObjectShouldTreatItAsFactory(): void
     {
-        $rade              = new Container();
+        $rade = new Container();
         $rade['invokable'] = new Fixtures\Invokable();
 
         $this->assertInstanceOf(Fixtures\Service::class, $rade['invokable']);
@@ -466,7 +468,7 @@ class ContainerTest extends TestCase
     /** @test */
     public function settingNonInvokableObjectShouldTreatItAsParameter(): void
     {
-        $rade                  = new Container();
+        $rade = new Container();
         $rade['non_invokable'] = new Fixtures\NonInvokable();
 
         $this->assertInstanceOf(Fixtures\NonInvokable::class, $rade['non_invokable']);
@@ -479,7 +481,7 @@ class ContainerTest extends TestCase
     {
         $this->expectException(\TypeError::class);
 
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function (): void {
         };
         $rade->extend('foo', $service);
@@ -490,7 +492,7 @@ class ContainerTest extends TestCase
         $this->expectException(FrozenServiceException::class);
         $this->expectExceptionMessage('Cannot override frozen service "foo".');
 
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return new Fixtures\NonInvokable();
         };
@@ -505,7 +507,7 @@ class ContainerTest extends TestCase
         $this->expectException(FrozenServiceException::class);
         $this->expectExceptionMessage('Cannot override frozen service "foo".');
 
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return new Fixtures\Invokable();
         };
@@ -528,7 +530,7 @@ class ContainerTest extends TestCase
 
     public function testDefiningNewServiceAfterFreeze(): void
     {
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return 'foo';
         };
@@ -545,7 +547,7 @@ class ContainerTest extends TestCase
         $this->expectException(FrozenServiceException::class);
         $this->expectExceptionMessage('Cannot override frozen service "foo".');
 
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return 'foo';
         };
@@ -558,7 +560,7 @@ class ContainerTest extends TestCase
 
     public function testRemovingServiceAfterFreeze(): void
     {
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return 'foo';
         };
@@ -573,7 +575,7 @@ class ContainerTest extends TestCase
 
     public function testExtendingService(): void
     {
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return 'foo';
         };
@@ -589,7 +591,7 @@ class ContainerTest extends TestCase
 
     public function testExtendingServiceAfterOtherServiceFreeze(): void
     {
-        $rade        = new Container();
+        $rade = new Container();
         $rade['foo'] = function () {
             return 'foo';
         };
@@ -606,7 +608,7 @@ class ContainerTest extends TestCase
 
     public function testCircularReferenceWithServiceDefinitions(): void
     {
-        $rade        = new Container();
+        $rade = new Container();
         $rade['one'] = function (Container $container) {
             return $container['two'];
         };
@@ -655,7 +657,7 @@ class ContainerTest extends TestCase
         $rade = new Container();
 
         $this->expectExceptionMessage(
-            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::__construct() typehint(s) ' .
+            'Parameter $service in Rade\DI\Tests\Fixtures\ServiceAutowire::__construct() typehint(s) '.
             '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.'
         );
         $this->expectException(ContainerResolutionException::class);
@@ -693,13 +695,13 @@ class ContainerTest extends TestCase
         $count = 0;
         $rade['service'] = $rade->definition(Fixtures\Constructor::class)
             ->arg('value', $rade)
-            ->bind(Definition::EXTRA_BIND, new Statement(function () use (&$count) {
+            ->bind(Definition::EXTRA_BIND, new Statement(function () use (&$count): void {
                 $count += 10;
             }))
-            ->bind(Definition::EXTRA_BIND, function () use (&$count) {
+            ->bind(Definition::EXTRA_BIND, function () use (&$count): void {
                 $count += 5;
             })
-            ->bind(Definition::EXTRA_BIND, function () use (&$count) {
+            ->bind(Definition::EXTRA_BIND, function () use (&$count): void {
                 $count -= 12;
             });
 

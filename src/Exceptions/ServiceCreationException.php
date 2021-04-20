@@ -17,8 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Exceptions;
 
-use Psr\Container\ContainerExceptionInterface;
-
 class ServiceCreationException extends ContainerResolutionException
 {
 }

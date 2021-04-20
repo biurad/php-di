@@ -40,17 +40,14 @@ class UnionNull
 
 class CollisionA
 {
-
 }
 
 class CollisionB
 {
-
 }
 
 interface CollisionInterface
 {
-
 }
 
-$unionFunction = fn(CollisionB | CollisionA $collision): CollisionA | CollisionB => $collision;
+$unionFunction = fn (CollisionB | CollisionA $collision): CollisionA | CollisionB => $collision;

@@ -84,7 +84,7 @@ class RadeServiceProvider extends AbstractConfiguration implements DependedInter
         $rade['param'] = $rade->raw('value');
 
         $rade['service'] = function () use ($rade) {
-            $service =  new Service();
+            $service = new Service();
             $service->value = $rade['other'];
 
             return $service;

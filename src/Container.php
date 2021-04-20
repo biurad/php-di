@@ -66,7 +66,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         parent::__construct();
 
         // Incase this class it extended ...
-        if (static::class !== __CLASS__) {
+        if (__CLASS__ !== static::class) {
             $this->types += [static::class => ['container']];
         }
 
@@ -104,8 +104,6 @@ class Container extends AbstractContainer implements \ArrayAccess
      * Checks if a service is set.
      *
      * @param string $offset The unique identifier for the service
-     *
-     * @return bool
      */
     public function offsetExists($offset): bool
     {
@@ -146,9 +144,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      * Create a definition service.
      *
      * @param Definition|Statement|object|callable|string $service
-     * @param int|null $type of Definition::FACTORY | Definition::LAZY
-     *
-     * @return Definition
+     * @param int|null                                    $type    of Definition::FACTORY | Definition::LAZY
      */
     public function definition($service, int $type = null): Definition
     {
@@ -176,8 +172,8 @@ class Container extends AbstractContainer implements \ArrayAccess
      * @param string   $id    The unique identifier for the object
      * @param callable $scope A service definition to extend the original
      *
-     * @throws NotFoundServiceException If the identifier is not defined
-     * @throws FrozenServiceException   If the service is frozen
+     * @throws NotFoundServiceException   If the identifier is not defined
+     * @throws FrozenServiceException     If the service is frozen
      * @throws CircularReferenceException If infinite loop among service is detected
      *
      * @return mixed The wrapped scope or Definition instance
@@ -277,13 +273,13 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Set a service definition
+     * Set a service definition.
      *
      * @param Definition|RawDefinition|Statement|\Closure|object $definition
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      *
-     * @return Definition|RawDefinition|object|\Closure of Definition, RawService, class object or closure.
+     * @return Definition|RawDefinition|object|\Closure of Definition, RawService, class object or closure
      */
     public function set(string $id, object $definition, bool $autowire = false)
     {

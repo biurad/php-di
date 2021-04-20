@@ -69,7 +69,7 @@ class ServiceLocator implements ServiceProviderContext
                 if (\is_callable($factory)) {
                     $type = Callback::toReflection($factory)->getReturnType();
 
-                    $this->providedTypes[$name] = $type ? ($type->allowsNull() ? '?' : '') . ($type instanceof \ReflectionNamedType ? $type->getName() : $type) : '?';
+                    $this->providedTypes[$name] = $type ? ($type->allowsNull() ? '?' : '').($type instanceof \ReflectionNamedType ? $type->getName() : $type) : '?';
                 } elseif (\is_object($factory) && !$factory instanceof \stdClass) {
                     $this->providedTypes[$name] = \get_class($factory);
                 } else {

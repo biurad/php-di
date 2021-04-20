@@ -33,8 +33,10 @@ class ContainerTaggingTest extends TestCase
 
         $fooResults = [];
 
-        foreach ($container->tagged('foo') as [$foo, $attr]) {
-            $fooResults[] = $foo;
+        foreach ($container->tagged('foo', false) as [$foo, $attr]) {
+            $this->assertFalse($container->has($foo));
+
+            $fooResults[] = $container->get($foo);
         }
 
         $barResults = [];
@@ -94,6 +96,7 @@ class ContainerTaggingTest extends TestCase
 
         foreach ($container->tagged('foo') as [$foo, $attr]) {
             $fooResults[] = $foo;
+
             break;
         }
 
@@ -118,6 +121,7 @@ class ContainerTaggingTest extends TestCase
         $this->assertInstanceOf(Fixtures\Constructor::class, $fooResults[1]);
 
         $fooResults = [];
+
         foreach ($services as [$foo, $attr]) {
             $fooResults[] = $foo;
         }

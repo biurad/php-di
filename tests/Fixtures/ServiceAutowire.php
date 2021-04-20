@@ -32,7 +32,7 @@ class ServiceAutowire
     public function __construct(Service $service, ?Invokable $invoke)
     {
         $this->invoke = $invoke;
-        $this->value  = $service;
+        $this->value = $service;
     }
 
     public function missingClass(Servic $service)
@@ -61,8 +61,6 @@ class ServiceAutowire
     }
 
     /**
-     * @param ArgumentValueResolverInterface $resolver
-     *
      * @return ArgumentValueResolverInterface
      */
     public function multipleAutowireTypesNotFound(ArgumentValueResolverInterface $resolver)

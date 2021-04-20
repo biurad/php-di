@@ -69,7 +69,7 @@ class Definition implements \Stringable
     private array $deprecated = [];
 
     /**
-     * Definition constructor
+     * Definition constructor.
      *
      * @param mixed                   $entity
      * @param array<int|string,mixed> $arguments
@@ -85,15 +85,12 @@ class Definition implements \Stringable
      */
     public function __toString(): string
     {
-        return 'get' . \str_replace(['.', '_'], '', \ucwords($this->id, '._'));
+        return 'get'.\str_replace(['.', '_'], '', \ucwords($this->id, '._'));
     }
 
     /**
      * Attach the missing id and resolver to this definition.
      * NB: This method is used internally and should not be used directly.
-     *
-     * @param string             $id
-     * @param Resolvers\Resolver $resolver
      *
      * @internal
      */
@@ -165,7 +162,7 @@ class Definition implements \Stringable
      */
     final public function bind(string $nameOrMethod, $valueOrRef): self
     {
-        if ($nameOrMethod === self::EXTRA_BIND) {
+        if (self::EXTRA_BIND === $nameOrMethod) {
             $this->extras[] = $valueOrRef;
 
             return $this;
@@ -207,7 +204,7 @@ class Definition implements \Stringable
      */
     final public function typeOf($types): self
     {
-        if (\is_array($types) && (\count($types) === 1 || \PHP_VERSION_ID < 80000)) {
+        if (\is_array($types) && (1 === \count($types) || \PHP_VERSION_ID < 80000)) {
             $types = \current($types) ?: null;
         }
 
@@ -326,7 +323,7 @@ class Definition implements \Stringable
     {
         $di = $builder->var('this');
 
-        $arguments  = (!$this->lazy || $this->public) ? [$di, (string) $this] : [$di, 'get', [$this->id]];
+        $arguments = (!$this->lazy || $this->public) ? [$di, (string) $this] : [$di, 'get', [$this->id]];
         $resolved = [$builder, 'methodCall'](...$arguments);
 
         if ($this->factory) {

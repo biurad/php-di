@@ -155,7 +155,7 @@ trait ResolveTrait
                 $arguments = $this->resolveArguments($arguments);
 
                 if ($this->lazy) {
-                    $entity = $this->builder->constFetch($entity . '::class');
+                    $entity = $this->builder->constFetch($entity.'::class');
 
                     return $this->builder->methodCall(
                         $this->builder->propertyFetch($this->builder->var('this'), 'resolver'),
@@ -180,7 +180,7 @@ trait ResolveTrait
             return $this->resolveCallable($entity, $arguments, $entity[0]);
         }
 
-        if (\is_array($entity) && \count($entity) === 2) {
+        if (\is_array($entity) && 2 === \count($entity)) {
             static $class;
 
             switch (true) {
@@ -201,10 +201,10 @@ trait ResolveTrait
                 case \is_string($entity[0]) && \class_exists($class = $entity[0], false):
                     break;
 
-                case \is_string($entity[0]) && str_starts_with($entity[0], '@'):
+                case \is_string($entity[0]) && \str_starts_with($entity[0], '@'):
                     $entity[0] = new Reference(\substr($entity[0], 1));
-                    /* intentionally miss break */
 
+                    // no break
                 case $entity[0] instanceof Reference:
                     $class = (string) $entity[0];
                     $entity[0] = $this->resolveReference($entity[0], true);
@@ -340,7 +340,7 @@ trait ResolveTrait
                     continue;
                 }
 
-                $node->addStmts($parser->parse("<?php\n" . $code));
+                $node->addStmts($parser->parse("<?php\n".$code));
             }
         }
 
@@ -349,7 +349,7 @@ trait ResolveTrait
 
     protected function resolveArguments(array $arguments = [], ?\ReflectionFunctionAbstract $bind = null, bool $compile = true): array
     {
-        $arguments = array_map(function ($value) use ($bind, $compile) {
+        $arguments = \array_map(function ($value) use ($bind, $compile) {
             if ($value instanceof RawDefinition) {
                 return !$compile ? $value() : $this->builder->val($value());
             }
@@ -406,9 +406,9 @@ trait ResolveTrait
  */
 COMMENT;
 
-        $deprecatedComment = sprintf(
+        $deprecatedComment = \sprintf(
             $comment,
-            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '') . $deprecation['message']
+            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '').$deprecation['message']
         );
         $node->setDocComment($deprecatedComment);
 
