@@ -2,7 +2,7 @@
     "name": "divineniiquaye/rade-di",
     "description": "A simple and smart dependency injection for PHP",
     "type": "library",
-    "keywords": ["biurad","biuradphp","php","container","di","dependency-injection"],
+    "keywords": ["divinenii","php","container","di","dependency-injection"],
     "homepage": "https://www.divinenii.com",
     "license": "BSD-3-Clause",
     "authors": [
