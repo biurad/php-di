@@ -47,12 +47,10 @@ class ProviderLoader
     {
         foreach ($this->providers as $provider) {
             if ($provider instanceof ConfigurationInterface) {
-                $container->register($provider, $this->config[$provider->getId()] ?? []);
-
-                continue;
+                $config = $this->config[$provider->getId()] ?? [];
             }
 
-            $container->register($provider);
+            $container->register($provider, $config ?? []);
         }
 
         return $container;

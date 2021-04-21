@@ -52,12 +52,10 @@ class ExtensionLoader
     {
         foreach ($this->extensions as $extension) {
             if ($extension instanceof ConfigurationInterface) {
-                $builder->register($extension, $this->config[$extension->getId()] ?? []);
-
-                continue;
+                $config = $this->config[$extension->getId()] ?? [];
             }
 
-            $builder->register($extension);
+            $builder->register($extension, $config ?? []);
         }
 
         return $builder->compile($options);
