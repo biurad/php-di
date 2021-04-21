@@ -24,13 +24,14 @@ use Rade\DI\Services\AbstractConfiguration;
 use Rade\DI\Services\ServiceProviderInterface;
 use Rade\DI\Services\DependedInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
+use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider extends AbstractConfiguration implements DependedInterface, ServiceProviderInterface
+class RadeServiceProvider extends AbstractConfiguration implements ConfigurationInterface, DependedInterface, ServiceProviderInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function getName(): string
+    public function getId(): string
     {
         return 'rade_di';
     }
@@ -40,7 +41,7 @@ class RadeServiceProvider extends AbstractConfiguration implements DependedInter
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder($this->getName());
+        $treeBuilder = new TreeBuilder($this->getId());
 
         $treeBuilder->getRootNode()
             ->children()
@@ -64,7 +65,7 @@ class RadeServiceProvider extends AbstractConfiguration implements DependedInter
         $this->config = $config;
 
         if ($container instanceof Container) {
-            $container->parameters[$this->getName()] = $this->getConfiguration();
+            $container->parameters[$this->getId()] = $this->getConfiguration();
         }
     }
 

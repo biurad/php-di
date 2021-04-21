@@ -18,14 +18,13 @@ declare(strict_types=1);
 namespace Rade\DI\Services;
 
 use Psr\Container\ContainerInterface;
-use Symfony\Component\Config\Definition\ConfigurationInterface as ConfigContextInterface;
 
 /**
  * Declares that service provider has configurations.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface ConfigurationInterface extends ConfigContextInterface
+interface ConfigurationInterface
 {
     /**
      * Returns a unique id.

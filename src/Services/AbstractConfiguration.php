@@ -26,7 +26,16 @@ abstract class AbstractConfiguration implements ConfigurationInterface
     /**
      * {@inheritdoc}
      */
-    abstract public function setConfiguration(array $config, ContainerInterface $container): void;
+    abstract public function getId(): string;
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setConfiguration(array $config, ContainerInterface $container): void
+    {
+        $this->config = $config;
+        //@Todo: this method can be overridden to use $container.
+    }
 
     /**
      * {@inheritdoc}
