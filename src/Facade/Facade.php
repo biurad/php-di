@@ -1,0 +1,58 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of DivineNii opensource projects.
+ *
+ * PHP version 7.4 and above required
+ *
+ * @author    Divine Niiquaye Ibok <divineibok@gmail.com>
+ * @copyright 2021 DivineNii (https://divinenii.com/)
+ * @license   https://opensource.org/licenses/BSD-3-Clause License
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Rade\DI\Facade;
+
+use Psr\Container\ContainerInterface;
+use Rade\DI\Exceptions\ContainerResolutionException;
+
+/**
+ * Represents a Static Proxy logic using `__callStatic()`.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
+class Facade
+{
+    /** @internal Do not use this property directly. */
+    public static $proxies = [];
+
+    protected static ContainerInterface $container;
+
+    /**
+     * Sets the Container that will be used to retrieve the Proxies.
+     */
+    public static function setContainer(ContainerInterface $container): void
+    {
+        static::$container = $container;
+    }
+
+    /**
+     * Performs the proxying of the statically called method from the container.
+     */
+    public static function __callStatic(string $name, array $arguments)
+    {
+        if (null === $proxied = self::$proxies[$name] ?? null) {
+            throw new ContainerResolutionException(\sprintf('Subject "%s" is not a supported proxy service.', $name));
+        }
+
+        if (\is_callable($service = self::$container->get($proxied))) {
+            return \call_user_func_array($service, $arguments);
+        }
+
+        return $service;
+    }
+}
