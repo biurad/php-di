@@ -180,7 +180,7 @@ trait ResolveTrait
             return $this->resolveCallable($entity, $arguments, $entity[0]);
         }
 
-        if (\is_array($entity) && 2 === \count($entity)) {
+        if (\is_array($entity) && \array_keys($entity) === [0, 1]) {
             static $class;
 
             switch (true) {
@@ -210,15 +210,14 @@ trait ResolveTrait
                     $entity[0] = $this->resolveReference($entity[0], true);
 
                     break;
-
-                default:
-                    throw new ServiceCreationException('Definition entity is not a valid callable type.');
             }
 
-            return $this->resolveCallable($entity, $arguments, $class);
+            return null !== $class ? $this->resolveCallable($entity, $arguments, $class) : $entity;
         }
 
-        throw new ServiceCreationException('Definition entity is provided is not valid or supported.');
+        throw new ServiceCreationException(
+            \sprintf('Definition entity for %s provided is not valid or supported.', $this->id)
+        );
     }
 
     protected function resolveReference(Reference $reference, bool $callback = false)
@@ -247,62 +246,60 @@ trait ResolveTrait
      *
      * @throws \ReflectionException
      */
-    protected function resolveCallable($service, array $arguments, ?string $class = null): Expr
+    protected function resolveCallable($service, array $arguments, string $class): Expr
     {
-        if (null !== $class) {
-            static $bind;
+        static $bind;
 
-            if ($this->resolver->getContainer()->has($class)) {
-                if (!$service[0] instanceof Expr) {
-                    $service[0] = $this->resolveReference(new Reference($class));
-                }
-
-                if (\count($found = $this->resolver->find($class)) > 1) {
-                    throw new ServiceCreationException(\sprintf('Multiple services found for %s.', $class));
-                }
-
-                $class = $this->resolver->getContainer()->extend([] === $found ? $class : \current($found))->entity;
-
-                if ($class instanceof Statement && $service[0] instanceof Expr) {
-                    $class = $class->value;
-                }
+        if ($this->resolver->getContainer()->has($class)) {
+            if (!$service[0] instanceof Expr) {
+                $service[0] = $this->resolveReference(new Reference($class));
             }
 
-            if (isset($service[1]) && (\is_string($class) && \class_exists($class))) {
-                $bind = new \ReflectionMethod($class, $service[1]);
-            } elseif (null === $service[1] ?? null) {
-                $bind = new \ReflectionFunction($class);
+            if (\count($found = $this->resolver->find($class)) > 1) {
+                throw new ServiceCreationException(\sprintf('Multiple services found for %s.', $class));
             }
 
-            if (null !== $bind && empty($this->type)) {
-                $this->typeOf($types = Reflection::getReturnTypes($bind));
+            $class = $this->resolver->getContainer()->extend([] === $found ? $class : \current($found))->entity;
 
-                if ($this->autowire) {
-                    $this->resolver->autowire($this->id, $types);
-                }
+            if ($class instanceof Statement && $service[0] instanceof Expr) {
+                $class = $class->value;
             }
+        }
 
-            if ($this->lazy) {
-                $arguments = $this->resolveArguments($arguments);
+        if (isset($service[1]) && (\is_string($class) && \class_exists($class))) {
+            $bind = new \ReflectionMethod($class, $service[1]);
+        } elseif (null === $service[1] ?? null) {
+            $bind = new \ReflectionFunction($class);
+        }
 
-                return $this->builder->methodCall(
-                    $this->builder->propertyFetch($this->builder->var('this'), 'resolver'),
-                    'resolve',
-                    [$service, $this->resolveArguments($arguments)]
-                );
+        if (null !== $bind && empty($this->type)) {
+            $this->typeOf($types = Reflection::getReturnTypes($bind));
+
+            if ($this->autowire) {
+                $this->resolver->autowire($this->id, $types);
             }
+        }
 
-            $arguments = $this->resolveArguments($arguments, $bind);
+        if ($this->lazy) {
+            $arguments = $this->resolveArguments($arguments);
 
-            if ($bind instanceof \ReflectionFunction) {
-                return $this->builder->funcCall($class, $arguments);
-            }
+            return $this->builder->methodCall(
+                $this->builder->propertyFetch($this->builder->var('this'), 'resolver'),
+                'resolve',
+                [$service, $this->resolveArguments($arguments)]
+            );
+        }
 
-            $service[0] = $service[0] instanceof Expr ? $service[0] : $this->resolveEntity($service[0], $arguments);
+        $arguments = $this->resolveArguments($arguments, $bind);
 
-            if ($bind instanceof \ReflectionMethod) {
-                return $this->builder->{$bind->isStatic() ? 'staticCall' : 'methodCall'}($service[0], $service[1], $arguments);
-            }
+        if ($bind instanceof \ReflectionFunction) {
+            return $this->builder->funcCall($class, $arguments);
+        }
+
+        $service[0] = $service[0] instanceof Expr ? $service[0] : $this->resolveEntity($service[0], $arguments);
+
+        if ($bind instanceof \ReflectionMethod) {
+            return $this->builder->{$bind->isStatic() ? 'staticCall' : 'methodCall'}($service[0], $service[1], $arguments);
         }
 
         return $this->builder->funcCall(new Array_([new ArrayItem($service[0]), new ArrayItem(new String_($service[1]))]), $arguments);
