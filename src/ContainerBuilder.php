@@ -354,6 +354,9 @@ COMMENT
             ->addStmt($this->builder->property('types')
                 ->makeProtected()->setType('array')
                 ->setDefault($wiredTypes))
+            ->addStmt($this->builder->property('aliases')
+                ->makeProtected()->setType('array')
+                ->setDefault($this->aliases))
         ;
     }
 
