@@ -28,7 +28,6 @@ use Rade\DI\{
     Exceptions\ContainerResolutionException,
     Services\ServiceProviderInterface
 };
-use Symfony\Component\Config\Definition\Processor;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -45,9 +44,6 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /** @var array<string,string> internal cached services */
     protected array $methodsMap = ['container' => 'getServiceContainer'];
-
-    /** @var ServiceProviderInterface[] A list of service providers */
-    protected array $providers = [];
 
     /** @var array<string,mixed> service name => instance */
     private array $values = [];
@@ -312,25 +308,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function register(ServiceProviderInterface $provider, array $values = [])
     {
-        $this->providers[\get_class($provider)] = $provider;
-
-        if ([] !== $values && $provider instanceof Services\ConfigurationInterface) {
-            $id = $provider->getName();
-            $process = [new Processor(), 'processConfiguration'];
-
-            $provider->setConfiguration($process($provider, isset($values[$id]) ? $values : [$id => $values]), $this);
-        }
-
-        // If service provider depends on other providers ...
-        if ($provider instanceof Services\DependedInterface) {
-            foreach ($provider->dependencies() as $dependency) {
-                $dependency = $this->resolver->resolveClass($dependency);
-
-                if ($dependency instanceof ServiceProviderInterface) {
-                    $this->register($dependency);
-                }
-            }
-        }
+        $this->doRegister($provider, $values, ServiceProviderInterface::class);
 
         $provider->register($this);
 

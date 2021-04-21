@@ -22,6 +22,7 @@ use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\{
     CircularReferenceException, ContainerResolutionException, NotFoundServiceException
 };
+use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -46,6 +47,9 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
     /** @var array<string,mixed> A list of already loaded services (this act as a local cache) */
     protected static array $services;
+
+    /** @var Services\ServiceProviderInterface[] A list of service providers */
+    protected array $providers = [];
 
     protected Resolvers\Resolver $resolver;
 
@@ -232,6 +236,38 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      * @return mixed
      */
     abstract protected function doCreate(string $id, $service);
+
+    /**
+     * @internal Registering a service provider or extension
+     *
+     * @param object $provider   of ExtensionInterface or ServiceProviderInterface
+     * @param string $instanceOf ExtensionInterface or ServiceProviderInterface
+     */
+    protected function doRegister(object $provider, array $values, string $instanceOf): void
+    {
+        $this->providers[\get_class($provider)] = $provider;
+
+        if ($provider instanceof Services\ConfigurationInterface) {
+            $values = isset($values[$provider->getId()]) ? $values : [$provider->getId() => $values];
+
+            if ($provider instanceof ConfigurationInterface) {
+                $values = (new Processor())->processConfiguration($provider, $values);
+            }
+
+            $provider->setConfiguration($values, $this);
+        }
+
+        // If service provider depends on other providers ...
+        if ($provider instanceof Services\DependedInterface) {
+            foreach ($provider->dependencies() as $dependency) {
+                $dependency = $this->resolver->resolveClass($dependency);
+
+                if ($dependency instanceof $instanceOf) {
+                    $this->register($dependency);
+                }
+            }
+        }
+    }
 
     protected function createNotFound(string $id, bool $throw = false): NotFoundServiceException
     {

@@ -23,11 +23,9 @@ use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
     Exceptions\NotFoundServiceException,
-    Exceptions\ServiceCreationException,
-    Services\ConfigurationInterface
+    Exceptions\ServiceCreationException
 };
 use Symfony\Component\Config\{
-    Definition\Processor,
     Resource\ClassExistenceResource,
     Resource\FileResource,
     Resource\ResourceInterface
@@ -44,7 +42,7 @@ class ContainerBuilder extends AbstractContainer
     private array $definitions = [];
 
     /** @var Builder\ExtensionInterface[] */
-    private array $extensions = [];
+    protected array $providers = [];
 
     /** Name of the compiled container parent class. */
     private string $containerParentClass;
@@ -109,25 +107,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function register(Builder\ExtensionInterface $extension, array $config = []): self
     {
-        $this->extensions[\get_class($extension)] = $extension;
-
-        if ($extension instanceof ConfigurationInterface) {
-            if (!isset($config[$extension->getName()])) {
-                $config = [$extension->getName() => $config];
-            }
-
-            $extension->setConfiguration(([new Processor(), 'processConfiguration'])($extension, $config), $this);
-        }
-
-        if ($extension instanceof Services\DependedInterface) {
-            foreach ($extension->dependencies() as $dependency) {
-                $dependency = new $dependency();
-
-                if ($dependency instanceof Builder\ExtensionInterface) {
-                    $this->register($dependency, $config);
-                }
-            }
-        }
+        $this->doRegister($extension, $config, Builder\ExtensionInterface::class);
 
         $extension->build($this);
 
@@ -205,8 +185,8 @@ class ContainerBuilder extends AbstractContainer
             case $this->resolver->has($id):
                 return $this->resolver->get($id, (bool) $invalidBehavior);
 
-            case isset($this->extensions[$id]):
-                return $this->extensions[$id];
+            case isset($this->providers[$id]):
+                return $this->providers[$id];
 
             case isset($this->aliases[$id]):
                 return $this->get($this->aliases[$id]);
@@ -221,7 +201,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function has(string $id): bool
     {
-        return (isset($this->definitions[$id]) || isset($this->extensions[$id]))
+        return (isset($this->definitions[$id]) || isset($this->providers[$id]))
             || ($this->resolver->has($id) || isset($this->aliases[$id]));
     }
 
@@ -297,7 +277,7 @@ class ContainerBuilder extends AbstractContainer
         $options += ['strictType' => true, 'printToString' => true, 'containerClass' => 'CompiledContainer'];
         $astNodes = [];
 
-        foreach ($this->extensions as $name => $builder) {
+        foreach ($this->providers as $name => $builder) {
             if ($this->trackResources) {
                 $this->addResource(new FileResource((new \ReflectionClass($name))->getFileName()));
                 $this->addResource(new ClassExistenceResource($name, false));

@@ -11,6 +11,9 @@ parameters:
     ignoreErrors:
         - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
         -
+            message: "#^Call to an undefined method Rade\\\\DI\\\\AbstractContainer\\:\\:register\\(\\).$#"
+            path: src/AbstractContainer.php
+        -
             message: "#^Call to function is_callable\\(\\) with mixed will always evaluate to false.$#"
             path: src/Container.php
         -
