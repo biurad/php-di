@@ -28,10 +28,9 @@ use Symfony\Component\Config\Definition\ConfigurationInterface as ConfigContextI
 interface ConfigurationInterface extends ConfigContextInterface
 {
     /**
-     * The unique name of the service provider in finding
-     * configurations belonging to this provider in container's $parameters.
+     * Returns a unique id.
      */
-    public function getName(): string;
+    public function getId(): string;
 
     /**
      * Sets service's provider or builder configuration.
