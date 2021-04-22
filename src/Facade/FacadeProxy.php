@@ -59,7 +59,7 @@ class FacadeProxy
                 continue;
             }
 
-            $this->proxies[] = $service;
+            $this->proxies[$id] = $service;
         }
     }
 
@@ -73,14 +73,15 @@ class FacadeProxy
         /** @var ContainerBuilder */
         $container = $this->container;
 
-        if ([] !== $this->proxies) {
+        if ([] !== $proxiedServices = $this->proxies) {
             $astNodes = [];
             $builder = $container->getBuilder();
+            \ksort($proxiedServices);
 
             $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $builder->val(1))]);
             $classNode = $builder->class($className)->extend('\Rade\DI\Facade\Facade')->setDocComment(CodePrinter::COMMENT);
 
-            foreach ($this->proxies as $method => $proxy) {
+            foreach ($proxiedServices as $method => $proxy) {
                 if ($container->has($proxy)) {
                     $definition = $container->extend($proxy);
 
