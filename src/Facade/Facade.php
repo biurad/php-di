@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Facade;
 
 use Psr\Container\ContainerInterface;
-use Rade\DI\Exceptions\ContainerResolutionException;
+use Rade\DI\{Container, Exceptions\ContainerResolutionException};
 
 /**
  * Represents a Static Proxy logic using `__callStatic()`.
@@ -43,14 +43,15 @@ class Facade
     /**
      * Performs the proxying of the statically called method from the container.
      */
-    public static function __callStatic(string $name, array $arguments)
+    public static function __callStatic(string $name, array $arguments = [])
     {
         if (null === $proxied = self::$proxies[$name] ?? null) {
             throw new ContainerResolutionException(\sprintf('Subject "%s" is not a supported proxy service.', $name));
         }
+        $di = self::$container;
 
-        if (\is_callable($service = self::$container->get($proxied))) {
-            return \call_user_func_array($service, $arguments);
+        if (\is_callable($service = $di->get($proxied))) {
+            return $di instanceof Container ? $di->call($service, $arguments) : \call_user_func_array($service, $arguments);
         }
 
         return $service;
