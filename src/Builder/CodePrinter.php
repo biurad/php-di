@@ -39,7 +39,7 @@ COMMENT;
      */
     public static function print(array $stmts, array $options = []): string
     {
-        $printer = new static(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
+        $printer = new self(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
 
         // Resolve whitespace ...
         return \str_replace("{\n        \n", "{\n", $printer->prettyPrintFile($stmts));
