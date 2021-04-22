@@ -36,12 +36,18 @@ class FacadeProxyTest extends TestCase
         $rade['service.invoke'] = new Fixtures\Invokable();
         $rade->set('service_constructor', new Fixtures\Constructor($rade));
         $rade['service.autowire_test'] = $rade->resolveClass(Fixtures\ServiceAutowire::class);
+        $rade['service_callable'] = $rade->raw(static function (int $num, Fixtures\Service $service) {
+            $service->value = $num;
+
+            return $service;
+        });
 
         $facadeProxy = new FacadeProxy($rade);
-        $facadeProxy->proxy('service', 'service.invoke', 'service.autowire_test', 'serviceConstructor');
+        $facadeProxy->proxy('service', 'service.invoke', 'service_callable', 'service.autowire_test', 'serviceConstructor');
 
         $this->assertSame($rade['service'], Facade::service());
         $this->assertSame($rade['service.invoke'], Facade::serviceInvoke());
+        $this->assertSame($rade->call('service_callable', [5]), Facade::serviceCallable(5));
         $this->assertSame($rade['service.autowire_test'], Facade::serviceAutowireTest());
         $this->assertNull($facadeProxy->build());
 
@@ -68,7 +74,7 @@ class FacadeProxyTest extends TestCase
         $builder->set('service_private', Fixtures\Constructor::class)->should(Definition::PRIVATE);
 
         $facadeProxy = new FacadeProxy($builder);
-        $facadeProxy->proxy('service', 'service.invoke', 'service.autowire_test');
+        $facadeProxy->proxy('service', 'service.invoke', 'service_constructor', 'service_private', 'service.autowire_test');
 
         $this->assertEquals(
             <<<'FACADE_PROXY'
@@ -89,6 +95,11 @@ class Facade extends \Rade\DI\Facade\Facade
     public static function serviceAutowireTest(): Rade\DI\Tests\Fixtures\ServiceAutowire
     {
         return self::$container->get('service.autowire_test');
+    }
+
+    public static function serviceConstructor()
+    {
+        return self::$container->get('service_constructor');
     }
 
     public static function serviceInvoke(): Rade\DI\Tests\Fixtures\Invokable
