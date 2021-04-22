@@ -21,6 +21,8 @@ use PHPUnit\Framework\TestCase;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
+use Rade\DI\Exceptions\ContainerResolutionException;
+use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\Facade\Facade;
 use Rade\DI\Facade\FacadeProxy;
 
@@ -32,15 +34,27 @@ class FacadeProxyTest extends TestCase
 
         $rade['service'] = new Fixtures\Service();
         $rade['service.invoke'] = new Fixtures\Invokable();
+        $rade->set('service_constructor', new Fixtures\Constructor($rade));
         $rade['service.autowire_test'] = $rade->resolveClass(Fixtures\ServiceAutowire::class);
 
         $facadeProxy = new FacadeProxy($rade);
-        $facadeProxy->proxy('service', 'service.invoke', 'service.autowire_test');
+        $facadeProxy->proxy('service', 'service.invoke', 'service.autowire_test', 'serviceConstructor');
 
         $this->assertSame($rade['service'], Facade::service());
         $this->assertSame($rade['service.invoke'], Facade::serviceInvoke());
         $this->assertSame($rade['service.autowire_test'], Facade::serviceAutowireTest());
         $this->assertNull($facadeProxy->build());
+
+        try {
+            Facade::serviceConstructor();
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Identifier "serviceConstructor" is not defined. Did you mean: "service_constructor" ?', $e->getMessage());
+        }
+
+        $this->expectExceptionMessage('Subject "notExist" is not a supported proxy service.');
+        $this->expectException(ContainerResolutionException::class);
+
+        Facade::notExist();
     }
 
     public function testWithContainerBuilder(): void
