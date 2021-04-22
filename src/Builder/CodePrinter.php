@@ -68,6 +68,6 @@ COMMENT;
             $classMethod = \str_replace(') :', '):', $classMethod);
         }
 
-        return $classMethod . $this->nl;
+        return $classMethod . "\n"; // prefer spaces instead of tab
     }
 }
