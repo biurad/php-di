@@ -327,9 +327,7 @@ class Definition implements \Stringable
     public function resolve(BuilderFactory $builder): \PhpParser\Node\Expr
     {
         $di = $builder->var('this');
-
-        $arguments = (!$this->lazy || $this->public) ? [$di, (string) $this] : [$di, 'get', [$this->id]];
-        $resolved = [$builder, 'methodCall'](...$arguments);
+        $resolved = [$builder, 'methodCall'](...[$di, (string) $this]);
 
         if ($this->factory) {
             return $resolved;

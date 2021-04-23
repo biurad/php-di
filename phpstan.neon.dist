@@ -29,5 +29,8 @@ parameters:
             message: "#^Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:getBuilder\\(\\)|Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"
             path: src/Resolvers/Resolver.php
         -
-            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:extend|resolveClass\\(\\).$#"
+            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\).$#"
+            path: src/Traits/ResolveTrait.php
+        -
+            message: "#^Cannot cast PhpParser\\\\Node\\\\Expr to string|Negated boolean expression is always false.$#"
             path: src/Traits/ResolveTrait.php
