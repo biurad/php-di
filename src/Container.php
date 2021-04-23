@@ -150,16 +150,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Marks a definition from being interpreted as a service.
-     *
-     * @param mixed $definition from being evaluated
-     */
-    public function raw($definition): RawDefinition
-    {
-        return new RawDefinition($definition);
-    }
-
-    /**
      * Extends an object definition.
      *
      * Useful when you want to extend an existing object definition,

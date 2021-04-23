@@ -227,6 +227,16 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * Marks a definition from being interpreted as a service.
+     *
+     * @param mixed $definition from being evaluated
+     */
+    public function raw($definition): RawDefinition
+    {
+        return new RawDefinition($definition);
+    }
+
+    /**
      * @internal prevent service looping
      *
      * @param Definition|RawDefinition|callable $service
