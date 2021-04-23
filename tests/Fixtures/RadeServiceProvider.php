@@ -62,7 +62,8 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
                 $e->getMessage()
             );
         }
-        $this->config = $config;
+
+        parent::setConfiguration($config, $container);
 
         if ($container instanceof Container) {
             $container->parameters[$this->getId()] = $this->getConfiguration();

@@ -708,6 +708,8 @@ class ContainerTest extends TestCase
         $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
         $this->assertEquals(3, $count);
 
+        $this->expectDeprecation();
+
         $this->assertIsObject($rade['lazy']);
         $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
         $this->assertNotTrue($def->is(333));
