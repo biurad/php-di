@@ -361,6 +361,10 @@ class ContainerBuilder extends AbstractContainer
         \ksort($definitions);
 
         foreach ($definitions as $id => $definition) {
+            if ($definition instanceof RawDefinition) {
+                continue; // @Todo: support exporting raw service definition.
+            }
+
             $serviceMethods[$id] = $definition->build($this->builder);
 
             if (!$definition->is(Definition::PRIVATE)) {
