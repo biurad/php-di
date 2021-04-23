@@ -42,7 +42,7 @@ COMMENT;
         $printer = new self(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
 
         // Resolve whitespace ...
-        return \str_replace("{\n        \n", "{\n", $printer->prettyPrintFile($stmts));
+        return \str_replace(["{\n        \n", "\n\n}"], ["{\n", "\n}\n"], $printer->prettyPrintFile($stmts));
     }
 
     protected function pStmt_Return(\PhpParser\Node\Stmt\Return_ $node): string
@@ -57,7 +57,7 @@ COMMENT;
 
     protected function pStmt_Property(\PhpParser\Node\Stmt\Property $node): string
     {
-        return parent::pStmt_Property($node) . $this->nl;
+        return parent::pStmt_Property($node) . "\n";
     }
 
     protected function pStmt_ClassMethod(\PhpParser\Node\Stmt\ClassMethod $node): string

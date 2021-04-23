@@ -106,8 +106,8 @@ class Facade extends \Rade\DI\Facade\Facade
     {
         return self::$container->get('service.invoke');
     }
-
 }
+
 FACADE_PROXY,
             $facadeProxy->build()
         );
