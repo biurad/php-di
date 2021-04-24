@@ -81,12 +81,9 @@ $storage = new SessionStorage('SESSION_ID');
 $session = new Session($storage);
 ```
 
-By default, each time you get a service, Rade returns the **same instance** of it. Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's `set` method.
-If you want a different instance to be returned for all calls, wrap your anonymous function with the `factory()` method
-
-By default, registering services with `ArrayAccess` implementation are all autowired except for container's **set** method.
-
 Container supports reuseable service instance. This is means, a registered service which is resolved is frozen and object's id doesn't change throughout your application using Rade DI.
+
+Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's **set** method. By default, registering services with `ArrayAccess` implementation are all autowired.
 
 >To prevent registered services from being shared, use the container's **factory** method.
 
