@@ -105,7 +105,7 @@ class ContainerBuilderTest extends TestCase
         $builder = new ContainerBuilder();
 
         $builder->set('service_1', Fixtures\Service::class)->should();
-        $builder->set('service_2', Fixtures\Service::class)->should();
+        $builder->set('service_2', Fixtures\Service::class)->should(Definition::FACTORY | Definition::LAZY);
 
         $this->assertEquals(
             \file_get_contents($path = self::COMPILED . '/service4.phpt'),
@@ -116,6 +116,38 @@ class ContainerBuilderTest extends TestCase
 
         $container = new \FactoryContainer();
         $this->assertNotSame($container->get('service_1'), $container->get('service_2'));
+        $this->assertNotSame($container->get('service_1'), $container->get('service_1'));
+        $this->assertNotSame($container->get('service_2'), $container->get('service_2'));
+    }
+
+    public function testPrivateDefinition(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('service_1', Fixtures\Service::class)->should(Definition::PRIVATE);
+        $builder->set('service_2', Fixtures\Service::class)->should(Definition::PRIVATE | Definition::LAZY);
+        $builder->set('service_3', Fixtures\Service::class)->should(Definition::FACTORY | Definition::PRIVATE);
+
+        $this->assertInstanceOf(Coalesce::class, $builder->get('service_1'));
+        $this->assertInstanceOf(Coalesce::class, $builder->get('service_2'));
+        $this->assertInstanceOf(MethodCall::class, $builder->get('service_3'));
+
+        $this->assertEquals(
+            \file_get_contents($path = self::COMPILED . '/service5.phpt'),
+            $builder->compile(['containerClass' => 'PrivateContainer'])
+        );
+
+        includeFile($path);
+
+        $container = new \PrivateContainer();
+
+        $this->assertFalse($container->has('service_1'));
+        $this->assertFalse($container->has('service_2'));
+
+        $this->expectExceptionMessage('Identifier "service_3" is not defined.');
+        $this->expectException(NotFoundServiceException::class);
+
+        $container->get('service_3');
     }
 
     public function testLazyDefinition(): void
