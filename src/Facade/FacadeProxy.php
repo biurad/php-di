@@ -93,7 +93,9 @@ class FacadeProxy
                     ($property = new \ReflectionProperty($definition, 'type'))->setAccessible(true);
 
                     if (!empty($type = $property->getValue($definition))) {
-                        $proxyNode->setReturnType(\is_array($type) ? new UnionType($type) : $type);
+                        $proxyNode->setReturnType(
+                            \is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type
+                        );
                     }
 
                     $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
