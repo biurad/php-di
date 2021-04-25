@@ -203,14 +203,21 @@ class Definition implements \Stringable
     /**
      * Represents a PHP type-hinted for this definition.
      *
-     * @param array|string $types
+     * @param string[]|string $types
      *
      * @return $this
      */
     final public function typeOf($types): self
     {
         if (\is_array($types) && (1 === \count($types) || \PHP_VERSION_ID < 80000)) {
-            $types = \current($types) ?: null;
+            foreach ($types as $type) {
+                if (interface_exists($type)) {
+                    continue;
+                }
+                $types = $type;
+
+                break;
+            }
         }
 
         $this->type = $types;
