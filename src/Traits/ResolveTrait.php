@@ -168,7 +168,7 @@ trait ResolveTrait
 
             switch (true) {
                 case $entity[0] instanceof Expr\BinaryOp\Coalesce:
-                    $class = (string) $entity[0]->right;
+                    $class = $entity[0]->left->dim->value;
 
                     break;
                 case $entity[0] instanceof Statement:
@@ -181,11 +181,10 @@ trait ResolveTrait
                     break;
 
                 case $entity[0] instanceof self:
-                    $entity[0] = $this->resolver->getContainer()->get($class = $entity[0]->id);
+                    $entity[0] = new Reference($entity[0]->id);
 
-                    break;
-
-                case \is_string($entity[0]) && \class_exists($class = $entity[0], false):
+                    // no break
+                case \is_string($entity[0]) && \class_exists($class = $entity[0]):
                     break;
 
                 case \is_string($entity[0]) && \str_starts_with($entity[0], '@'):
@@ -259,7 +258,7 @@ trait ResolveTrait
         if (isset($service[1]) && \class_exists($class)) {
             $bind = new \ReflectionMethod($class, $service[1]);
         } elseif ('' === $class && 1 === \count($service)) {
-            $bind = new \ReflectionFunction($class);
+            $bind = new \ReflectionFunction($service[0]);
         }
 
         if ($type && (null !== $bind && empty($this->type))) {
