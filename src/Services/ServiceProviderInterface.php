@@ -17,10 +17,10 @@ declare(strict_types=1);
 
 namespace Rade\DI\Services;
 
-use Rade\DI\Container;
+use Rade\DI\{AbstractContainer, Container, ContainerBuilder};
 
 /**
- * Rade service provider interface.
+ * The interface implemented for building services into container.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -30,9 +30,8 @@ interface ServiceProviderInterface
      * Registers services on the given container.
      *
      * This method should only be used to configure services and parameters.
-     * It should not get services.
      *
-     * @param Container $app A container instance
+     * @param Container|ContainerBuilder $container A container instance
      */
-    public function register(Container $app): void;
+    public function register(AbstractContainer $container): void;
 }
