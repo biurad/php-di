@@ -29,7 +29,7 @@ use PhpParser\Node\{
     UnionType
 };
 use PhpParser\BuilderFactory;
-use Rade\DI\Exceptions\ServiceCreationException;
+use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
 
 /**
  * Represents definition of standard service.
@@ -186,9 +186,14 @@ class Definition implements \Stringable
     final public function autowire(array $types = []): self
     {
         $this->autowire = true;
+        $service = $this->entity;
+
+        if ($service instanceof Statement) {
+            $service = $service->value;
+        }
 
         if ([] === $types) {
-            if (\is_string($service = $this->entity) && \class_exists($service)) {
+            if (\is_string($service) && \class_exists($service)) {
                 $types = [$service];
             } elseif (\is_callable($service)) {
                 $types = Reflection::getReturnTypes(Callback::toReflection($service));
