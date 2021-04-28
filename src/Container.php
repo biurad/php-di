@@ -170,19 +170,17 @@ class Container extends AbstractContainer implements \ArrayAccess
             throw new FrozenServiceException($id);
         }
 
-        if (null !== $extended = $this->values[$id] ?? null) {
-            if ($extended instanceof RawDefinition) {
-                return $this->values[$id] = new RawDefinition($scope($extended(), $this));
-            }
+        $extended = $this->values[$id] ?? $this->createNotFound($id, true);
 
-            if (!$extended instanceof Definition && \is_callable($extended)) {
-                $extended = $this->doCreate($id, $extended);
-            }
-
-            return $this->values[$id] = $scope($extended, $this);
+        if ($extended instanceof RawDefinition) {
+            return $this->values[$id] = new RawDefinition($scope($extended(), $this));
         }
 
-        throw $this->createNotFound($id);
+        if (!$extended instanceof Definition && \is_callable($extended)) {
+            $extended = $this->doCreate($id, $extended);
+        }
+
+        return $this->values[$id] = $scope($extended, $this);
     }
 
     /**

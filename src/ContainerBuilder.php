@@ -105,13 +105,16 @@ class ContainerBuilder extends AbstractContainer
      */
     public function extend(string $id): Definition
     {
-        if (($extended = $this->definitions[$id] ?? null) instanceof Definition) {
-            unset(self::$services[$id]);
+        $extended = $this->definitions[$id] ?? $this->createNotFound($id, true);
 
-            return $this->definitions[$id] = $extended;
+        if ($extended instanceof RawDefinition) {
+            throw new ServiceCreationException(\sprintf('Extending a raw definition for "%s" is not supported.', $id));
         }
 
-        throw new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.', $id));
+        // Incase service has been cached, remove it.
+        unset(self::$services[$id]);
+
+        return $this->definitions[$id] = $extended;
     }
 
     /**
