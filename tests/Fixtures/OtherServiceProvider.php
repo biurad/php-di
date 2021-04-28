@@ -17,16 +17,24 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
+use Psr\Container\ContainerInterface;
+use Rade\DI\AbstractContainer;
 use Rade\DI\Container;
 use Rade\DI\Services\ServiceProviderInterface;
 
-class OtherServiceProvider extends SomeServiceSubscriber implements ServiceProviderInterface
+class OtherServiceProvider implements ServiceProviderInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function register(Container $app): void
+    public function register(AbstractContainer $container): void
     {
-        $app['other'] = $this->container;
+        if ($container instanceof Container) {
+            $container['other'] = $container;
+
+            return;
+        }
+
+        $container->alias('other', ContainerInterface::class);
     }
 }

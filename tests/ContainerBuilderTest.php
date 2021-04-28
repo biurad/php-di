@@ -163,7 +163,8 @@ class ContainerBuilderTest extends TestCase
         $this->assertInstanceOf(Coalesce::class, $builder->get('service_1'));
         $this->assertInstanceOf(MethodCall::class, $builder->get('service_2'));
         $this->assertInstanceOf(Coalesce::class, $builder->get('service_3'));
-        $this->assertInstanceOf(MethodCall::class, $builder->get('service_4'));
+        $this->assertInstanceOf(MethodCall::class, $service1 = $builder->get('service_4'));
+        $this->assertSame($service1, $builder->get(Fixtures\Service::class));
 
         $this->assertEquals(
             \file_get_contents($path = self::COMPILED . '/service3.phpt'),
@@ -182,5 +183,24 @@ class ContainerBuilderTest extends TestCase
         $this->expectException(NotFoundServiceException::class);
 
         $container->get('service_3');
+    }
+
+    public function testFluentRegister(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
+
+        $this->assertTrue(isset($builder->parameters['rade_di']['hello']));
+        $this->assertCount(3, $builder->keys());
+
+        $value = \Closure::bind(static function (Definition $definition) {
+            return $definition->calls['value'] ?? null;
+        }, null, Definition::class);
+        $this->assertNull($value($builder->extend('service')));
+
+        $builder->compile();
+
+        $this->assertInstanceOf(Variable::class, $container = $value($builder->extend('service')));
+        $this->assertEquals('this', $container->name);
     }
 }

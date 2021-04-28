@@ -360,15 +360,13 @@ class ContainerTest extends TestCase
         $rade = new Container();
         $this->assertSame($rade, $rade->register($this->getMockBuilder(ServiceProviderInterface::class)->getMock()));
 
-        $rade['logger'] = new NullLogger();
         $rade->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
 
         $this->assertTrue(isset($rade->parameters['rade_di']['hello']));
-        $this->assertCount(6, $rade->keys());
+        $this->assertCount(5, $rade->keys());
 
         $this->assertInstanceOf(Fixtures\Service::class, $service = $rade['service']);
-        $this->assertNotNull($service->value);
-        $this->assertInstanceOf(NullLogger::class, $service->value->get('o_logger'));
+        $this->assertSame($rade, $service->value);
     }
 
     public function testExtend(): void
@@ -677,19 +675,34 @@ class ContainerTest extends TestCase
         $this->assertSame($newRade, $newRade->get(AppContainer::class));
     }
 
+    public function testDefinitionDeprecation(): void
+    {
+        $rade = new Container();
+
+        $def = $rade->set('service', $rade->definition(Fixtures\Service::class))->deprecate();
+        $this->assertTrue($def->is(Definition::DEPRECATED));
+
+        $rade['service'];
+        $this->assertEquals([
+            'type' => \E_USER_DEPRECATED,
+            'message' => 'The "service" service is deprecated. You should stop using it, as it will be removed in the future.',
+            'file' => 'C:\HomeServer\Github\rade-di\vendor\symfony\deprecation-contracts\function.php',
+            'line' => 25,
+        ], \error_get_last());
+    }
+
     public function testDefinition(): void
     {
         $rade = new Container();
-        $nVal = $rade->set('name.value', $rade->lazy('DivineNii\Invoker\ArgumentResolver\NamedValueResolver'), true);
-        $rade['default.value'] = $rade->definition(new Statement('DivineNii\Invoker\ArgumentResolver\DefaultValueResolver'));
+        $rade->set('name.value', $rade->lazy('DivineNii\Invoker\ArgumentResolver\NamedValueResolver'), true);
+        $rade['default.value'] = $nVal = $rade->definition(new Statement('DivineNii\Invoker\ArgumentResolver\DefaultValueResolver'));
 
-        $def = $rade->set('lazy', $rade->lazy(Fixtures\ServiceAutowire::class), true)
+        $def = $rade->set('lazy', $rade->definition(Fixtures\ServiceAutowire::class, Definition::LAZY), true)
             ->bind('invoke', new Fixtures\Invokable())
             ->bind('autowireTypesArray', new Reference('DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface[]'))
             ->bind('autowireTypesArray', [[$rade->raw('none'), $rade['default.value'], new Reference('Rade\DI\Tests\Fixtures\Service[]')]])
             ->bind('missingService', new Statement(Fixtures\Service::class))
-            ->bind('multipleAutowireTypesNotFound', $nVal)
-            ->deprecate('divineniiquaye/php-invoker', '0.9');
+            ->bind('multipleAutowireTypesNotFound', $nVal);
         $rade['factory'] = $rade->factory(new Fixtures\Invokable());
 
         $count = 0;
@@ -708,22 +721,19 @@ class ContainerTest extends TestCase
         $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
         $this->assertEquals(3, $count);
 
-        $this->expectDeprecation();
-
         $this->assertIsObject($rade['lazy']);
         $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
         $this->assertNotTrue($def->is(333));
         $this->assertNotTrue($def->is(Definition::FACTORY));
         $this->assertTrue($def->is(Definition::LAZY));
         $this->assertTrue($def->is(Definition::AUTOWIRED));
-        $this->assertTrue($def->is(Definition::DEPRECATED));
         $this->assertEquals('getLazy', (string) $def);
         $this->assertNotNull($lazy->invoke);
         $this->assertIsObject($factory1 = $rade['factory']);
         $this->assertNotSame($factory1, $rade['factory']);
 
         $rade->set('callable', new Statement(Fixtures\Invokable::class));
-        $this->assertInstanceOf(Fixtures\Service::class, $rade['callable']);
+        $this->assertInstanceOf(Fixtures\Service::class, $rade['callable']());
 
         try {
             $rade->set('raw', $rade->raw(new RawDefinition('')));
@@ -742,7 +752,7 @@ class ContainerTest extends TestCase
         $rade = new Container();
         $rade->set('protected', $rade->definition(Fixtures\Service::class, Definition::PRIVATE));
 
-        $this->expectExceptionMessage('Using service definition for \'protected\' as private is not supported.');
+        $this->expectExceptionMessage('Using service definition for "protected" as private is not supported.');
         $this->expectException(ContainerResolutionException::class);
 
         $rade->get('protected');

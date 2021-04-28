@@ -19,14 +19,18 @@ namespace Rade\DI\Tests\Fixtures;
 
 use PHPUnit\Framework\Assert;
 use Psr\Container\ContainerInterface;
+use Rade\DI\AbstractContainer;
+use Rade\DI\Builder\PrependInterface;
 use Rade\DI\Container;
+use Rade\DI\ContainerBuilder;
+use Rade\DI\Definition;
 use Rade\DI\Services\AbstractConfiguration;
 use Rade\DI\Services\ServiceProviderInterface;
 use Rade\DI\Services\DependedInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider extends AbstractConfiguration implements ConfigurationInterface, DependedInterface, ServiceProviderInterface
+class RadeServiceProvider extends AbstractConfiguration implements ConfigurationInterface, DependedInterface, ServiceProviderInterface, PrependInterface
 {
     /**
      * {@inheritdoc}
@@ -65,7 +69,7 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
 
         parent::setConfiguration($config, $container);
 
-        if ($container instanceof Container) {
+        if ($container instanceof AbstractContainer) {
             $container->parameters[$this->getId()] = $this->getConfiguration();
         }
     }
@@ -81,19 +85,29 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
     /**
      * {@inheritdoc}
      */
-    public function register(Container $rade): void
+    public function register(AbstractContainer $container): void
     {
-        $rade['param'] = $rade->raw('value');
+        if ($container instanceof Container) {
+            $container['param'] = $container->raw('value');
+            $container['factory'] = $container->definition(Service::class, Definition::FACTORY);
+            $container['service'] = function () use ($container) {
+                $service = new Service();
+                $service->value = $container['other'];
 
-        $rade['service'] = function () use ($rade) {
-            $service = new Service();
-            $service->value = $rade['other'];
+                return $service;
+            };
+        } elseif ($container instanceof ContainerBuilder) {
+            $container->set('param', $container->raw('value'));
+            $container->autowire('service', Service::class);
+            $container->autowire('factory', Service::class)->is(Definition::FACTORY);
+        }
+    }
 
-            return $service;
-        };
-
-        $rade['factory'] = $rade->factory(function () {
-            return new Service();
-        });
+    /**
+     * {@inheritdoc}
+     */
+    public function before(ContainerBuilder $builder): void
+    {
+        $builder->extend('service')->bind('value', $builder->get('other'));
     }
 }
