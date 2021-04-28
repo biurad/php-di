@@ -11,10 +11,10 @@ parameters:
     ignoreErrors:
         - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
         -
-            message: "#^Call to an undefined method Rade\\\\DI\\\\AbstractContainer\\:\\:register\\(\\).$#"
-            path: src/AbstractContainer.php
+            message: "#^Variable method call on Rade\\\\DI\\\\Definition|Instanceof between Rade\\\\DI\\\\Definition\\|null and Rade\\\\DI\\\\RawDefinition will always evaluate to false|Instanceof between Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\Exceptions\\\\NotFoundServiceException and Rade\\\\DI\\\\RawDefinition will always evaluate to false.$#"
+            path: src/ContainerBuilder.php
         -
-            message: "#^Call to function is_callable\\(\\) with mixed will always evaluate to false.$#"
+            message: "#^Call to function is_callable\\(\\) with mixed will always evaluate to false|Result of && is always false.$#"
             path: src/Container.php
         -
             message: "#^Parameter \\#1 \\$offset (string) of method Rade\\\\DI\\\\Container\\:\\:offset|Set|Get|Exists|Unset\\(\\) should be contravariant with parameter \\$offset (mixed) of method ArrayAccess<mixed,mixed>\\:\\:offset|Set|Get|Exists|Unset\\(\\)|Variable method call on \\$this\\(Rade\\\\DI\\\\Container\\).$#"
@@ -26,11 +26,8 @@ parameters:
             message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.|PHPDoc tag @param references unknown parameter: (\\$message|\\$package|\\$version)$#"
             path: src/Definition.php
         -
-            message: "#^Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:getBuilder\\(\\)|Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"
+            message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"
             path: src/Resolvers/Resolver.php
         -
-            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\).$#"
-            path: src/Traits/ResolveTrait.php
-        -
-            message: "#^Cannot cast PhpParser\\\\Node\\\\Expr to string|Negated boolean expression is always false.$#"
+            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Access to an undefined property PhpParser\\\\Node\\\\Expr\\:\\:\\$dim|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\).$#"
             path: src/Traits/ResolveTrait.php

@@ -42,6 +42,8 @@ class ProviderLoader
      * Loads service providers will one configuration.
      *
      * @param Container|ContainerBuilder $container
+     *
+     * @return Container|ContainerBuilder
      */
     public function load(AbstractContainer $container)
     {

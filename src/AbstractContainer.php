@@ -141,14 +141,14 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      * Registers a service provider.
      *
      * @param ServiceProviderInterface $provider A ServiceProviderInterface instance
-     * @param array                    $values   An array of config that customizes the provider
+     * @param array                    $config   An array of config that customizes the provider
      */
     final public function register(ServiceProviderInterface $provider, array $config = []): self
     {
         $this->providers[\get_class($provider)] = $provider;
 
         if ($provider instanceof Services\ConfigurationInterface) {
-            $values = isset($values[$provider->getId()]) ? $values : [$provider->getId() => $config];
+            $values = isset($config[$provider->getId()]) ? $config : [$provider->getId() => $config];
 
             if ($provider instanceof ConfigurationInterface) {
                 $values = (new Processor())->processConfiguration($provider, $values);

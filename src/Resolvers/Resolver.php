@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Resolvers;
 
 use Nette\Utils\Callback;
+use PhpParser\Node\Expr\{New_, Variable};
 use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Reference,
@@ -222,16 +223,16 @@ class Resolver implements ContainerInterface, ResetInterface
                 $services += $this->resolveServiceSubscriber(\is_int($name) ? $service : $name, $service);
             }
 
-            return !$this->isBuilder() ? new ServiceLocator($services) : $this->container->getBuilder()->new(ServiceLocator::class, $services);
+            return !$this->isBuilder() ? new ServiceLocator($services) : new New_(ServiceLocator::class, $services);
         }
 
         if (!empty($autowired = $this->wiring[$id] ?? '')) {
             if (1 === \count($autowired)) {
-                if ('container' !== $id = \reset($autowired)) {
-                    return $single ? $this->container->get($id) : [$this->container->get($id)];
+                if ('container' === $id = \reset($autowired)) {
+                    $value = !$this->isBuilder() ? $this->container : new Variable('this');
                 }
 
-                return !$this->isBuilder() ? $this->container : $this->container->getBuilder()->var('this');
+                return $single ? $value ?? $this->container->get($id) : [$value ?? $this->container->get($id)];
             }
 
             if (!$single) {

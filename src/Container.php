@@ -17,16 +17,14 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\Callback;
-use Nette\Utils\Reflection;
+use Nette\Utils\{Callback, Reflection};
 use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
     Exceptions\FrozenServiceException,
     Exceptions\NotFoundServiceException,
-    Exceptions\ContainerResolutionException,
-    Services\ServiceProviderInterface
+    Exceptions\ContainerResolutionException
 };
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -327,7 +325,9 @@ class Container extends AbstractContainer implements \ArrayAccess
 
         if ($definition instanceof Definition) {
             if ($definition->is(Definition::PRIVATE)) {
-                throw new ContainerResolutionException(\sprintf('Using service definition for \'%s\' as private is not supported.', $id));
+                throw new ContainerResolutionException(
+                    \sprintf('Using service definition for "%s" as private is not supported.', $id)
+                );
             }
 
             if ($definition->is(Definition::FACTORY)) {

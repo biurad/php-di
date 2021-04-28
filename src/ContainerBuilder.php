@@ -40,9 +40,6 @@ class ContainerBuilder extends AbstractContainer
     /** @var Definition[] */
     private array $definitions = [];
 
-    /** @var Builder\ExtensionInterface[] */
-    protected array $providers = [];
-
     /** Name of the compiled container parent class. */
     private string $containerParentClass;
 

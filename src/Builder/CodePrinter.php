@@ -50,7 +50,7 @@ COMMENT;
         return $this->nl . parent::pStmt_Return($node);
     }
 
-    protected function pStmt_Declare(\PhpParser\Node\Stmt\Declare_ $node)
+    protected function pStmt_Declare(\PhpParser\Node\Stmt\Declare_ $node): string
     {
         return parent::pStmt_Declare($node) . $this->nl;
     }
