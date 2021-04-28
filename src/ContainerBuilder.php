@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr\Array_, Expr\ArrayItem, Stmt\Declare_, Stmt\DeclareDeclare};
+use PhpParser\Node\{Expr\ArrayItem, Stmt\Declare_, Stmt\DeclareDeclare};
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
@@ -248,10 +248,11 @@ class ContainerBuilder extends AbstractContainer
      * Compiles the container.
      * This method main job is to manipulate and optimize the container.
      *
-     * This main compiler method roughly do two things:
-     *
-     *  * Complete extensions loading;
-     *  * Analyse definitions then build;
+     * supported $options config (defaults):
+     * - strictType => true,
+     * - printToString => true,
+     * - shortArraySyntax => true,
+     * - containerClass => CompiledContainer,
      *
      * @throws \ReflectionException
      *
@@ -290,7 +291,7 @@ class ContainerBuilder extends AbstractContainer
     /**
      * {@inheritdoc}
      */
-    protected function doCreate(string $id, $service)
+    protected function doCreate(string $id, $service, bool $build = false)
     {
         if ($service instanceof RawDefinition) {
             return $this->builder->val($service());
@@ -304,7 +305,7 @@ class ContainerBuilder extends AbstractContainer
             $this->loading[$id] = true;
 
             /** @var Definition $service */
-            return $service->resolve($this->builder);
+            return $service->{$build ? 'build' : 'resolve'}($this->builder);
         } finally {
             unset($this->loading[$id]);
         }
@@ -353,7 +354,7 @@ class ContainerBuilder extends AbstractContainer
                 continue; // @Todo: support exporting raw service definition.
             }
 
-            $serviceMethods[$id] = $definition->build($this->builder);
+            $serviceMethods[$id] = $this->doCreate($id, $definition, true);
 
             if (!$definition->is(Definition::PRIVATE)) {
                 $methodsMap[$id] = (string) $definition;
@@ -363,20 +364,20 @@ class ContainerBuilder extends AbstractContainer
         // Use Default Container method ...
         $methodsMap['container'] = 'getServiceContainer';
 
-        // Prevent autowired private services from be exported.
-        foreach ($this->resolver->export() as $type => $ids) {
-            $backupIds = [];
+        // Remove private aliases
+        foreach ($this->aliases as $aliased => $service) {
+            $def = $definitions[$service] ?? null;
 
-            foreach ($ids as $id) {
-                if (isset($methodsMap[$id])) {
-                    $backupIds[$type][] = new ArrayItem($this->builder->val($id));
-                    $typeName = $this->builder->constFetch($type . '::class');
-
-                    $wiredTypes[$type] = new ArrayItem(new Array_($backupIds[$type]), $typeName);
-                }
+            if ($def instanceof RawDefinition || ($def instanceof Definition && $def->is(Definition::PRIVATE))) {
+                unset($this->aliases[$aliased]);
             }
         }
 
-        return [$methodsMap, $serviceMethods, new Array_($wiredTypes)];
+        // Prevent autowired private services from be exported.
+        foreach ($this->resolver->export() as $type => $ids) {
+            $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
+        }
+
+        return [$methodsMap, $serviceMethods, $wiredTypes];
     }
 }
