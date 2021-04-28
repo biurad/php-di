@@ -338,37 +338,38 @@ trait ResolveTrait
 
     protected function resolveArguments(array $arguments = [], ?\ReflectionFunctionAbstract $bind = null, bool $compile = true): array
     {
-        $arguments = \array_map(function ($value) use ($bind, $compile) {
-            if ($value instanceof RawDefinition) {
-                return !$compile ? $value() : $this->builder->val($value());
+        foreach ($arguments as $key => $value) {
+            if (\is_array($value)) {
+                $arguments[$key] = $this->resolveArguments($value, null, $compile);
+
+                continue;
             }
 
             if ($value instanceof self) {
-                return $this->resolver->getContainer()->get($value->id);
+                $arguments[$key] = $this->resolver->getContainer()->get($value->id);
+
+                continue;
             }
 
             if ($value instanceof Reference) {
-                return $this->resolveReference($value);
+                $arguments[$key] = $this->resolveReference($value);
+
+                continue;
             }
 
-            if (!$compile) {
-                if ($value instanceof Statement) {
-                    return $this->resolver->resolve($value->value, $value->args);
-                }
+            if ($value instanceof Statement) {
+                $resolve = !$compile ? [$this->resolver, 'resolve'] : [$this, 'resolveEntity'];
+                $arguments[$key] = $resolve($value->value, $value->args, false);
 
-                return \is_array($value) ? $this->resolveArguments($value, $bind, $compile) : $value;
+                continue;
             }
 
-            try {
-                return $this->resolveEntity($value, [], !$compile);
-            } catch (ContainerResolutionException $e) {
-                if (\is_array($value)) {
-                    return $this->resolveArguments($value, $bind, $compile);
-                }
+            if ($value instanceof RawDefinition) {
+                $value = $value();
             }
 
-            return $this->builder->val($value);
-        }, $arguments);
+            $arguments[$key] = !$compile ? $value : $this->builder->val($value);
+        }
 
         return null === $bind ? $arguments : $this->resolver->autowireArguments($bind, $arguments);
     }
