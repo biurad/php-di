@@ -97,23 +97,6 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * Registers a service definition.
-     *
-     * This methods allows for simple registration of service definition
-     * with a fluid interface.
-     *
-     * @return static
-     */
-    public function register(Builder\ExtensionInterface $extension, array $config = []): self
-    {
-        $this->doRegister($extension, $config, Builder\ExtensionInterface::class);
-
-        $extension->build($this);
-
-        return $this;
-    }
-
-    /**
      * Extends an object definition.
      *
      * @param string $id The unique identifier for the definition

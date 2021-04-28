@@ -289,23 +289,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * Registers a service provider.
-     *
-     * @param ServiceProviderInterface $provider A ServiceProviderInterface instance
-     * @param array                    $values   An array of values that customizes the provider
-     *
-     * @return static
-     */
-    public function register(ServiceProviderInterface $provider, array $values = [])
-    {
-        $this->doRegister($provider, $values, ServiceProviderInterface::class);
-
-        $provider->register($this);
-
-        return $this;
-    }
-
-    /**
      * @internal
      *
      * Get the mapped service container instance

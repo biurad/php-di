@@ -22,6 +22,7 @@ use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\{
     CircularReferenceException, ContainerResolutionException, NotFoundServiceException
 };
+use Rade\DI\Services\ServiceProviderInterface;
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -137,6 +138,42 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     abstract public function keys(): array;
 
     /**
+     * Registers a service provider.
+     *
+     * @param ServiceProviderInterface $provider A ServiceProviderInterface instance
+     * @param array                    $values   An array of config that customizes the provider
+     */
+    final public function register(ServiceProviderInterface $provider, array $config = []): self
+    {
+        $this->providers[\get_class($provider)] = $provider;
+
+        if ($provider instanceof Services\ConfigurationInterface) {
+            $values = isset($values[$provider->getId()]) ? $values : [$provider->getId() => $config];
+
+            if ($provider instanceof ConfigurationInterface) {
+                $values = (new Processor())->processConfiguration($provider, $values);
+            }
+
+            $provider->setConfiguration($values, $this);
+        }
+
+        // If service provider depends on other providers ...
+        if ($provider instanceof Services\DependedInterface) {
+            foreach ($provider->dependencies() as $dependency) {
+                $dependency = $this->resolver->resolveClass($dependency);
+
+                if ($dependency instanceof ServiceProviderInterface) {
+                    $this->register($dependency);
+                }
+            }
+        }
+
+        $provider->register($this);
+
+        return $this;
+    }
+
+    /**
      * Returns true if the given service has actually been initialized.
      *
      * @param string $id The service identifier
@@ -248,37 +285,8 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     abstract protected function doCreate(string $id, $service);
 
     /**
-     * @internal Registering a service provider or extension
-     *
-     * @param object $provider   of ExtensionInterface or ServiceProviderInterface
-     * @param string $instanceOf ExtensionInterface or ServiceProviderInterface
+     * Throw a PSR-11 not found exception.
      */
-    protected function doRegister(object $provider, array $values, string $instanceOf): void
-    {
-        $this->providers[\get_class($provider)] = $provider;
-
-        if ($provider instanceof Services\ConfigurationInterface) {
-            $values = isset($values[$provider->getId()]) ? $values : [$provider->getId() => $values];
-
-            if ($provider instanceof ConfigurationInterface) {
-                $values = (new Processor())->processConfiguration($provider, $values);
-            }
-
-            $provider->setConfiguration($values, $this);
-        }
-
-        // If service provider depends on other providers ...
-        if ($provider instanceof Services\DependedInterface) {
-            foreach ($provider->dependencies() as $dependency) {
-                $dependency = $this->resolver->resolveClass($dependency);
-
-                if ($dependency instanceof $instanceOf) {
-                    $this->register($dependency);
-                }
-            }
-        }
-    }
-
     protected function createNotFound(string $id, bool $throw = false): NotFoundServiceException
     {
         if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
