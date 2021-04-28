@@ -15,9 +15,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
-
-use Rade\DI\Container;
+namespace Rade\DI;
 
 /**
  * This class delegates container service providers.
@@ -26,13 +24,13 @@ use Rade\DI\Container;
  */
 class ProviderLoader
 {
-    /** @var ServiceProviderInterface[] */
+    /** @var Services\ServiceProviderInterface[] */
     private array $providers;
 
     private array $config;
 
     /**
-     * @param ServiceProviderInterface[] $providers
+     * @param Services\ServiceProviderInterface[] $providers
      */
     public function __construct(array $providers, array $config = [])
     {
@@ -42,11 +40,13 @@ class ProviderLoader
 
     /**
      * Loads service providers will one configuration.
+     *
+     * @param Container|ContainerBuilder $container
      */
-    public function load(Container $container): Container
+    public function load(AbstractContainer $container)
     {
         foreach ($this->providers as $provider) {
-            if ($provider instanceof ConfigurationInterface) {
+            if ($provider instanceof Services\ConfigurationInterface) {
                 $config = $this->config[$provider->getId()] ?? [];
             }
 
