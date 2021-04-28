@@ -278,14 +278,20 @@ class Container extends AbstractContainer implements \ArrayAccess
 
         if ($definition instanceof Definition) {
             $definition->attach($id, $this->resolver);
+            $definition = $autowire ? $definition->autowire() : $definition;
         } elseif ($definition instanceof Statement) {
-            $definition = $this->resolver->resolve($definition->value, $definition->args);
+            if ($autowire) {
+                $this->autowireService($id, $definition->value);
+            }
+
+            $definition = fn () => $this->resolver->resolve($definition->value, $definition->args);
+        } elseif ($autowire && !$definition instanceof RawDefinition) {
+            $this->autowireService($id, $definition);
         }
 
         $this->keys[$id] = true;
-        $this->values[$id] = $definition;
 
-        return ($autowire && !$definition instanceof RawDefinition) ? $this->autowireService($id, $definition) : $definition;
+        return $this->values[$id] = $definition;
     }
 
     /**
@@ -354,26 +360,20 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /**
      * @param mixed $definition
-     *
-     * @return object|\Closure
      */
-    private function autowireService(string $id, $definition)
+    private function autowireService(string $id, $definition): void
     {
-        if ($definition instanceof Definition) {
-            return $definition->autowire();
-        }
-
         static $types = [];
 
         if (\is_callable($definition)) {
             $types = Reflection::getReturnTypes(Callback::toReflection($definition));
         } elseif (\is_object($definition) && !$definition instanceof \stdClass) {
             $types = [\get_class($definition)];
+        } elseif (\is_string($definition) && \class_exists($definition)) {
+            $types = [$definition];
         }
 
         // Resolving wiring so we could call the service parent classes and interfaces.
         $this->resolver->autowire($id, $types);
-
-        return $definition;
     }
 }
