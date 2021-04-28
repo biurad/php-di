@@ -268,7 +268,9 @@ class ContainerBuilder extends AbstractContainer
                 $this->addResource(new ClassExistenceResource($name, false));
             }
 
-            $builder->prepend($this);
+            if ($builder instanceof Builder\PrependInterface) {
+                $builder->before($this);
+            }
         }
 
         if ($options['strictType']) {
