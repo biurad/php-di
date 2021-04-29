@@ -29,6 +29,7 @@ use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;
 use Rade\DI\Container;
 use Rade\DI\Definition;
+use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 
 use function Composer\Autoload\includeFile;
@@ -202,5 +203,87 @@ class ContainerBuilderTest extends TestCase
 
         $this->assertInstanceOf(Variable::class, $container = $value($builder->extend('service')));
         $this->assertEquals('this', $container->name);
+    }
+
+    public function testIndirectCircularReference(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('a', Fixtures\ServiceAutowire::class)->args([new Reference('b')]);
+        $builder->set('b', Fixtures\ServiceAutowire::class)->args([new Reference('c')]);
+        $builder->set('c', Fixtures\ServiceAutowire::class)->args([new Reference('a')]);
+
+        $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> c -> a".');
+        $this->expectException(CircularReferenceException::class);
+
+        $builder->compile();
+    }
+
+    public function testIndirectDeepCircularReference(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('a', Fixtures\ServiceAutowire::class)->args([new Reference('b')]);
+        $builder->set('b', [new Reference('c'), 'getInstance']);
+        $builder->set('c', Fixtures\ServiceAutowire::class)->args([new Reference('a')]);
+
+        $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> c -> a".');
+        $this->expectException(CircularReferenceException::class);
+
+        $builder->compile();
+    }
+
+    public function testDeepCircularReference(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('a', Fixtures\ServiceAutowire::class)->args([new Reference('b')]);
+        $builder->set('b', Fixtures\ServiceAutowire::class)->args([new Reference('c')]);
+        $builder->set('c', Fixtures\ServiceAutowire::class)->args([new Reference('b')]);
+
+        $this->expectExceptionMessage('Circular reference detected for service "b", path: "a -> b -> c -> b".');
+        $this->expectException(CircularReferenceException::class);
+
+        $builder->compile();
+    }
+
+    public function testCircularReferenceWithCallableAlike(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('a', [new Reference('b'), 'getInstance']);
+        $builder->set('b', [new Reference('a'), 'getInstance']);
+
+        $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> a".');
+        $this->expectException(CircularReferenceException::class);
+
+        $builder->compile();
+    }
+
+    public function testCircularReferenceChecksMethodsCalls(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->autowire('a', Fixtures\Constructor::class)->args([new Reference('b')]);
+        $builder->set('b', Fixtures\ServiceAutowire::class)->bind('missingService', new Reference('a'));
+
+        $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> a".');
+        $this->expectException(CircularReferenceException::class);
+
+        $builder->compile();
+    }
+
+    public function testCircularReferenceChecksLazyServices(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('a', Fixtures\ServiceAutowire::class)->args([new Reference('b')])->should(Definition::LAZY);
+        $builder->set('b', Fixtures\ServiceAutowire::class)->args([new Reference('a')]);
+
+        $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> a".');
+        $this->expectException(CircularReferenceException::class);
+
+        // Unless no arguments are provided, circular referencing is ignored
+        $builder->compile();
     }
 }

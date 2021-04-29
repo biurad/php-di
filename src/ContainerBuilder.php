@@ -287,6 +287,8 @@ class ContainerBuilder extends AbstractContainer
 
     /**
      * {@inheritdoc}
+     *
+     * @param Definition|RawDefinition $service
      */
     protected function doCreate(string $id, $service, bool $build = false)
     {
@@ -301,8 +303,14 @@ class ContainerBuilder extends AbstractContainer
         try {
             $this->loading[$id] = true;
 
-            /** @var Definition $service */
-            return $service->{$build ? 'build' : 'resolve'}($this->builder);
+            // Strict circular reference check ...
+            $compiled = $service->build($this->builder);
+
+            if (!$build) {
+                return $service->resolve($this->builder);
+            }
+
+            return $compiled;
         } finally {
             unset($this->loading[$id]);
         }

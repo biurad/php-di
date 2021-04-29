@@ -11,7 +11,10 @@ parameters:
     ignoreErrors:
         - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
         -
-            message: "#^Variable method call on Rade\\\\DI\\\\Definition|Instanceof between Rade\\\\DI\\\\Definition\\|null and Rade\\\\DI\\\\RawDefinition will always evaluate to false|Instanceof between Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\Exceptions\\\\NotFoundServiceException and Rade\\\\DI\\\\RawDefinition will always evaluate to false.$#"
+            message: "#^Instanceof between Rade\\\\DI\\\\Definition\\|null and Rade\\\\DI\\\\RawDefinition will always evaluate to false|Instanceof between Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\Exceptions\\\\NotFoundServiceException and Rade\\\\DI\\\\RawDefinition will always evaluate to false.$#"
+            path: src/ContainerBuilder.php
+        -
+            message: "#^Parameter \\#2 \\$service \\(Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\RawDefinition\\) of method Rade\\\\DI\\\\ContainerBuilder\\:\\:doCreate\\(\\) should be contravariant with parameter \\$service \\(callable\\(\\): mixed\\) of method Rade\\\\DI\\\\AbstractContainer\\:\\:doCreate\\(\\)$#"
             path: src/ContainerBuilder.php
         -
             message: "#^Call to function is_callable\\(\\) with mixed will always evaluate to false|Result of && is always false.$#"
