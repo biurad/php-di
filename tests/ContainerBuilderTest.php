@@ -189,7 +189,10 @@ class ContainerBuilderTest extends TestCase
     public function testFluentRegister(): void
     {
         $builder = new ContainerBuilder();
-        $builder->register(new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
+
+        $builder->register($provider1 = new Fixtures\RadeServiceProvider(), ['hello' => 'Divine']);
+        $this->assertInstanceOf(Fixtures\RadeServiceProvider::class, $provider2 = $builder->get(Fixtures\RadeServiceProvider::class));
+        $this->assertSame($provider1, $provider2);
 
         $this->assertTrue(isset($builder->parameters['rade_di']['hello']));
         $this->assertCount(3, $builder->keys());
