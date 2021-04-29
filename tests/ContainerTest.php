@@ -686,9 +686,7 @@ class ContainerTest extends TestCase
         $this->assertEquals([
             'type' => \E_USER_DEPRECATED,
             'message' => 'The "service" service is deprecated. You should stop using it, as it will be removed in the future.',
-            'file' => 'C:\HomeServer\Github\rade-di\vendor\symfony\deprecation-contracts\function.php',
-            'line' => 25,
-        ], \error_get_last());
+        ], array_intersect_key(\error_get_last(), ['type' => true, 'message' => true]));
     }
 
     public function testDefinition(): void
