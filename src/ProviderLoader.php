@@ -48,7 +48,7 @@ class ProviderLoader
     public function load(AbstractContainer $container)
     {
         foreach ($this->providers as $provider) {
-            if ($provider instanceof Services\ConfigurationInterface) {
+            if ($provider instanceof Config\ConfigurationInterface) {
                 $config = $this->config[$provider->getId()] ?? [];
             }
 
