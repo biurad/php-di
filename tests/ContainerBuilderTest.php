@@ -289,4 +289,43 @@ class ContainerBuilderTest extends TestCase
         // Unless no arguments are provided, circular referencing is ignored
         $builder->compile();
     }
+
+    public function testAlias(): void
+    {
+        $builder = new ContainerBuilder();
+
+        $builder->set('service_1', Fixtures\Service::class);
+        $builder->set('service_2', $builder->raw(123));
+        $builder->set('service_3', Fixtures\Service::class)->should(Definition::FACTORY);
+        $builder->set('service_4', Fixtures\Service::class)->should(Definition::PRIVATE);
+        $builder->autowire('service_5', Fixtures\Service::class)->should(Definition::LAZY | Definition::PRIVATE);
+        $builder->autowire('service_6', Fixtures\Service::class);
+
+        $builder->alias('alias_1', 'service_1');
+        $builder->alias('alias_2', 'service_2');
+        $builder->alias('alias_3', 'service_3');
+        $builder->alias('alias_4', 'service_4');
+        $builder->alias('alias_5', 'service_5');
+        $builder->alias('alias_6', 'service_6');
+
+        $this->assertEquals(['service_1', 'service_2', 'service_3', 'service_4', 'service_5', 'service_6'], $builder->keys());
+
+        $this->assertEquals(
+            \file_get_contents($path = self::COMPILED . '/service6.phpt'),
+            $builder->compile(['containerClass' => 'AliasContainer'])
+        );
+
+        includeFile($path);
+
+        $container = new \AliasContainer();
+
+        $this->assertTrue($container->has('alias_1'));
+        $this->assertFalse($container->has('alias_2'));
+        $this->assertTrue($container->has('alias_3'));
+        $this->assertFalse($container->has('alias_4'));
+        $this->assertFalse($container->has('alias_5'));
+        $this->assertTrue($container->has('alias_6'));
+
+        $this->assertEquals(['service_1', 'service_3', 'service_6', 'container'], $container->keys());
+    }
 }
