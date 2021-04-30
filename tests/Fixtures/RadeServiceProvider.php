@@ -24,7 +24,7 @@ use Rade\DI\Builder\PrependInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
-use Rade\DI\Services\AbstractConfiguration;
+use Rade\DI\Config\AbstractConfiguration;
 use Rade\DI\Services\ServiceProviderInterface;
 use Rade\DI\Services\DependedInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;

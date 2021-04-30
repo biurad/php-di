@@ -15,7 +15,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
+namespace Rade\DI\Config;
 
 use Psr\Container\ContainerInterface;
 

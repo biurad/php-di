@@ -147,7 +147,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     {
         $this->providers[\get_class($provider)] = $provider;
 
-        if ($provider instanceof Services\ConfigurationInterface) {
+        if ($provider instanceof Config\ConfigurationInterface) {
             $values = isset($config[$provider->getId()]) ? $config : [$provider->getId() => $config];
 
             if ($provider instanceof ConfigurationInterface) {
