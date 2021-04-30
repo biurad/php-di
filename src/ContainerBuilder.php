@@ -29,6 +29,7 @@ use Symfony\Component\Config\{
     Resource\FileResource,
     Resource\ResourceInterface
 };
+use Symfony\Component\Config\Resource\FileExistenceResource;
 
 class ContainerBuilder extends AbstractContainer
 {
@@ -262,8 +263,9 @@ class ContainerBuilder extends AbstractContainer
 
         foreach ($this->providers as $name => $builder) {
             if ($this->trackResources) {
-                $this->addResource(new FileResource((new \ReflectionClass($name))->getFileName()));
                 $this->addResource(new ClassExistenceResource($name, false));
+                $this->addResource(new FileExistenceResource($rPath = (new \ReflectionClass($name))->getFileName()));
+                $this->addResource(new FileResource($rPath));
             }
 
             if ($builder instanceof Builder\PrependInterface) {
