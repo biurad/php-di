@@ -13,7 +13,7 @@ class LazyContainer extends Rade\DI\Container
 
     protected array $methodsMap = ['service_1' => 'getService1', 'service_2' => 'getService2', 'service_test' => 'getServiceTest', 'container' => 'getServiceContainer'];
 
-    protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container'], Rade\DI\Tests\Fixtures\Service::class => ['service_4']];
+    protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container']];
 
     protected array $aliases = [];
 

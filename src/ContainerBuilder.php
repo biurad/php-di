@@ -371,18 +371,33 @@ class ContainerBuilder extends AbstractContainer
 
         // Remove private aliases
         foreach ($this->aliases as $aliased => $service) {
-            $def = $definitions[$service] ?? null;
-
-            if ($def instanceof RawDefinition || ($def instanceof Definition && $def->is(Definition::PRIVATE))) {
+            if ($this->ignoredDefinition($definitions[$service] ?? null)) {
                 unset($this->aliases[$aliased]);
             }
         }
 
         // Prevent autowired private services from be exported.
         foreach ($this->resolver->export() as $type => $ids) {
+            if (1 === \count($ids) && $this->ignoredDefinition($definitions[\reset($ids)] ?? null)) {
+                continue;
+            }
+
+            $ids = \array_filter($ids, fn (string $id): bool => !$this->ignoredDefinition($definitions[$id] ?? null));
+
+            // If $ids are filtered, keys should not be preserved.
+            $ids = \array_values($ids);
+
             $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
         }
 
         return [$methodsMap, $serviceMethods, $wiredTypes];
+    }
+
+    /**
+     * @param RawDefinition|Definition|null $def
+     */
+    private function ignoredDefinition($def): bool
+    {
+        return $def instanceof RawDefinition || ($def instanceof Definition && $def->is(Definition::PRIVATE));
     }
 }
