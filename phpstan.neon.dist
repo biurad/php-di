@@ -10,6 +10,7 @@ parameters:
 
     ignoreErrors:
         - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
+        - "#^Property Rade\\\\DI\\\\Config\\\\Loader\\\\FileLoader|ClosureLoader\\:\\:\\$container \\(Rade\\\\DI\\\\Container\\|Rade\\\\DI\\\\ContainerBuilder\\) does not accept Rade\\\\DI\\\\AbstractContainer.$#"
         -
             message: "#^Instanceof between Rade\\\\DI\\\\Definition\\|null and Rade\\\\DI\\\\RawDefinition will always evaluate to false|Instanceof between Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\Exceptions\\\\NotFoundServiceException and Rade\\\\DI\\\\RawDefinition will always evaluate to false.$#"
             path: src/ContainerBuilder.php
@@ -34,3 +35,6 @@ parameters:
         -
             message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Access to an undefined property PhpParser\\\\Node\\\\Expr\\:\\:\\$dim|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\).$#"
             path: src/Traits/ResolveTrait.php
+        -
+            message: "#^Variable \\$excludePattern might not be defined.$#"
+            path: src/Config/Loader/FileLoader.php
