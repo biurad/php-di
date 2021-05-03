@@ -32,7 +32,8 @@
         "phpunit/phpunit": "^8.5 || ^9.5",
         "squizlabs/php_codesniffer": "^3.5",
         "symfony/config": "^5.2",
-        "vimeo/psalm": "^3.11 || 4.4.*"
+        "symfony/yaml": "^5.2",
+        "vimeo/psalm": "^4.7"
     },
     "autoload": {
         "psr-4": {
@@ -46,6 +47,7 @@
     },
     "suggest": {
         "symfony/config": "For using configurations in service providers and service builders",
+        "symfony/yaml": "For loading service definition from yaml files with the help of symfony/config",
         "nikic/php-parser": "For using container builder class with service builders"
     },
     "scripts": {
