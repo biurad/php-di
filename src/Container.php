@@ -117,7 +117,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * This is useful when you want to autowire a callable or class string lazily.
      *
-     * @deprecated Since 1.0, use Statement class instead, will be dropped in v1.1
+     * @deprecated Since 1.0, use Statement class instead, will be dropped in v2
      *
      * @param callable|string $definition A class string or a callable
      */
@@ -129,7 +129,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * Marks a definition as being a factory service.
      *
-     * @deprecated Since 1.0, use definition method instead, will be dropped in v1.1
+     * @deprecated Since 1.0, use definition method instead, will be dropped in v2
      *
      * @param callable|object|string $callable A service definition to be used as a factory
      */
