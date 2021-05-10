@@ -142,7 +142,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      *
      * @param string $id service id relying on this definition
      *
-     * @throws NotFoundException No entry was found for identifier
+     * @throws NotFoundServiceException No entry was found for identifier
      *
      * @return Definition|RawDefinition|object
      */
