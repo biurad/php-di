@@ -97,7 +97,28 @@ class ContainerBuilderTest extends TestCase
 
         $this->assertEquals(123, $service = $container->get('raw'));
         $this->assertEquals($service, $container->get('service1')->value);
+    }
 
+    public function testDefinitionDeprecation(): void
+    {
+        $builder = new ContainerBuilder();
+        $def = $builder->set('deprecate_service', Fixtures\Service::class)->deprecate();
+
+        $this->assertTrue($def->isDeprecated());
+        $this->assertEquals(
+            \file_get_contents($path = self::COMPILED . '/service8.phpt'),
+            $builder->compile(['containerClass' => 'DeprecatedContainer'])
+        );
+
+        includeFile($path);
+
+        $container = new \DeprecatedContainer();
+        $container->get('deprecate_service');
+
+        $this->assertEquals([
+            'type' => \E_USER_DEPRECATED,
+            'message' => 'The "deprecate_service" service is deprecated. You should stop using it, as it will be removed in the future.',
+        ], array_intersect_key(\error_get_last(), ['type' => true, 'message' => true]));
     }
 
     public function testDefinition(): void

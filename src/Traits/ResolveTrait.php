@@ -71,7 +71,7 @@ trait ResolveTrait
         $resolved = $this->entity;
 
         if (\function_exists('trigger_deprecation') && [] !== $deprecation = $this->deprecated) {
-            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message']);
+            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id);
         }
 
         if ($resolved instanceof Statement) {
@@ -396,10 +396,11 @@ trait ResolveTrait
 
         if (\function_exists('trigger_deprecation')) {
             return $node->addStmt(
-                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message']])
+                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id])
             );
         }
 
+        $deprecation['message'] = \sprintf($deprecation['message'], $this->id);
         $comment = <<<'COMMENT'
 /**
  * @deprecated %s

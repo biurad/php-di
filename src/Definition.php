@@ -304,7 +304,7 @@ class Definition
     {
         $args = \func_get_args();
 
-        $message = $args[2] ?? \sprintf('The "%s" service is deprecated. You should stop using it, as it will be removed in the future.', $this->id);
+        $message = $args[2] ?? 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.';
 
         $this->deprecated['package'] = $args[0] ?? '';
         $this->deprecated['version'] = $args[1] ?? '';
