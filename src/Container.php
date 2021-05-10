@@ -228,6 +228,14 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * {@inheritdoc}
      */
+    public function service(string $id)
+    {
+        return $this->values[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
         try {

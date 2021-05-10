@@ -117,6 +117,14 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function service(string $id)
+    {
+        return $this->definitions[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
+    }
+
+    /**
      * Sets a autowired service definition.
      *
      * @param string|array|Definition|Statement $definition

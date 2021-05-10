@@ -100,27 +100,28 @@ class FacadeProxy
      */
     protected function resolveProxies(ContainerBuilder $container, BuilderFactory $builder, array $proxiedServices)
     {
-        ($ref = new \ReflectionProperty($container, 'definitions'))->setAccessible(true);
-        $services = $ref->getValue($container);
         $builtProxies = [];
 
         foreach ($proxiedServices as $method => $proxy) {
-            if (null !== $definition = $services[$proxy] ?? null) {
-                $proxyNode = $builder->method($method)->makePublic()->makeStatic();
+            if (!$container->has($proxy)) {
+                continue;
+            }
 
-                if ($definition instanceof Definition) {
-                    if (!$definition->isPublic()) {
-                        continue;
-                    }
+            $definition = $container->service($proxy);
+            $proxyNode = $builder->method($method)->makePublic()->makeStatic();
 
-                    if (!empty($type = $definition->getType())) {
-                        $proxyNode->setReturnType(\is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type);
-                    }
+            if ($definition instanceof Definition) {
+                if (!$definition->isPublic()) {
+                    continue;
                 }
 
-                $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
-                $builtProxies[] = $proxyNode->addStmt(new Return_($body));
+                if (!empty($type = $definition->getType())) {
+                    $proxyNode->setReturnType(\is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type);
+                }
             }
+
+            $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
+            $builtProxies[] = $proxyNode->addStmt(new Return_($body));
         }
 
         return $builtProxies;

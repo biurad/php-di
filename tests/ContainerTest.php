@@ -697,7 +697,7 @@ class ContainerTest extends TestCase
         $rade->set('name.value', $rade->lazy('DivineNii\Invoker\ArgumentResolver\NamedValueResolver'), true);
         $rade['default.value'] = $nVal = $rade->definition(new Statement('DivineNii\Invoker\ArgumentResolver\DefaultValueResolver'));
 
-        $def = $rade->set('lazy', $rade->definition(Fixtures\ServiceAutowire::class, Definition::LAZY), true)
+        $rade->set('lazy', $rade->definition(Fixtures\ServiceAutowire::class, Definition::LAZY), true)
             ->bind('invoke', new Fixtures\Invokable())
             ->bind('autowireTypesArray', new Reference('DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface[]'))
             ->bind('autowireTypesArray', [[$rade->raw('none'), $rade['default.value'], new Reference('Rade\DI\Tests\Fixtures\Service[]')]])
@@ -721,22 +721,25 @@ class ContainerTest extends TestCase
         $this->assertInstanceOf(Fixtures\Service::class, $rade['service']);
         $this->assertEquals(3, $count);
 
-        $this->assertIsObject($rade['lazy']);
-        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
+        $def = $rade->service('lazy');
         $this->assertNotTrue($def->isFactory());
         $this->assertTrue($def->isLazy());
         $this->assertTrue($def->isAutowired());
         $this->assertTrue($def->isPublic());
         $this->assertEquals(Fixtures\ServiceAutowire::class, $def->getEntity());
-        $this->assertNotNull($lazy->invoke);
-        $this->assertIsObject($factory1 = $rade['factory']);
-        $this->assertNotSame($factory1, $rade['factory']);
 
         try {
             $def->getAutowired();
         } catch (\BadMethodCallException $e) {
             $this->assertEquals('Property call for autowired invalid, Rade\DI\Definition::get(\'autowired\') not supported.', $e->getMessage());
         }
+
+        $this->assertIsObject($rade['lazy']);
+        $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
+        $this->assertNotNull($lazy->invoke);
+        $this->assertIsObject($factory1 = $rade['factory']);
+        $this->assertNotSame($factory1, $rade['factory']);
+        $this->assertNotInstanceOf(Definition::class, $rade->service('lazy'));
 
         $rade->set('callable', new Statement(Fixtures\Invokable::class));
         $this->assertInstanceOf(Fixtures\Service::class, $rade['callable']());

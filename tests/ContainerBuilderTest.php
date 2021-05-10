@@ -104,7 +104,7 @@ class ContainerBuilderTest extends TestCase
         $builder = new ContainerBuilder();
         $def = $builder->set('deprecate_service', Fixtures\Service::class)->deprecate();
 
-        $deprecation = $builder->extend('deprecate_service')->get('deprecation');
+        $deprecation = $builder->service('deprecate_service')->get('deprecation');
         $message = 'The "deprecate_service" service is deprecated. You should stop using it, as it will be removed in the future.';
         $this->assertSame($message, $deprecation['message']);
 
@@ -247,15 +247,12 @@ class ContainerBuilderTest extends TestCase
 
         $this->assertTrue(isset($builder->parameters['rade_di']['hello']));
         $this->assertCount(3, $builder->keys());
-
-        $value = \Closure::bind(static function (Definition $definition) {
-            return $definition->calls['value'] ?? null;
-        }, null, Definition::class);
-        $this->assertNull($value($builder->extend('service')));
+        $this->assertEmpty($builder->service('service')->getCalls());
 
         $builder->compile();
+        $calls = $builder->service('service')->getCalls();
 
-        $this->assertInstanceOf(Variable::class, $container = $value($builder->extend('service')));
+        $this->assertInstanceOf(Variable::class, $container = $calls['value']);
         $this->assertEquals('this', $container->name);
     }
 
