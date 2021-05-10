@@ -294,16 +294,16 @@ class ContainerBuilder extends AbstractContainer
      */
     protected function doCreate(string $id, $service, bool $build = false)
     {
-        if ($service instanceof RawDefinition) {
-            return $this->builder->val($service());
-        }
-
         if (isset($this->loading[$id])) {
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
 
         try {
             $this->loading[$id] = true;
+
+            if ($service instanceof RawDefinition) {
+                return $build ? $service->build($id, $this->builder) : $this->builder->val($service());
+            }
 
             // Strict circular reference check ...
             $compiled = $service->build($this->builder);
