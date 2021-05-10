@@ -185,7 +185,7 @@ class Definition
      */
     final public function autowire(array $types = []): self
     {
-        $this->autowire = true;
+        $this->autowired = true;
         $service = $this->entity;
 
         if ($service instanceof Statement) {
@@ -216,12 +216,12 @@ class Definition
     {
         if (\is_array($types) && (1 === \count($types) || \PHP_VERSION_ID < 80000)) {
             foreach ($types as $type) {
-                if (interface_exists($type)) {
-                    continue;
-                }
-                $types = $type;
+                if (\class_exists($type)) {
+                    $types = $type;
 
-                break;
+                    break;
+                }
+
             }
         }
 
@@ -371,11 +371,7 @@ class Definition
         }
 
         if (!empty($types = $this->type)) {
-            if (\is_array($types)) {
-                $types = new UnionType(\array_map(fn ($type) => new Name($type), $types));
-            }
-
-            $node->setReturnType($types);
+            $node->setReturnType(\is_array($types) ? new UnionType(\array_map(fn ($type) => new Name($type), $types)) : $types);
         }
 
         if (!$this->factory) {

@@ -59,7 +59,7 @@ trait ResolveTrait
 
     private array $extras = [];
 
-    private bool $autowire = false;
+    private bool $autowired = false;
 
     /**
      * Resolves the Definition when in use in Container.
@@ -264,7 +264,7 @@ trait ResolveTrait
         if ($type && (null !== $bind && empty($this->type))) {
             $this->typeOf($types = Reflection::getReturnTypes($bind));
 
-            if ($this->autowire) {
+            if ($this->autowired) {
                 $this->resolver->autowire($this->id, $types);
             }
         }
