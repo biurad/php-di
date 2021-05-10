@@ -246,7 +246,7 @@ trait ResolveTrait
                 throw new ServiceCreationException(\sprintf('Multiple services found for %s.', $class));
             }
 
-            $class = $container->extend(\current($found) ?: $class)->entity;
+            $class = $container->service(\current($found) ?: $class)->entity;
 
             if ($class instanceof Statement && $service[0] instanceof Expr) {
                 $class = $class->value;

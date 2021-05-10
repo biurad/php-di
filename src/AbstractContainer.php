@@ -138,6 +138,17 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     abstract public function keys(): array;
 
     /**
+     * Gets the service definition or aliased entry from the container.
+     *
+     * @param string $id service id relying on this definition
+     *
+     * @throws NotFoundException No entry was found for identifier
+     *
+     * @return Definition|RawDefinition|object
+     */
+    abstract public function service(string $id);
+
+    /**
      * Registers a service provider.
      *
      * @param ServiceProviderInterface $provider A ServiceProviderInterface instance

@@ -78,6 +78,7 @@ class FacadeProxyTest extends TestCase
 
         $facadeProxy = new FacadeProxy($builder);
         $facadeProxy->proxy('raw', 'service', 'service.invoke', 'service_constructor', 'service_private', 'service.autowire_test');
+        $facadeProxy->proxy('non_existing');
 
         $this->assertEquals(
             <<<'FACADE_PROXY'
