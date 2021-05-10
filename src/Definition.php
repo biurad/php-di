@@ -36,7 +36,7 @@ use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Definition implements \Stringable
+class Definition
 {
     use Traits\ResolveTrait;
 
@@ -83,9 +83,9 @@ class Definition implements \Stringable
     /**
      * The method name generated for a service definition.
      */
-    public function __toString(): string
+    final public static function createMethod(string $id): string
     {
-        return 'get' . \str_replace(['.', '_'], '', \ucwords($this->id, '._'));
+        return 'get' . \str_replace(['.', '_'], '', \ucwords($id, '._'));
     }
 
     /**
@@ -338,8 +338,7 @@ class Definition implements \Stringable
      */
     public function resolve(BuilderFactory $builder): \PhpParser\Node\Expr
     {
-        $di = $builder->var('this');
-        $resolved = [$builder, 'methodCall'](...[$di, (string) $this]);
+        $resolved = $builder->methodCall($builder->var('this'), self::createMethod($this->id));
 
         if ($this->factory) {
             return $resolved;
@@ -363,7 +362,7 @@ class Definition implements \Stringable
     {
         $this->builder = $builder;
 
-        $node = $this->resolveDeprecation($this->deprecated, $builder->method((string) $this)->makeProtected());
+        $node = $this->resolveDeprecation($this->deprecated, $builder->method(self::createMethod($this->id))->makeProtected());
         $factory = $this->resolveEntity($this->entity, $this->parameters);
 
         if (!empty($this->calls + $this->extras)) {
