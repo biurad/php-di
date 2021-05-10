@@ -37,7 +37,7 @@ use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
  * @method string getId() Get the definition's id.
  * @method mixed getEntity() Get the definition's entity.
  * @method array<string,mixed> getParameters() Get the definition's parameters.
- * @method string[] getType() Get the return types for definition.
+ * @method string|string[] getType() Get the return types for definition.
  * @method array<string,mixed> getCalls() Get the bind calls to definition.
  * @method array<int,mixed> getExtras() Get the list of extras binds.
  * @method bool isDeprecated() Whether this definition is deprecated, that means it should not be used anymore.
@@ -282,7 +282,6 @@ class Definition
 
                     break;
                 }
-
             }
         }
 

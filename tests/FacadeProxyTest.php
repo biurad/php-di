@@ -32,6 +32,7 @@ class FacadeProxyTest extends TestCase
     {
         Facade::setContainer($rade = new Container());
 
+        $rade['raw'] = $rade->raw(123);
         $rade['service'] = new Fixtures\Service();
         $rade['service.invoke'] = new Fixtures\Invokable();
         $rade->set('service_constructor', new Fixtures\Constructor($rade));
@@ -43,8 +44,9 @@ class FacadeProxyTest extends TestCase
         });
 
         $facadeProxy = new FacadeProxy($rade);
-        $facadeProxy->proxy('service', 'service.invoke', 'service_callable', 'service.autowire_test', 'serviceConstructor');
+        $facadeProxy->proxy('raw', 'service', 'service.invoke', 'service_callable', 'service.autowire_test', 'serviceConstructor');
 
+        $this->assertEquals($rade['raw'], Facade::raw());
         $this->assertSame($rade['service'], Facade::service());
         $this->assertSame($rade['service.invoke'], Facade::serviceInvoke());
         $this->assertSame($rade->call('service_callable', [5]), Facade::serviceCallable(5));
@@ -67,6 +69,7 @@ class FacadeProxyTest extends TestCase
     {
         $builder = new ContainerBuilder();
 
+        $builder->set('raw', $builder->raw(123));
         $builder->autowire('service', Fixtures\Service::class);
         $builder->autowire('service.invoke', Fixtures\Invokable::class);
         $builder->autowire('service.autowire_test', Fixtures\ServiceAutowire::class);
@@ -74,7 +77,7 @@ class FacadeProxyTest extends TestCase
         $builder->set('service_private', Fixtures\Constructor::class)->should(Definition::PRIVATE);
 
         $facadeProxy = new FacadeProxy($builder);
-        $facadeProxy->proxy('service', 'service.invoke', 'service_constructor', 'service_private', 'service.autowire_test');
+        $facadeProxy->proxy('raw', 'service', 'service.invoke', 'service_constructor', 'service_private', 'service.autowire_test');
 
         $this->assertEquals(
             <<<'FACADE_PROXY'
@@ -87,6 +90,11 @@ declare (strict_types=1);
  */
 class Facade extends \Rade\DI\Facade\Facade
 {
+    public static function raw()
+    {
+        return self::$container->get('raw');
+    }
+
     public static function service(): Rade\DI\Tests\Fixtures\Service
     {
         return self::$container->get('service');
