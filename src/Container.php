@@ -239,7 +239,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
         try {
-            return self::$services[$id] ?? $this->providers[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
+            return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
         } catch (NotFoundServiceException $serviceError) {
             if (\class_exists($id)) {
                 try {

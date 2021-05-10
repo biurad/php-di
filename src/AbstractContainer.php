@@ -149,6 +149,16 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     abstract public function service(string $id);
 
     /**
+     * Returns the registered service provider.
+     *
+     * @param string $id The class name of the service provider
+     */
+    final public function provider(string $id): ?ServiceProviderInterface
+    {
+        return $this->providers[$id] ?? null;
+    }
+
+    /**
      * Registers a service provider.
      *
      * @param ServiceProviderInterface $provider A ServiceProviderInterface instance
