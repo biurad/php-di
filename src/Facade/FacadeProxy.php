@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Facade;
 
+use PhpParser\BuilderFactory;
 use PhpParser\Node\{
     Expr\StaticPropertyFetch,
     Name,
@@ -81,32 +82,47 @@ class FacadeProxy
             $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $builder->val(1))]);
             $classNode = $builder->class($className)->extend('\Rade\DI\Facade\Facade')->setDocComment(CodePrinter::COMMENT);
 
-            foreach ($proxiedServices as $method => $proxy) {
-                if ($container->has($proxy)) {
-                    $definition = $container->extend($proxy);
-
-                    if ($definition->is(Definition::PRIVATE)) {
-                        continue;
-                    }
-
-                    $proxyNode = $builder->method($method)->makePublic()->makeStatic();
-                    ($property = new \ReflectionProperty($definition, 'type'))->setAccessible(true);
-
-                    if (!empty($type = $property->getValue($definition))) {
-                        $proxyNode->setReturnType(
-                            \is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type
-                        );
-                    }
-
-                    $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
-                    $classNode->addStmt($proxyNode->addStmt(new Return_($body)));
-                }
-            }
+            $classNode->addStmts($this->resolveProxies($container, $builder, $proxiedServices));
             $astNodes[] = $classNode->getNode();
 
             return CodePrinter::print($astNodes);
         }
 
         return null;
+    }
+
+    /**
+     * This method resolves the proxies from container builder.
+     *
+     * @param string[] $proxiedServices
+     *
+     * @return \PhpParser\Builder\Method[]
+     */
+    protected function resolveProxies(ContainerBuilder $container, BuilderFactory $builder, array $proxiedServices)
+    {
+        ($ref = new \ReflectionProperty($container, 'definitions'))->setAccessible(true);
+        $services = $ref->getValue($container);
+        $builtProxies = [];
+
+        foreach ($proxiedServices as $method => $proxy) {
+            if (null !== $definition = $services[$proxy] ?? null) {
+                $proxyNode = $builder->method($method)->makePublic()->makeStatic();
+
+                if ($definition instanceof Definition) {
+                    if (!$definition->isPublic()) {
+                        continue;
+                    }
+
+                    if (!empty($type = $definition->getType())) {
+                        $proxyNode->setReturnType(\is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type);
+                    }
+                }
+
+                $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
+                $builtProxies[] = $proxyNode->addStmt(new Return_($body));
+            }
+        }
+
+        return $builtProxies;
     }
 }

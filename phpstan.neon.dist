@@ -12,9 +12,6 @@ parameters:
         - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
         - "#^Property Rade\\\\DI\\\\Config\\\\Loader\\\\FileLoader|ClosureLoader\\:\\:\\$container \\(Rade\\\\DI\\\\Container\\|Rade\\\\DI\\\\ContainerBuilder\\) does not accept Rade\\\\DI\\\\AbstractContainer.$#"
         -
-            message: "#^Instanceof between Rade\\\\DI\\\\Definition\\|null and Rade\\\\DI\\\\RawDefinition will always evaluate to false|Instanceof between Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\Exceptions\\\\NotFoundServiceException and Rade\\\\DI\\\\RawDefinition will always evaluate to false.$#"
-            path: src/ContainerBuilder.php
-        -
             message: "#^Parameter \\#2 \\$service \\(Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\RawDefinition\\) of method Rade\\\\DI\\\\ContainerBuilder\\:\\:doCreate\\(\\) should be contravariant with parameter \\$service \\(callable\\(\\): mixed\\) of method Rade\\\\DI\\\\AbstractContainer\\:\\:doCreate\\(\\)$#"
             path: src/ContainerBuilder.php
         -
@@ -27,7 +24,7 @@ parameters:
             message: '#^Invalid type Psr\\Container\\(NotFound|Container)ExceptionInterface to throw|Only booleans are allowed in a ternary operator condition, ReflectionType\|null given.$#'
             path: src/Services/ServiceLocator.php
         -
-            message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.|PHPDoc tag @param references unknown parameter: (\\$message|\\$package|\\$version)$#"
+            message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.|PHPDoc tag @param references unknown parameter: (\\$message|\\$package|\\$version)|Variable property access on \\$this\\(Rade\\\\DI\\\\Definition\\).$#"
             path: src/Definition.php
         -
             message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"

@@ -34,9 +34,21 @@ use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
 /**
  * Represents definition of standard service.
  *
+ * @method string getId() Get the definition's id.
+ * @method mixed getEntity() Get the definition's entity.
+ * @method array<string,mixed> getParameters() Get the definition's parameters.
+ * @method string|string[] getType() Get the return types for definition.
+ * @method array<string,mixed> getCalls() Get the bind calls to definition.
+ * @method array<int,mixed> getExtras() Get the list of extras binds.
+ * @method bool isDeprecated() Whether this definition is deprecated, that means it should not be used anymore.
+ * @method bool isLazy() Whether this service is lazy.
+ * @method bool isFactory() Whether this service is not a shared service.
+ * @method bool isPublic() Whether this service is a public type.
+ * @method bool isAutowired() Whether this service is autowired.
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Definition implements \Stringable
+class Definition
 {
     use Traits\ResolveTrait;
 
@@ -46,17 +58,27 @@ class Definition implements \Stringable
     /** This is useful when you want to autowire a callable or class string lazily. */
     public const LAZY = 2;
 
-    /** Use to check if definition is deprecated. */
-    public const DEPRECATED = 3;
-
     /** Marks a definition as a private service. */
     public const PRIVATE = 4;
 
-    /** Use to check if definition is autowired. */
-    public const AUTOWIRED = 5;
-
     /** Use in second parameter of bind method. */
     public const EXTRA_BIND = '@code@';
+
+    /** supported call in get() method. */
+    private const SUPPORTED_GET = [
+        'entity' => 'entity',
+        'parameters' => 'parameters',
+        'type' => 'type',
+        'calls' => 'calls',
+        'extras' => 'extras',
+    ];
+
+    private const IS_TYPE_OF = [
+        'lazy' => 'lazy',
+        'factory' => 'factory',
+        'public' => 'public',
+        'deprecated' => 'deprecated',
+    ];
 
     private string $id;
 
@@ -81,11 +103,36 @@ class Definition implements \Stringable
     }
 
     /**
+     * @param string   $method
+     * @param mixed[] $arguments
+     *
+     * @throws \BadMethodCallException
+     *
+     * @return mixed
+     */
+    public function __call($method, $arguments)
+    {
+        // Fix autowired conflict
+        if ('isAutowired' === $method) {
+            return $this->autowired;
+        }
+
+        $method = (string) \preg_replace('/^get|is([A-Z]{1}[a-z]+)$/', '\1', $method, 1);
+        $method = \strtolower($method);
+
+        if (isset(self::IS_TYPE_OF[$method])) {
+            return (bool) $this->{$method};
+        }
+
+        return $this->get($method);
+    }
+
+    /**
      * The method name generated for a service definition.
      */
-    public function __toString(): string
+    final public static function createMethod(string $id): string
     {
-        return 'get' . \str_replace(['.', '_'], '', \ucwords($this->id, '._'));
+        return 'get' . \str_replace(['.', '_'], '', \ucwords($id, '._'));
     }
 
     /**
@@ -98,6 +145,22 @@ class Definition implements \Stringable
     {
         $this->id = $id;
         $this->resolver = $resolver;
+    }
+
+    /**
+     * Get any of (id, entity, parameters, type, calls, extras).
+     *
+     * @throws \BadMethodCallException if $name does not exist as property
+     *
+     * @return mixed
+     */
+    final public function get(string $name)
+    {
+        if (!isset(self::SUPPORTED_GET[$name])) {
+            throw new \BadMethodCallException(\sprintf('Property call for %s invalid, %s::get(\'%1$s\') not supported.', $name, __CLASS__));
+        }
+
+        return $this->{$name};
     }
 
     /**
@@ -114,9 +177,7 @@ class Definition implements \Stringable
     final public function replace($entity, bool $if): self
     {
         if ($entity instanceof RawDefinition) {
-            throw new ServiceCreationException(
-                \sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class)
-            );
+            throw new ServiceCreationException(\sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class));
         }
 
         if ($if /* Replace if matches a rule */) {
@@ -185,7 +246,7 @@ class Definition implements \Stringable
      */
     final public function autowire(array $types = []): self
     {
-        $this->autowire = true;
+        $this->autowired = true;
         $service = $this->entity;
 
         if ($service instanceof Statement) {
@@ -216,12 +277,11 @@ class Definition implements \Stringable
     {
         if (\is_array($types) && (1 === \count($types) || \PHP_VERSION_ID < 80000)) {
             foreach ($types as $type) {
-                if (interface_exists($type)) {
-                    continue;
-                }
-                $types = $type;
+                if (\class_exists($type)) {
+                    $types = $type;
 
-                break;
+                    break;
+                }
             }
         }
 
@@ -243,41 +303,13 @@ class Definition implements \Stringable
     {
         $args = \func_get_args();
 
-        $message = $args[2] ?? \sprintf('The "%s" service is deprecated. You should stop using it, as it will be removed in the future.', $this->id);
+        $message = $args[2] ?? 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.';
 
         $this->deprecated['package'] = $args[0] ?? '';
         $this->deprecated['version'] = $args[1] ?? '';
         $this->deprecated['message'] = $message;
 
         return $this;
-    }
-
-    /**
-     * Checks if this definition is factory, or lazy type.
-     */
-    public function is(int $type = self::FACTORY): bool
-    {
-        if (self::FACTORY === $type) {
-            return $this->factory;
-        }
-
-        if (self::LAZY === $type) {
-            return $this->lazy;
-        }
-
-        if (self::DEPRECATED === $type) {
-            return (bool) $this->deprecated;
-        }
-
-        if (self::PRIVATE === $type) {
-            return !$this->public;
-        }
-
-        if (self::AUTOWIRED === $type) {
-            return $this->autowire;
-        }
-
-        return false;
     }
 
     /**
@@ -338,8 +370,7 @@ class Definition implements \Stringable
      */
     public function resolve(BuilderFactory $builder): \PhpParser\Node\Expr
     {
-        $di = $builder->var('this');
-        $resolved = [$builder, 'methodCall'](...[$di, (string) $this]);
+        $resolved = $builder->methodCall($builder->var('this'), self::createMethod($this->id));
 
         if ($this->factory) {
             return $resolved;
@@ -363,7 +394,7 @@ class Definition implements \Stringable
     {
         $this->builder = $builder;
 
-        $node = $this->resolveDeprecation($this->deprecated, $builder->method((string) $this)->makeProtected());
+        $node = $this->resolveDeprecation($this->deprecated, $builder->method(self::createMethod($this->id))->makeProtected());
         $factory = $this->resolveEntity($this->entity, $this->parameters);
 
         if (!empty($this->calls + $this->extras)) {
@@ -372,11 +403,7 @@ class Definition implements \Stringable
         }
 
         if (!empty($types = $this->type)) {
-            if (\is_array($types)) {
-                $types = new UnionType(\array_map(fn ($type) => new Name($type), $types));
-            }
-
-            $node->setReturnType($types);
+            $node->setReturnType(\is_array($types) ? new UnionType(\array_map(fn ($type) => new Name($type), $types)) : $types);
         }
 
         if (!$this->factory) {

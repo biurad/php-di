@@ -59,7 +59,7 @@ trait ResolveTrait
 
     private array $extras = [];
 
-    private bool $autowire = false;
+    private bool $autowired = false;
 
     /**
      * Resolves the Definition when in use in Container.
@@ -71,7 +71,7 @@ trait ResolveTrait
         $resolved = $this->entity;
 
         if (\function_exists('trigger_deprecation') && [] !== $deprecation = $this->deprecated) {
-            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message']);
+            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id);
         }
 
         if ($resolved instanceof Statement) {
@@ -264,7 +264,7 @@ trait ResolveTrait
         if ($type && (null !== $bind && empty($this->type))) {
             $this->typeOf($types = Reflection::getReturnTypes($bind));
 
-            if ($this->autowire) {
+            if ($this->autowired) {
                 $this->resolver->autowire($this->id, $types);
             }
         }
@@ -396,10 +396,11 @@ trait ResolveTrait
 
         if (\function_exists('trigger_deprecation')) {
             return $node->addStmt(
-                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message']])
+                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id])
             );
         }
 
+        $deprecation['message'] = \sprintf($deprecation['message'], $this->id);
         $comment = <<<'COMMENT'
 /**
  * @deprecated %s

@@ -11,15 +11,20 @@ class AliasContainer extends Rade\DI\Container
 
     protected static array $privates = [];
 
-    protected array $methodsMap = ['service_1' => 'getService1', 'service_3' => 'getService3', 'service_6' => 'getService6', 'container' => 'getServiceContainer'];
+    protected array $methodsMap = ['service_1' => 'getService1', 'service_2' => 'getService2', 'service_3' => 'getService3', 'service_6' => 'getService6', 'container' => 'getServiceContainer'];
 
     protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container'], Rade\DI\Tests\Fixtures\Service::class => ['service_6']];
 
-    protected array $aliases = ['alias_1' => 'service_1', 'alias_3' => 'service_3', 'alias_6' => 'service_6'];
+    protected array $aliases = ['alias_1' => 'service_1', 'alias_2' => 'service_2', 'alias_3' => 'service_3', 'alias_6' => 'service_6'];
 
     protected function getService1(): Rade\DI\Tests\Fixtures\Service
     {
         return self::$services['service_1'] = new Rade\DI\Tests\Fixtures\Service();
+    }
+
+    protected function getService2()
+    {
+        return 123;
     }
 
     protected function getService3(): Rade\DI\Tests\Fixtures\Service

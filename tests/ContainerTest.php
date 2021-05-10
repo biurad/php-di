@@ -682,7 +682,7 @@ class ContainerTest extends TestCase
         $rade = new Container();
 
         $def = $rade->set('service', $rade->definition(Fixtures\Service::class))->deprecate();
-        $this->assertTrue($def->is(Definition::DEPRECATED));
+        $this->assertTrue($def->isDeprecated());
 
         $rade['service'];
         $this->assertEquals([
@@ -723,14 +723,20 @@ class ContainerTest extends TestCase
 
         $this->assertIsObject($rade['lazy']);
         $this->assertInstanceOf(Fixtures\ServiceAutowire::class, $lazy = $rade['lazy']);
-        $this->assertNotTrue($def->is(333));
-        $this->assertNotTrue($def->is(Definition::FACTORY));
-        $this->assertTrue($def->is(Definition::LAZY));
-        $this->assertTrue($def->is(Definition::AUTOWIRED));
-        $this->assertEquals('getLazy', (string) $def);
+        $this->assertNotTrue($def->isFactory());
+        $this->assertTrue($def->isLazy());
+        $this->assertTrue($def->isAutowired());
+        $this->assertTrue($def->isPublic());
+        $this->assertEquals(Fixtures\ServiceAutowire::class, $def->getEntity());
         $this->assertNotNull($lazy->invoke);
         $this->assertIsObject($factory1 = $rade['factory']);
         $this->assertNotSame($factory1, $rade['factory']);
+
+        try {
+            $def->getAutowired();
+        } catch (\BadMethodCallException $e) {
+            $this->assertEquals('Property call for autowired invalid, Rade\DI\Definition::get(\'autowired\') not supported.', $e->getMessage());
+        }
 
         $rade->set('callable', new Statement(Fixtures\Invokable::class));
         $this->assertInstanceOf(Fixtures\Service::class, $rade['callable']());
