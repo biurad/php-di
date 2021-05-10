@@ -179,9 +179,6 @@ class ContainerBuilder extends AbstractContainer
             case $this->resolver->has($id):
                 return $this->resolver->get($id, (bool) $invalidBehavior);
 
-            case isset($this->providers[$id]):
-                return $this->providers[$id];
-
             case isset($this->aliases[$id]):
                 return $this->get($this->aliases[$id]);
 
@@ -195,8 +192,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function has(string $id): bool
     {
-        return (isset($this->definitions[$id]) || isset($this->providers[$id]))
-            || ($this->resolver->has($id) || isset($this->aliases[$id]));
+        return isset($this->definitions[$id]) || ($this->resolver->has($id) || isset($this->aliases[$id]));
     }
 
     /**
