@@ -104,6 +104,10 @@ class ContainerBuilderTest extends TestCase
         $builder = new ContainerBuilder();
         $def = $builder->set('deprecate_service', Fixtures\Service::class)->deprecate();
 
+        $deprecation = $builder->extend('deprecate_service')->get('deprecation');
+        $message = 'The "deprecate_service" service is deprecated. You should stop using it, as it will be removed in the future.';
+        $this->assertSame($message, $deprecation['message']);
+
         $this->assertTrue($def->isDeprecated());
         $this->assertEquals(
             \file_get_contents($path = self::COMPILED . '/service8.phpt'),

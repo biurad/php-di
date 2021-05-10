@@ -40,6 +40,7 @@ use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
  * @method string|string[] getType() Get the return types for definition.
  * @method array<string,mixed> getCalls() Get the bind calls to definition.
  * @method array<int,mixed> getExtras() Get the list of extras binds.
+ * @method string[] getDeprecation() Return a non-empty array if definition is deprecated.
  * @method bool isDeprecated() Whether this definition is deprecated, that means it should not be used anymore.
  * @method bool isLazy() Whether this service is lazy.
  * @method bool isFactory() Whether this service is not a shared service.
@@ -148,7 +149,7 @@ class Definition
     }
 
     /**
-     * Get any of (id, entity, parameters, type, calls, extras).
+     * Get any of (id, entity, parameters, type, calls, extras, deprecation).
      *
      * @throws \BadMethodCallException if $name does not exist as property
      *
@@ -156,6 +157,16 @@ class Definition
      */
     final public function get(string $name)
     {
+        if ('deprecation' === $name) {
+            $deprecation = $this->deprecated;
+
+            if (isset($deprecation['message'])) {
+                $deprecation['message'] = \sprintf($deprecation['message'], $this->id);
+            }
+
+            return $deprecation;
+        }
+
         if (!isset(self::SUPPORTED_GET[$name])) {
             throw new \BadMethodCallException(\sprintf('Property call for %s invalid, %s::get(\'%1$s\') not supported.', $name, __CLASS__));
         }
