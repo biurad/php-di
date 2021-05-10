@@ -99,7 +99,7 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
         } elseif ($container instanceof ContainerBuilder) {
             $container->set('param', $container->raw('value'));
             $container->autowire('service', Service::class);
-            $container->autowire('factory', Service::class)->is(Definition::FACTORY);
+            $container->autowire('factory', Service::class)->should(Definition::FACTORY);
         }
     }
 

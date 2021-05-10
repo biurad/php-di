@@ -31,6 +31,7 @@ use Rade\DI\Container;
 use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\Exceptions\ServiceCreationException;
 
 use function Composer\Autoload\includeFile;
 
@@ -52,12 +53,9 @@ class ContainerBuilderTest extends TestCase
         $builder->get('container');
     }
 
-    public function testRawDefinition(): void
+    public function testEmptyContainer(): void
     {
         $builder = new ContainerBuilder();
-        $builder->set('raw', $builder->raw(123));
-
-        $this->assertInstanceOf(LNumber::class, $builder->get('raw'));
 
         $this->assertEquals(
             \file_get_contents($path = self::COMPILED . '/service2.phpt'),
@@ -67,11 +65,39 @@ class ContainerBuilderTest extends TestCase
         includeFile($path);
 
         $container = new \EmptyContainer();
+        $this->assertEquals(['container'], $container->keys());
+    }
 
-        $this->expectExceptionMessage('Identifier "raw" is not defined.');
-        $this->expectException(NotFoundServiceException::class);
+    public function testRawDefinition(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->set('raw', $builder->raw(123));
+        $builder->set('service1', Fixtures\Service::class)->bind('value', new Reference('raw'));
 
-        $container->get('raw');
+        try {
+            $builder->extend('raw');
+        } catch (ServiceCreationException $e) {
+            $this->assertEquals('Extending a raw definition for "raw" is not supported.', $e->getMessage());
+        }
+
+        try {
+            $builder->autowire('raw1', $builder->raw(123));
+        } catch (ServiceCreationException $e) {
+            $this->assertEquals('Service "raw1" using "Rade\DI\RawDefinition" instance is not supported for autowiring.', $e->getMessage());
+        }
+
+        $this->assertInstanceOf(LNumber::class, $builder->get('raw'));
+        $this->assertEquals(
+            \file_get_contents($path = self::COMPILED . '/service7.phpt'),
+            $builder->compile(['containerClass' => 'RawContainer'])
+        );
+
+        includeFile($path);
+        $container = new \RawContainer();
+
+        $this->assertEquals(123, $service = $container->get('raw'));
+        $this->assertEquals($service, $container->get('service1')->value);
+
     }
 
     public function testDefinition(): void
@@ -320,12 +346,12 @@ class ContainerBuilderTest extends TestCase
         $container = new \AliasContainer();
 
         $this->assertTrue($container->has('alias_1'));
-        $this->assertFalse($container->has('alias_2'));
+        $this->assertTrue($container->has('alias_2'));
         $this->assertTrue($container->has('alias_3'));
         $this->assertFalse($container->has('alias_4'));
         $this->assertFalse($container->has('alias_5'));
         $this->assertTrue($container->has('alias_6'));
 
-        $this->assertEquals(['service_1', 'service_3', 'service_6', 'container'], $container->keys());
+        $this->assertEquals(['service_1', 'service_2', 'service_3', 'service_6', 'container'], $container->keys());
     }
 }

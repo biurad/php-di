@@ -324,13 +324,13 @@ class Container extends AbstractContainer implements \ArrayAccess
         }
 
         if ($definition instanceof Definition) {
-            if ($definition->is(Definition::PRIVATE)) {
+            if (!$definition->isPublic()) {
                 throw new ContainerResolutionException(
                     \sprintf('Using service definition for "%s" as private is not supported.', $id)
                 );
             }
 
-            if ($definition->is(Definition::FACTORY)) {
+            if ($definition->isFactory()) {
                 return $this->doCreate($id, $definition);
             }
         }
