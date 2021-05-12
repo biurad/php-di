@@ -17,7 +17,9 @@ declare(strict_types=1);
 
 namespace Rade\DI\Config;
 
-use Psr\Container\ContainerInterface;
+use Rade\DI\AbstractContainer;
+use Rade\DI\Container;
+use Rade\DI\ContainerBuilder;
 
 /**
  * Declares that service provider has configurations.
@@ -34,9 +36,9 @@ interface ConfigurationInterface
     /**
      * Sets service's provider or builder configuration.
      *
-     * @param ContainerInterface $container either ContainerBuilder or Container instance
+     * @param Container|ContainerBuilder $container
      */
-    public function setConfiguration(array $config, ContainerInterface $container): void;
+    public function setConfiguration(array $config, AbstractContainer $container): void;
 
     /**
      * Returns service's provider or builder configuration.
