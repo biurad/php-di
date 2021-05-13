@@ -43,11 +43,13 @@ class YamlFileLoader extends FileLoader
         'tags' => 'tags',
         'autowire' => 'autowire',
         'bind' => 'bind',
+        'calls' => 'bind',
     ];
 
     private const SERVICE_KEYWORDS = [
         'alias' => 'alias',
         'entity' => 'entity',
+        'arguments' => 'arguments',
         'lazy' => 'lazy',
         'private' => 'private',
         'deprecated' => 'deprecated',
@@ -56,6 +58,7 @@ class YamlFileLoader extends FileLoader
         'decorates' => 'decorates',
         'autowire' => 'autowire',
         'bind' => 'bind',
+        'calls' => 'bind',
     ];
 
     private const PROTOTYPE_KEYWORDS = [
@@ -68,7 +71,9 @@ class YamlFileLoader extends FileLoader
         'factory' => 'factory',
         'tags' => 'tags',
         'autowire' => 'autowire',
+        'arguments' => 'arguments',
         'bind' => 'bind',
+        'calls' => 'bind',
     ];
 
     /** @var YamlParser */
@@ -422,12 +427,14 @@ class YamlFileLoader extends FileLoader
             $this->parseDefinitionTags('in "_defaults"', $tags, $file, true);
         }
 
-        if (isset($defaults['bind'])) {
-            if (!\is_array($defaults['bind'])) {
+        if (null !== $bindings = $defaults['bind'] ?? $default['calls'] ?? null) {
+            if (!\is_array($bindings)) {
                 throw new \InvalidArgumentException(\sprintf('Parameter "bind" in "_defaults" must be an array in "%s". Check your YAML syntax.', $file));
             }
 
-            $defaults['bind'] = $this->parseDefinitionBinds('in "_defaults"', $defaults['bind'], $file);
+            unset($default['calls']); // To avoid conflicts, will be dropped in 1.3
+
+            $defaults['bind'] = $this->parseDefinitionBinds('in "_defaults"', $bindings, $file);
         }
 
         return $defaults;
@@ -457,10 +464,10 @@ class YamlFileLoader extends FileLoader
             $deprecation = [$deprecation['package'] ?? '', $deprecation['version'] ?? '', $deprecation['message'] ?? ''];
         }
 
-        if (!\is_array($bindings = $service['bind'] ?? [])) {
+        if (!\is_array($bindings = $service['bind'] ?? $service['calls'] ?? [])) {
             throw new \InvalidArgumentException(\sprintf('Parameter "bind" must be an array for service "%s" in "%s". Check your YAML syntax.', $id, $file));
         }
-        $bindings += $defaults['bind'] ?? [];
+        $bindings = \array_merge($defaults['bind'] ?? [], $bindings);
 
         if ([] !== $bindings) {
             $this->parseDefinitionBinds($id, $bindings, $file, $definition);
