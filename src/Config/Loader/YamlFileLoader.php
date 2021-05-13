@@ -420,6 +420,16 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('A service definition must be an array, a tagged "!statement" or a string starting with "@", but "%s" found for service "%s" in "%s". Check your YAML syntax.', \get_debug_type($service), $id, $file));
             }
 
+            if ($this->container->has($id) && $this->container instanceof Container) {
+                $this->container->extend($id, function (Definition $definition) use ($id, $service, $file, $defaults): Definition {
+                    $this->parseDefinition($id, $service, $file, $defaults, $definition);
+
+                    return $definition;
+                });
+
+                continue;
+            }
+
             $this->parseDefinition($id, $service, $file, $defaults);
         }
     }
@@ -471,11 +481,33 @@ class YamlFileLoader extends FileLoader
      *
      * @throws \InvalidArgumentException
      */
-    private function parseDefinition(string $id, array $service, string $file, array $defaults): void
+    private function parseDefinition(string $id, array $service, string $file, array $defaults, Definition $definition = null): void
     {
         $this->checkDefinition($id, $service, $file);
 
-        $definition = new Definition($service['entity'], $this->resolveServices($service['arguments'] ?? [], $file));
+        if ($this->container->has($id) && $this->container instanceof ContainerBuilder) {
+            $definition = $this->container->extend($id);
+        }
+
+        // Non existing entity
+        if (!isset($service['entity'])) {
+            $service['entity'] = $service['class'] ?? (\class_exists($id) ? $id : null);
+        }
+
+        $arguments = $this->resolveServices($service['arguments'] ?? [], $file);
+
+        if ($definition instanceof Definition) {
+            $hasDefinition = true;
+
+            $definition->replace($service['entity'], null !== $service['entity'])
+                ->args(\array_merge($definition->get('parameters'), $arguments));
+        } else {
+            $definition = new Definition($service['entity'], $arguments);
+        }
+
+        if (!$definition instanceof Definition) {
+            throw new ServiceCreationException(\sprintf('Unfortunately, service definitions only support %s, definition type for "%s" invalid.', Definition::class, $id));
+        }
 
         if ($this->container instanceof ContainerBuilder) {
             $definition->should(Definition::PRIVATE, $service['private'] ?? $defaults['private'] ?? false);
@@ -529,7 +561,9 @@ class YamlFileLoader extends FileLoader
             return;
         }
 
-        $definition = $this->container->set($id, $definition);
+        if (!isset($hasDefinition)) {
+            $definition = $this->container->set($id, $definition);
+        }
 
         if (false !== $autowired) {
             $definition->autowire(\is_array($autowired) ? $autowired : []);
