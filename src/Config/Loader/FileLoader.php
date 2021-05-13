@@ -69,14 +69,14 @@ abstract class FileLoader extends BaseFileLoader
         $classes = $this->findClasses($namespace, $resource, (array) $exclude);
 
         // prepare for deep cloning
-        $serializedPrototype = serialize($prototype);
+        $serializedPrototype = \serialize($prototype);
 
         foreach ($classes as $class) {
-            $definition = $this->container->set($class, unserialize($serializedPrototype))->replace($class, true);
+            $definition = $this->container->set($class, \unserialize($serializedPrototype))->replace($class, true);
 
             if ($definition instanceof Definition) {
                 if (isset($this->autowired[$namespace])) {
-                    $definition->autowire(is_array($this->autowired[$namespace]) ? $this->autowired[$namespace] : []);
+                    $definition->autowire(\is_array($this->autowired[$namespace]) ? $this->autowired[$namespace] : []);
                 }
 
                 if (isset($this->deprecations[$namespace])) {

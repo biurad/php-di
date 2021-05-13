@@ -24,7 +24,6 @@ use Rade\DI\Config\ConfigurationInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
-use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Exception\LoaderLoadException;
 use Symfony\Component\Config\Resource\FileExistenceResource;
 use Symfony\Component\Config\Resource\FileResource;
