@@ -257,6 +257,7 @@ class ContainerBuilder extends AbstractContainer
      * - strictType => true,
      * - printToString => true,
      * - shortArraySyntax => true,
+     * - removeReturnSpacing => 8,
      * - containerClass => CompiledContainer,
      *
      * @throws \ReflectionException
