@@ -52,7 +52,7 @@ class FacadeProxy
     public function proxy(string ...$services): void
     {
         foreach ($services as $service) {
-            $id = \str_replace(['.', '_'], '', \lcfirst(\ucwords($service, '._')));
+            $id = \str_replace(['.', '_', '\\'], '', \lcfirst(\ucwords($service, '._')));
 
             if (!$this->container instanceof ContainerBuilder) {
                 Facade::$proxies[$id] = $service;

@@ -134,7 +134,7 @@ class Definition
      */
     final public static function createMethod(string $id): string
     {
-        return 'get' . \str_replace(['.', '_'], '', \ucwords($id, '._'));
+        return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
     }
 
     /**
