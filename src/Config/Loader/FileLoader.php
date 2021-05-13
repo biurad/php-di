@@ -39,6 +39,9 @@ abstract class FileLoader extends BaseFileLoader
     /** @var array<string,string[]> */
     protected array $deprecations = [];
 
+    /** @var array<string,mixed> */
+    protected array $tags = [];
+
     public function __construct(AbstractContainer $container, FileLocatorInterface $locator)
     {
         $this->container = $container;
@@ -80,6 +83,10 @@ abstract class FileLoader extends BaseFileLoader
                     [$package, $version, $message] = $this->deprecations[$namespace];
 
                     $definition->deprecate($package, $version, $message);
+                }
+
+                if (null !== $tags = $this->tags[$class] ?? $this->tags[$namespace] ?? null) {
+                    $this->container->tag($class, $this->tags[$class] = $tags);
                 }
             }
         }

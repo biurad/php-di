@@ -460,7 +460,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Parameter "tags" in "_defaults" must be an array in "%s". Check your YAML syntax.', $file));
             }
 
-            $this->parseDefinitionTags('in "_defaults"', $tags, $file, true);
+            $defaults['tags'] = $this->parseDefinitionTags('in "_defaults"', $tags, $file);
         }
 
         if (null !== $bindings = $defaults['bind'] ?? $default['calls'] ?? null) {
@@ -536,10 +536,8 @@ class YamlFileLoader extends FileLoader
         }
 
         if (isset($defaults['tags'])) {
-            $tags = \array_merge($tags, $defaults['tags']);
+            $tags = \array_merge($defaults['tags'], $tags);
         }
-
-        $this->parseDefinitionTags($id, $tags, $file);
 
         if (\array_key_exists('namespace', $service) && !\array_key_exists('resource', $service)) {
             throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be set when the "namespace" attribute is set for service "%s" in "%s". Check your YAML syntax.', $id, $file));
@@ -555,6 +553,10 @@ class YamlFileLoader extends FileLoader
 
             $this->autowired[$namespace] = $autowired;
             $this->deprecations[$namespace] = $deprecation ?? null;
+
+            if ([] !== $tags) {
+                $this->tags[$namespace] = $this->parseDefinitionTags($id, $tags, $file);
+            }
 
             $this->registerClasses($definition, $namespace, $this->resolveServices($service['resource'], $file), $exclude);
 
@@ -573,6 +575,10 @@ class YamlFileLoader extends FileLoader
             [$package, $version, $message] = $deprecation;
 
             $definition->deprecate($package, $version, $message);
+        }
+
+        if ([] !== $tags) {
+            $this->container->tag($id, $this->parseDefinitionTags($id, $tags, $file));
         }
     }
 
@@ -622,42 +628,35 @@ class YamlFileLoader extends FileLoader
         return $bindings;
     }
 
-    private function parseDefinitionTags(string $id, array $tags, string $file, bool $default = false): void
+    private function parseDefinitionTags(string $id, array $tags, string $file): array
     {
         if ('in "_defaults"' !== $id) {
             $id = \sprintf('for service "%s"', $id);
         }
 
-        foreach ($tags as $tag) {
-            if (!\is_array($tag)) {
-                $tag = ['name' => $tag];
+        $serviceTags = [];
+
+        foreach ($tags as $k => $tag) {
+            if (\is_string($k)) {
+                throw new \InvalidArgumentException(\sprintf('The "tags" entry %s is invalid, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
             }
 
-            if (1 === \count($tag) && \is_array(\current($tag))) {
-                $name = \key($tag);
-                $tag = \current($tag);
-            } else {
-                if (!isset($tag['name'])) {
-                    throw new \InvalidArgumentException(\sprintf('A "tags" entry is missing a "name" key %s in "%s".', $id, $file));
+            if (\is_string($tag)) {
+                $serviceTags[] = $tag;
+
+                continue;
+            }
+
+            foreach ((array) $tag as $name => $value) {
+                if (!\is_string($name) || '' === $name) {
+                    throw new \InvalidArgumentException(\sprintf('The tag name %s in "%s" must be a non-empty string. Check your YAML syntax.', $id, $file));
                 }
-                $name = $tag['name'];
-                unset($tag['name']);
-            }
 
-            if (!\is_string($name) || '' === $name) {
-                throw new \InvalidArgumentException(\sprintf('The tag name %s in "%s" must be a non-empty string.', $id, $file));
-            }
-
-            foreach ($tag as $attribute => $value) {
-                if (!\is_scalar($value) && null !== $value) {
-                    throw new \InvalidArgumentException(\sprintf('A "tags" attribute must be of a scalar-type %s, tag "%s", attribute "%s" in "%s". Check your YAML syntax.', $id, $name, $attribute, $file));
-                }
-            }
-
-            if (!$default) {
-                $this->container->tag($name, $tag);
+                $serviceTags[$name] = $value;
             }
         }
+
+        return $serviceTags;
     }
 
     /**
