@@ -20,10 +20,14 @@ namespace Rade\DI\Config\Loader;
 use Nette\Utils\Helpers;
 use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;
+use Rade\DI\Config\ConfigurationInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
+use Rade\DI\Exceptions\ServiceCreationException;
+use Symfony\Component\Config\Exception\LoaderLoadException;
 use Symfony\Component\Config\Resource\FileExistenceResource;
+use Symfony\Component\Config\Resource\FileResource;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Parser as YamlParser;
 use Symfony\Component\Yaml\Tag\TaggedValue;
@@ -49,6 +53,7 @@ class YamlFileLoader extends FileLoader
     private const SERVICE_KEYWORDS = [
         'alias' => 'alias',
         'entity' => 'entity',
+        'class' => 'entity', // backward compatibility for symfony devs, will be dropped in 2.0
         'arguments' => 'arguments',
         'lazy' => 'lazy',
         'private' => 'private',
@@ -89,14 +94,12 @@ class YamlFileLoader extends FileLoader
 
         if ($this->container instanceof ContainerBuilder) {
             $this->container->addResource(new FileExistenceResource($path));
+            $this->container->addResource(new FileResource($path));
         }
 
-        // empty file
-        if (empty($content)) {
-            return;
+        if (!empty($content)) {
+            $this->loadContent($content, $path);
         }
-
-        $this->loadContent($content, $path);
     }
 
     /**
@@ -180,8 +183,19 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('An import should provide a resource in "%s". Check your YAML syntax.', $file));
             }
 
+            if ('not_found' === $ignoreErrors = $import['ignore_errors'] ?? false) {
+                $notFound = $ignoreErrors = false; // Ignore error on missing file resource.
+            }
+
             $this->setCurrentDir($defaultDirectory);
-            $this->import($import['resource'], $import['type'] ?? null, $import['ignore_errors'] ?? false, $file);
+
+            try {
+                $this->import($import['resource'], $import['type'] ?? null, $ignoreErrors, $file);
+            } catch (LoaderLoadException $e) {
+                if (!isset($notFound)) {
+                    throw $e;
+                }
+            }
         }
 
         unset($content['imports']);
@@ -224,8 +238,6 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Invalid service provider key %s, only list sequence is supported "service_providers: ..." in "%s".', $k, $path));
             }
 
-            $config = [];
-
             if ($provider instanceof TaggedValue && 'provider' === $provider->getTag()) {
                 $value = $provider->getValue();
 
@@ -247,8 +259,8 @@ class YamlFileLoader extends FileLoader
                 $extension = (new \ReflectionClass($provider))->newInstanceArgs($args ?? []);
             }
 
-            if (!\is_array($config)) {
-                $config = [];
+            if (!\is_array($config ?? null)) {
+                $config = $extension instanceof ConfigurationInterface ? (array) $content[$extension->getId()] ?? [] : [];
             }
 
             $this->container->register($extension, $config);
