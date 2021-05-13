@@ -515,7 +515,7 @@ class YamlFileLoader extends FileLoader
 
         $definition->should(Definition::LAZY, $service['lazy'] ?? false);
         $definition->should(Definition::FACTORY, $service['factory'] ?? false);
-        $this->autowired[$id] = $autowired = $service['autowire'] ?? $defaults['autowire'] ?? false;
+        $autowired = $service['autowire'] ?? $defaults['autowire'] ?? null;
 
         if (isset($service['deprecated'])) {
             $deprecation = \is_array($service['deprecated']) ? $service['deprecated'] : ['message' => $service['deprecated']];
@@ -565,7 +565,7 @@ class YamlFileLoader extends FileLoader
             $definition = $this->container->set($id, $definition);
         }
 
-        if (false !== $autowired) {
+        if (null !== $autowired) {
             $definition->autowire(\is_array($autowired) ? $autowired : []);
         }
 

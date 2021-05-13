@@ -73,7 +73,7 @@ abstract class FileLoader extends BaseFileLoader
 
             if ($definition instanceof Definition) {
                 if (isset($this->autowired[$namespace])) {
-                    $definition->autowire(is_array($this->autowired[$namespace]) ? $this->autowired[$namespace] : []);
+                    $definition->autowire(\is_array($this->autowired[$namespace]) ? $this->autowired[$namespace] : []);
                 }
 
                 if (isset($this->deprecations[$namespace])) {
