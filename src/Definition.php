@@ -67,6 +67,7 @@ class Definition
 
     /** supported call in get() method. */
     private const SUPPORTED_GET = [
+        'id'  => 'id',
         'entity' => 'entity',
         'parameters' => 'parameters',
         'type' => 'type',
