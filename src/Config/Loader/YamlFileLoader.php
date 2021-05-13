@@ -263,7 +263,7 @@ class YamlFileLoader extends FileLoader
                 $config = $extension instanceof ConfigurationInterface ? (array) $content[$extension->getId()] ?? [] : [];
             }
 
-            $this->container->register($extension, $config);
+            $this->container->register($extension, $config ?? []);
         }
 
         unset($content['service_providers']);
@@ -272,7 +272,7 @@ class YamlFileLoader extends FileLoader
     /**
      * Resolves services.
      *
-     * @return array|string|Reference|Statement
+     * @return array|string|Reference|Statement|null
      */
     private function resolveServices($value, string $file, bool $isParameter = false)
     {
@@ -503,10 +503,6 @@ class YamlFileLoader extends FileLoader
                 ->args(\array_merge($definition->get('parameters'), $arguments));
         } else {
             $definition = new Definition($service['entity'], $arguments);
-        }
-
-        if (!$definition instanceof Definition) {
-            throw new ServiceCreationException(\sprintf('Unfortunately, service definitions only support %s, definition type for "%s" invalid.', Definition::class, $id));
         }
 
         if ($this->container instanceof ContainerBuilder) {
