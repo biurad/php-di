@@ -519,7 +519,7 @@ class YamlFileLoader extends FileLoader
 
         if (isset($service['deprecated'])) {
             $deprecation = \is_array($service['deprecated']) ? $service['deprecated'] : ['message' => $service['deprecated']];
-            $deprecation = [$deprecation['package'] ?? '', $deprecation['version'] ?? '', $deprecation['message'] ?? ''];
+            $deprecation = [$deprecation['package'] ?? '', $deprecation['version'] ?? '', $deprecation['message'] ?? null];
         }
 
         if (!\is_array($bindings = $service['bind'] ?? $service['calls'] ?? [])) {
@@ -554,7 +554,7 @@ class YamlFileLoader extends FileLoader
             $namespace = $service['namespace'] ?? $id;
 
             $this->autowired[$namespace] = $autowired;
-            $this->deprecations[$namespace] = $deprecation ?? false;
+            $this->deprecations[$namespace] = $deprecation ?? null;
 
             $this->registerClasses($definition, $namespace, $this->resolveServices($service['resource'], $file), $exclude);
 
