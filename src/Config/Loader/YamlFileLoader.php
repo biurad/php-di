@@ -339,6 +339,20 @@ class YamlFileLoader extends FileLoader
         } elseif (\is_string($value) && '@' === $value[0]) {
             $value = \substr($value, 1);
 
+            // double @@ should be escaped
+            if ('@' === $value[0]) {
+                return $value;
+            }
+
+            // ignore on invalid reference
+            if ('?' === $value[0]) {
+                $value = \substr($value, 1);
+
+                if (!$this->container->has($value)) {
+                    return null;
+                }
+            }
+
             return $this->container instanceof Container ? $this->container->get($value) : new Reference($value);
         }
 
