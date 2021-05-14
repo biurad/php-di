@@ -608,7 +608,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Invalid call %s: the bind must be defined as the first index of an array or as the only key of a map in "%s".', $id, $file));
             } else {
                 $method = $call[0];
-                $args = $this->resolveServices($call[1] ?? [], $file);
+                $args = $this->resolveServices($call[1] ?? null, $file);
             }
 
             if ($definition instanceof Definition) {
