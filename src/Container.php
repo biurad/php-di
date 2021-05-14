@@ -321,7 +321,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     protected function getService(string $id, int $invalidBehavior)
     {
-        if ($this->resolver->has($id)) {
+        if (!isset($this->keys[$id]) && $this->resolver->has($id)) {
             return $this->resolver->get($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
         }
 
