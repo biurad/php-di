@@ -70,7 +70,7 @@ trait ResolveTrait
     {
         $resolved = $this->entity;
 
-        if (\function_exists('trigger_deprecation') && [] !== $deprecation = $this->deprecated) {
+        if ([] !== $deprecation = $this->deprecated) {
             \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id);
         }
 
@@ -386,33 +386,5 @@ trait ResolveTrait
         }
 
         return $this->builder->methodCall($resolver, 'resolve', [] !== $arguments ? [$entity, $arguments] : [$entity]);
-    }
-
-    protected function resolveDeprecation(array $deprecation, Method $node): Method
-    {
-        if ([] === $deprecation) {
-            return $node;
-        }
-
-        if (\function_exists('trigger_deprecation')) {
-            return $node->addStmt(
-                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id])
-            );
-        }
-
-        $deprecation['message'] = \sprintf($deprecation['message'], $this->id);
-        $comment = <<<'COMMENT'
-/**
- * @deprecated %s
- */
-COMMENT;
-
-        $deprecatedComment = \sprintf(
-            $comment,
-            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '') . $deprecation['message']
-        );
-        $node->setDocComment($deprecatedComment);
-
-        return $node;
     }
 }

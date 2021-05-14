@@ -405,9 +405,13 @@ class Definition
     public function build(BuilderFactory $builder): \PhpParser\Builder\Method
     {
         $this->builder = $builder;
-
-        $node = $this->resolveDeprecation($this->deprecated, $builder->method(self::createMethod($this->id))->makeProtected());
+        $node = $builder->method(self::createMethod($this->id))->makeProtected();
         $factory = $this->resolveEntity($this->entity, $this->parameters);
+
+        if ([] !== $deprecation = $this->deprecated) {
+            $deprecation[] = $this->id;
+            $node->addStmt($this->builder->funcCall('\trigger_deprecation', \array_values($deprecation)));
+        }
 
         if (!empty($this->calls + $this->extras)) {
             $node->addStmt(new Assign($resolved = $builder->var($this->public ? 'service' : 'private'), $factory));
