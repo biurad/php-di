@@ -246,7 +246,12 @@ trait ResolveTrait
 
         if ('' !== $class && $container->has($class)) {
             if (!$service[0] instanceof Expr) {
-                $service[0] = $this->resolveReference(new Reference($class));
+                if ($this->id === $class) {
+                    $def = $container->service($class);
+                    $def = $def instanceof RawDefinition ? $this->builder->val($def()) : $def->resolve($this->builder);
+                }
+
+                $service[0] = $def ?? $this->resolveReference(new Reference($class));
             }
 
             if (\count($found = $this->resolver->find($class)) > 1) {
