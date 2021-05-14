@@ -441,6 +441,14 @@ class ContainerAutowireTest extends TestCase
         $rade->autowire('service', [Fixtures\Service::class]);
     }
 
+    public function testAutowiredSameIdAndService(): void
+    {
+        $rade = new Container();
+        $rade->set(Fixtures\Service::class, $service = new Fixtures\Service(), true);
+
+        $this->assertSame($service, $rade->get(Fixtures\Service::class));
+    }
+
     public function testResolverMethods(): void
     {
         $rade = new Container();
