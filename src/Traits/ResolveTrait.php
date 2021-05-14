@@ -311,7 +311,7 @@ trait ResolveTrait
             ) {
                 if (\property_exists($class = $this->entity, $name)) {
                     $arguments = $this->resolveArguments($arguments);
-                    $node->addStmt(new Assign($this->builder->propertyFetch($service, $name), !\is_array($value) ? \current($arguments) : $arguments));
+                    $node->addStmt(new Assign($this->builder->propertyFetch($service, $name), !\is_array($value) ? \current($arguments) : $this->builder->val($arguments)));
 
                     continue;
                 }
@@ -326,7 +326,7 @@ trait ResolveTrait
 
             if (\str_starts_with($name, '$')) {
                 $arguments = $this->resolveArguments($arguments);
-                $node->addStmt(new Assign($this->builder->var(\substr($name, 1)), !\is_array($value) ? \reset($arguments) : $arguments));
+                $node->addStmt(new Assign($this->builder->var(\substr($name, 1)), !\is_array($value) ? \reset($arguments) : $this->builder->val($arguments)));
             }
         }
 
