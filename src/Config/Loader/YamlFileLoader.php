@@ -402,17 +402,23 @@ class YamlFileLoader extends FileLoader
             $service = $this->resolveServices($service, $file);
 
             if ($service instanceof Statement) {
-                if ($this->container instanceof Container) {
-                    $this->container->set($id, $service, true);
-                } else {
-                    $this->container->autowire($id, $service);
-                }
+                $this->container->autowire($id, $service);
+
+                continue;
+            }
+
+            if (\is_object($service) && !$service instanceof Reference) {
+                $this->container->set($id, $service, true);
 
                 continue;
             }
 
             if (empty($service)) {
-                continue;
+                if ([] === $defaults) {
+                    continue;
+                }
+
+                $service = []; // If $defaults, then a definition creation should be possible.
             }
 
             if (!\is_array($service)) {
@@ -485,7 +491,7 @@ class YamlFileLoader extends FileLoader
         $this->checkDefinition($id, $service, $file);
 
         if ($this->container->has($id) && $this->container instanceof ContainerBuilder) {
-            $definition = $this->container->extend($id);
+            $definition = \array_key_exists($id, $this->container->keys()) ? $this->container->extend($id) : null;
         }
 
         // Non existing entity
