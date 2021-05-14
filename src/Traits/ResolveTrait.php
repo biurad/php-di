@@ -80,21 +80,28 @@ trait ResolveTrait
         }
 
         try {
-            $resolved = $this->resolver->resolve($resolved, $this->resolveArguments($this->parameters, null, false));
+            $arguments = $this->resolveArguments($this->parameters, null, false);
 
-            foreach ($this->calls as $bind => $value) {
-                if (\is_object($resolved) && !\is_callable($resolved)) {
-                    $arguments = $this->resolveArguments(\is_array($value) ? $value : [$value], null, false);
+            $resolved = \is_string($resolved) && $this->resolver->has($resolved)
+                ? $this->resolver->resolveClass($resolved, $arguments)
+                : $this->resolver->resolve($resolved, $arguments);
+        } catch (ContainerResolutionException $e) {
+            if (!\str_starts_with($e->getMessage(), 'Unable to resolve value provided')) {
+                throw $e;
+            }
+            // No exception is need here ...
+        }
 
-                    if (\property_exists($resolved, $bind)) {
-                        $resolved->{$bind} = !\is_array($value) ? \current($arguments) : $arguments;
-                    } elseif (\method_exists($resolved, $bind)) {
-                        $this->resolver->resolve([$resolved, $bind], $arguments);
-                    }
+        foreach ($this->calls as $bind => $value) {
+            if (\is_object($resolved) && !\is_callable($resolved)) {
+                $arguments = $this->resolveArguments(\is_array($value) ? $value : [$value], null, false);
+
+                if (\property_exists($resolved, $bind)) {
+                    $resolved->{$bind} = !\is_array($value) ? \current($arguments) : $arguments;
+                } elseif (\method_exists($resolved, $bind)) {
+                    $this->resolver->resolve([$resolved, $bind], $arguments);
                 }
             }
-        } catch (ContainerResolutionException $e) {
-            // No exception is need here ...
         }
 
         foreach ($this->extras as $code) {
