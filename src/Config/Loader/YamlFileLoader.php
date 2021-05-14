@@ -271,7 +271,7 @@ class YamlFileLoader extends FileLoader
     /**
      * Resolves services.
      *
-     * @return array|string|Reference|Statement|null
+     * @return array|string|Reference|Statement|object|null
      */
     private function resolveServices($value, string $file, bool $isParameter = false)
     {
@@ -393,13 +393,13 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Service names that start with an underscore are reserved. Rename the "%s" service.', $id));
             }
 
-            if (\is_string($service) && '@' === $service[0]) {
-                $this->container->alias($id, \substr($service, 1));
+            $service = $this->resolveServices($service, $file);
+
+            if ($service instanceof Reference) {
+                $this->container->alias($id, (string) $service);
 
                 continue;
             }
-
-            $service = $this->resolveServices($service, $file);
 
             if ($service instanceof Statement) {
                 $this->container->autowire($id, $service);
@@ -407,7 +407,7 @@ class YamlFileLoader extends FileLoader
                 continue;
             }
 
-            if (\is_object($service) && !$service instanceof Reference) {
+            if (\is_object($service)) {
                 $this->container->set($id, $service, true);
 
                 continue;
