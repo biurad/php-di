@@ -41,7 +41,7 @@ class LazyContainer extends Rade\DI\Container
     {
         $service = new Rade\DI\Tests\Fixtures\Constructor($this);
         $service->value = $this->getService4();
-        
+
         return self::$services['service_test'] = $service;
     }
 }

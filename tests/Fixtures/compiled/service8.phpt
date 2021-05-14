@@ -20,7 +20,7 @@ class DeprecatedContainer extends Rade\DI\Container
     protected function getDeprecateService(): Rade\DI\Tests\Fixtures\Service
     {
         \trigger_deprecation('', '', 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.', 'deprecate_service');
-        
+
         return self::$services['deprecate_service'] = new Rade\DI\Tests\Fixtures\Service();
     }
 }

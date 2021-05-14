@@ -26,7 +26,7 @@ class RawContainer extends Rade\DI\Container
     {
         $service = new Rade\DI\Tests\Fixtures\Service();
         $service->value = 123;
-        
+
         return self::$services['service1'] = $service;
     }
 }
