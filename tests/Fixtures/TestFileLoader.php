@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
-use Rade\DI\Config\Loader\FileLoader;
+use Rade\DI\Loader\FileLoader;
 
 class TestFileLoader extends FileLoader
 {

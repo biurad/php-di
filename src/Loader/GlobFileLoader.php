@@ -15,36 +15,29 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Config\Loader;
+namespace Rade\DI\Loader;
 
-use Rade\DI\AbstractContainer;
-use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
-use Symfony\Component\Config\Loader\Loader;
 
 /**
- * ClosureLoader loads service definitions from a PHP closure.
- *
- * The Closure has access to the container as its first argument.
+ * GlobFileLoader loads files from a glob pattern.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class ClosureLoader extends Loader
+class GlobFileLoader extends FileLoader
 {
-    /** @var Container|ContainerBuilder */
-    private AbstractContainer $container;
-
-    public function __construct(AbstractContainer $container)
-    {
-        $this->container = $container;
-    }
-
     /**
      * {@inheritdoc}
      */
     public function load($resource, string $type = null): void
     {
-        $resource($this->container);
+        foreach ($this->glob($resource, false, $globResource) as $path => $info) {
+            $this->import($path);
+        }
+
+        if ($this->container instanceof ContainerBuilder) {
+            $this->container->addResource($globResource);
+        }
     }
 
     /**
@@ -52,6 +45,6 @@ class ClosureLoader extends Loader
      */
     public function supports($resource, string $type = null)
     {
-        return $resource instanceof \Closure;
+        return 'glob' === $type;
     }
 }

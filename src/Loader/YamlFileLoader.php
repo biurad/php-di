@@ -15,7 +15,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Config\Loader;
+namespace Rade\DI\Loader;
 
 use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;

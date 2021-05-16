@@ -18,8 +18,8 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Loader;
 
 use Rade\DI\AbstractContainer;
-use Rade\DI\Config\Loader\DirectoryLoader;
-use Rade\DI\Config\Loader\YamlFileLoader;
+use Rade\DI\Loader\DirectoryLoader;
+use Rade\DI\Loader\YamlFileLoader;
 use Rade\DI\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Loader\LoaderResolver;

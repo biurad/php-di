@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
-use Rade\DI\Config\Loader\GlobFileLoader;
+use Rade\DI\Loader\GlobFileLoader;
 
 class GlobFileLoaderWithoutImport extends GlobFileLoader
 {

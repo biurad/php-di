@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Loader;
 
 use Rade\DI\AbstractContainer;
-use Rade\DI\Config\Loader\ClosureLoader;
+use Rade\DI\Loader\ClosureLoader;
 
 class ClosureLoaderTest extends LoaderTestCase
 {

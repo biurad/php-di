@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Loader;
 
 use Rade\DI\AbstractContainer;
-use Rade\DI\Config\Loader\GlobFileLoader;
+use Rade\DI\Loader\GlobFileLoader;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Tests\Fixtures\GlobFileLoaderWithoutImport;
 use Symfony\Component\Config\FileLocator;

@@ -21,7 +21,7 @@ use Rade\DI\AbstractContainer;
 use Rade\DI\Builder\CodePrinter;
 use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;
-use Rade\DI\Config\Loader\YamlFileLoader;
+use Rade\DI\Loader\YamlFileLoader;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
