@@ -66,7 +66,7 @@ abstract class FileLoader extends BaseFileLoader
             throw new \InvalidArgumentException(\sprintf('Namespace is not a valid PSR-4 prefix: "%s".', $namespace));
         }
 
-        $classes = $this->findClasses($namespace, $resource, (array) $exclude);
+        $classes = $this->findClasses($namespace, $this->resolveParameters($resource), (array) $exclude);
 
         // prepare for deep cloning
         $serializedPrototype = \serialize($prototype);
@@ -92,12 +92,45 @@ abstract class FileLoader extends BaseFileLoader
         }
     }
 
+    /**
+     * Replaces "%value%" from container's parameters keys.
+     */
+    protected function resolveParameters(string $value): string
+    {
+        $res = '';
+        $parts = \preg_split('#(%[^%\s]+%)#i', $value, -1, \PREG_SPLIT_DELIM_CAPTURE);
+
+        if (1 == \count($parts) && $value === $parts[0]) {
+            return $value;
+        }
+
+        foreach ($parts as $part) {
+            if ('' !== $part && '%' === $part[0]) {
+                $val = \substr($part, 1, -1);
+
+                if (!isset($this->container->parameters[$val])) {
+                    throw new \RuntimeException(\sprintf('You have requested a non-existent parameter "%s".', $val));
+                }
+
+                if (!\is_scalar($part = $this->container->parameters[$val])) {
+                    throw new \InvalidArgumentException(\sprintf('Unable to concatenate non-scalar parameter "%s" into %s.', $val, $value));
+                }
+            }
+
+            $res .= (string) $part;
+        }
+
+        return '' !== $res ? $res : $value;
+    }
+
     private function findClasses(string $namespace, string $pattern, array $excludePatterns): array
     {
         $excludePaths = [];
         $excludePrefix = null;
 
         foreach ($excludePatterns as $excludePattern) {
+            $excludePattern = $this->resolveParameters($excludePattern);
+
             foreach ($this->glob($excludePattern, true, $resource, true, true) as $path => $info) {
                 if (null === $excludePrefix) {
                     $excludePrefix = $resource->getPrefix();

@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Config\Loader;
 
-use Nette\Utils\Helpers;
 use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;
 use Rade\DI\Config\ConfigurationInterface;
@@ -359,21 +358,7 @@ class YamlFileLoader extends FileLoader
             return $value;
         }
 
-        return \preg_replace_callback('/^%([^%\s]+)%$/', function ($match) use ($value) {
-            if (isset($match[1])) {
-                if (isset($this->container->parameters[$match[1]])) {
-                    return $this->container->parameters[$match[1]];
-                }
-
-                if (null !== $message = Helpers::getSuggestion($this->container->parameters, $match[1])) {
-                    $message = \sprintf(' Did you mean this: "%s"?', $message);
-                }
-
-                throw new \RuntimeException(\sprintf('You have requested a non-existent parameter "%s".' . $message, $match[1]));
-            }
-
-            return $value;
-        }, $value);
+        return $this->resolveParameters($value);
     }
 
     private function parseDefinitions(array $content, string $file): void
@@ -549,7 +534,6 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be of type string for service "%s" in "%s". Check your YAML syntax.', $id, $file));
             }
 
-            $exclude = $this->resolveServices($service['exclude'] ?? [], $file);
             $namespace = $service['namespace'] ?? $id;
 
             $this->autowired[$namespace] = $autowired;
@@ -559,7 +543,7 @@ class YamlFileLoader extends FileLoader
                 $this->tags[$namespace] = $this->parseDefinitionTags($id, $tags, $file);
             }
 
-            $this->registerClasses($definition, $namespace, $this->resolveServices($service['resource'], $file), $exclude);
+            $this->registerClasses($definition, $namespace, $service['resource'], $service['exclude'] ?? []);
 
             return;
         }
