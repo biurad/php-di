@@ -167,7 +167,19 @@ abstract class FileLoader extends BaseFileLoader
                 continue;
             }
 
-            $r = new \ReflectionClass($class);
+            try {
+                $r = new \ReflectionClass($class);
+            } catch (\Error | \ReflectionException $e) {
+                if (\preg_match('/^Class .* not found$/', $e->getMessage())) {
+                    continue;
+                }
+
+                if ($e instanceof \ReflectionException) {
+                    throw new \InvalidArgumentException(\sprintf('Expected to find class "%s" in file "%s" while importing services from resource "%s", but it was not found! Check the namespace prefix used with the resource.', $class, $path, $pattern), 0, $e);
+                }
+
+                throw $e;
+            }
 
             if ($this->container instanceof ContainerBuilder) {
                 $this->container->addResource(new ClassExistenceResource($class, false));
