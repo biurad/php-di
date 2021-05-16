@@ -1,0 +1,3 @@
+imports:
+    - services2.yml
+    - { resource: services3.yml }

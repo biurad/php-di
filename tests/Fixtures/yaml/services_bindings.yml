@@ -1,0 +1,18 @@
+services:
+    _defaults:
+        bind:
+            - NonExistent: ~
+            - quz: quz
+            - factory: factory
+
+    bar:
+        entity: Rade\DI\Tests\Fixtures\Bar
+        # autowire: true // This works if entity constructor's parameters doesn't contain any of entity and declared else where
+        bind:
+            - foo: [ ~ ]
+            - baz: !tagged { tag: bar, resolve: false }
+            - $factory: [ 1, 2, 3, 4, 'value']
+            - !php/const Rade\DI\Definition::EXTRA_BIND: $service->create(null, $factory);
+
+    Rade\DI\Tests\Fixtures\Bar:
+        entity: Rade\DI\Tests\Fixtures\Bar::create

@@ -1,0 +1,11 @@
+services:
+    manager:
+        entity: UserManager
+        arguments:
+            - true
+        calls:
+            - setLogger: "@logger"
+            - [setClass, User]
+        tags:
+            - manager:
+                alias: user

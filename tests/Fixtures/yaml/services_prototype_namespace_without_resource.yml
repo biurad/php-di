@@ -1,0 +1,4 @@
+services:
+    dir1:
+        namespace: Rade\DI\Tests\Fixtures\Prototype\OtherDir\
+        tags: [foo]

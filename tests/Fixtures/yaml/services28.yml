@@ -1,0 +1,22 @@
+services:
+    _defaults:
+        autowire: true
+        tags:
+            - foo
+
+    Acme\Foo: ~
+
+    with_defaults:
+        entity: Foo
+        private: true
+
+    with_null:
+        entity: Foo
+        autowire: ~
+
+    no_defaults:
+        entity: Foo
+        autowire: false
+        tags: []
+
+    with_defaults_aliased_short: '@with_defaults'

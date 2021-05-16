@@ -1,0 +1,10 @@
+services:
+    bar:
+        entity: stdClass
+    Bar:
+        entity: stdClass
+        bind: [{ bar: "@bar" }]
+    BAR:
+        entity: Rade\DI\Tests\Fixtures\FooClass
+        arguments: ["@Bar"]
+        calls: [[setBar, ["@bar"]]]

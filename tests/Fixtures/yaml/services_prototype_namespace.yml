@@ -1,0 +1,10 @@
+services:
+    dir1:
+        namespace: Rade\DI\Tests\Fixtures\Prototype\OtherDir\
+        resource: ../Prototype/OtherDir/*/Dir1
+        tags: [foo]
+
+    dir2:
+        namespace: Rade\DI\Tests\Fixtures\Prototype\OtherDir\
+        resource: ../Prototype/OtherDir/*/Dir2
+        tags: [bar]

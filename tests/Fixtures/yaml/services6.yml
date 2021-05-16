@@ -1,0 +1,20 @@
+services:
+    foo: { entity: FooClass }
+    baz: { entity: FooClass }
+    not_shared: { entity: FooClass, factory: true }
+    arguments: { entity: FooClass, arguments: ['foo', '@foo', [true, false]] }
+    method_call1:
+        entity: FooClass
+        calls:
+            - [ setBar, [] ]
+            - [ setBaz ]
+    method_call2:
+        entity: FooClass
+        bind:
+            - [ setBar, [ foo, '@foo', [true, false] ] ]
+    request:
+        entity: Request
+        lazy: true
+    callable1: { entity: ['@baz', getClass] }
+    callable2: { entity: [BazClass, getInstance] }
+    alias_for_foo: '@foo'

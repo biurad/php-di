@@ -1,0 +1,4 @@
+services:
+    bind1:
+        entity: Rade\DI\Tests\Fixtures\FooClass
+        calls: foo

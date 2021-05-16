@@ -1,0 +1,6 @@
+services:
+    foo_service:
+        entity:    FooClass
+        # tags is not valid
+        tags:
+            foo_tag: { foo: bar }

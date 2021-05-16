@@ -1,0 +1,3 @@
+services:
+    Rade\DI\Tests\Fixtures\Constructor:
+        autowire: [Rade\DI\Tests\Fixtures\Service]
