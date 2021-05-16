@@ -40,8 +40,8 @@ class GlobFileLoaderTest extends LoaderTestCase
     public function testLoadAddsTheGlobResourceToTheContainer(): void
     {
         $loader = new GlobFileLoaderWithoutImport($container = new ContainerBuilder(), new FileLocator());
-        $loader->load(__DIR__.'/../Fixtures/yaml/*');
+        $loader->load(__DIR__ . '/../Fixtures/yaml/*');
 
-        $this->assertEquals(new GlobResource(__DIR__.'/../Fixtures/yaml', '/*', false), $container->getResources()[0]);
+        $this->assertEquals(new GlobResource(__DIR__ . '/../Fixtures/yaml', '/*', false), $container->getResources()[0]);
     }
 }
