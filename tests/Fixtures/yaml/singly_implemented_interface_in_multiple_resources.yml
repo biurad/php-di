@@ -1,0 +1,9 @@
+services:
+    _defaults:
+        autowire: true
+
+    Rade\DI\Tests\Fixtures\Prototype\SinglyImplementedInterface\Port\:
+        resource: ../Prototype/SinglyImplementedInterface/Port/*
+
+    Rade\DI\Tests\Fixtures\Prototype\SinglyImplementedInterface\Adapter\:
+        resource: ../Prototype/SinglyImplementedInterface/Adapter/*

@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Fixtures;
 
 use PHPUnit\Framework\Assert;
-use Psr\Container\ContainerInterface;
 use Rade\DI\AbstractContainer;
 use Rade\DI\Builder\PrependInterface;
 use Rade\DI\Container;
@@ -56,13 +55,13 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
         return $treeBuilder;
     }
 
-    public function setConfiguration(array $config, ContainerInterface $container): void
+    public function setConfiguration(array $config, AbstractContainer $container): void
     {
         try {
             $this->getConfiguration();
         } catch (\RuntimeException $e) {
             Assert::assertEquals(
-                'Configurations for this provider is empty. See \'setConfiguration\' method.',
+                'Configurations for this provider is empty. See "setConfiguration" method.',
                 $e->getMessage()
             );
         }
@@ -99,7 +98,7 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
         } elseif ($container instanceof ContainerBuilder) {
             $container->set('param', $container->raw('value'));
             $container->autowire('service', Service::class);
-            $container->autowire('factory', Service::class)->is(Definition::FACTORY);
+            $container->autowire('factory', Service::class)->should(Definition::FACTORY);
         }
     }
 

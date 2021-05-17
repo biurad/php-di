@@ -1,0 +1,4 @@
+services:
+    bar_service:
+        entity:    BarClass
+        autowire: true

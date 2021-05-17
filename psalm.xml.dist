@@ -20,10 +20,6 @@
         </ignoreFiles>
     </projectFiles>
 
-    <stubs>
-        <file name="vendor/vimeo/psalm/stubs/Php80.php"/>
-    </stubs>
-
     <issueHandlers>
         <PossiblyInvalidArrayAssignment>
             <errorLevel type="suppress">

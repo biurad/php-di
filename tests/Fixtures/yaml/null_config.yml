@@ -1,0 +1,4 @@
+project: ~
+
+service_providers:
+    - Rade\DI\Tests\Fixtures\ProjectServiceProvider

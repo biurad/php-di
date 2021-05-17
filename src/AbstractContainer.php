@@ -138,6 +138,27 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     abstract public function keys(): array;
 
     /**
+     * Gets the service definition or aliased entry from the container.
+     *
+     * @param string $id service id relying on this definition
+     *
+     * @throws NotFoundServiceException No entry was found for identifier
+     *
+     * @return Definition|RawDefinition|object
+     */
+    abstract public function service(string $id);
+
+    /**
+     * Returns the registered service provider.
+     *
+     * @param string $id The class name of the service provider
+     */
+    final public function provider(string $id): ?ServiceProviderInterface
+    {
+        return $this->providers[$id] ?? null;
+    }
+
+    /**
      * Registers a service provider.
      *
      * @param ServiceProviderInterface $provider A ServiceProviderInterface instance
@@ -148,13 +169,17 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         $this->providers[\get_class($provider)] = $provider;
 
         if ($provider instanceof Config\ConfigurationInterface) {
-            $values = isset($config[$provider->getId()]) ? $config : [$provider->getId() => $config];
+            $id = $provider->getId();
 
             if ($provider instanceof ConfigurationInterface) {
-                $values = (new Processor())->processConfiguration($provider, $values);
+                if (!isset($config[$id])) {
+                    $config = [$id => $config];
+                }
+
+                $config = (new Processor())->processConfiguration($provider, $config);
             }
 
-            $provider->setConfiguration($values, $this);
+            $provider->setConfiguration($config[$id] ?? $config, $this);
         }
 
         // If service provider depends on other providers ...

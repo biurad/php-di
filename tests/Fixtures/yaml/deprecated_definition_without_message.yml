@@ -1,0 +1,6 @@
+services:
+    service_without_deprecation_message:
+        entity: Foo
+        deprecated:
+            package: vendor/package
+            version: 1.1

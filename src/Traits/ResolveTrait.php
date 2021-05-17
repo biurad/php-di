@@ -59,7 +59,7 @@ trait ResolveTrait
 
     private array $extras = [];
 
-    private bool $autowire = false;
+    private bool $autowired = false;
 
     /**
      * Resolves the Definition when in use in Container.
@@ -70,8 +70,8 @@ trait ResolveTrait
     {
         $resolved = $this->entity;
 
-        if (\function_exists('trigger_deprecation') && [] !== $deprecation = $this->deprecated) {
-            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message']);
+        if ([] !== $deprecation = $this->deprecated) {
+            \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message'], $this->id);
         }
 
         if ($resolved instanceof Statement) {
@@ -80,21 +80,28 @@ trait ResolveTrait
         }
 
         try {
-            $resolved = $this->resolver->resolve($resolved, $this->resolveArguments($this->parameters, null, false));
+            $arguments = $this->resolveArguments($this->parameters, null, false);
 
-            foreach ($this->calls as $bind => $value) {
-                if (\is_object($resolved) && !\is_callable($resolved)) {
-                    $arguments = $this->resolveArguments(\is_array($value) ? $value : [$value], null, false);
+            $resolved = \is_string($resolved) && $this->resolver->has($resolved)
+                ? $this->resolver->resolveClass($resolved, $arguments)
+                : $this->resolver->resolve($resolved, $arguments);
+        } catch (ContainerResolutionException $e) {
+            if (!\str_starts_with($e->getMessage(), 'Unable to resolve value provided')) {
+                throw $e;
+            }
+            // No exception is need here ...
+        }
 
-                    if (\property_exists($resolved, $bind)) {
-                        $resolved->{$bind} = !\is_array($value) ? \current($arguments) : $arguments;
-                    } elseif (\method_exists($resolved, $bind)) {
-                        $this->resolver->resolve([$resolved, $bind], $arguments);
-                    }
+        foreach ($this->calls as $bind => $value) {
+            if (\is_object($resolved) && !\is_callable($resolved)) {
+                $arguments = $this->resolveArguments(\is_array($value) ? $value : [$value], null, false);
+
+                if (\property_exists($resolved, $bind)) {
+                    $resolved->{$bind} = !\is_array($value) ? \current($arguments) : $arguments;
+                } elseif (\method_exists($resolved, $bind)) {
+                    $this->resolver->resolve([$resolved, $bind], $arguments);
                 }
             }
-        } catch (ContainerResolutionException $e) {
-            // No exception is need here ...
         }
 
         foreach ($this->extras as $code) {
@@ -239,14 +246,19 @@ trait ResolveTrait
 
         if ('' !== $class && $container->has($class)) {
             if (!$service[0] instanceof Expr) {
-                $service[0] = $this->resolveReference(new Reference($class));
+                if ($this->id === $class) {
+                    $def = $container->service($class);
+                    $def = $def instanceof RawDefinition ? $this->builder->val($def()) : $def->resolve($this->builder);
+                }
+
+                $service[0] = $def ?? $this->resolveReference(new Reference($class));
             }
 
             if (\count($found = $this->resolver->find($class)) > 1) {
                 throw new ServiceCreationException(\sprintf('Multiple services found for %s.', $class));
             }
 
-            $class = $container->extend(\current($found) ?: $class)->entity;
+            $class = $container->service(\current($found) ?: $class)->entity;
 
             if ($class instanceof Statement && $service[0] instanceof Expr) {
                 $class = $class->value;
@@ -264,7 +276,7 @@ trait ResolveTrait
         if ($type && (null !== $bind && empty($this->type))) {
             $this->typeOf($types = Reflection::getReturnTypes($bind));
 
-            if ($this->autowire) {
+            if ($this->autowired) {
                 $this->resolver->autowire($this->id, $types);
             }
         }
@@ -299,7 +311,7 @@ trait ResolveTrait
             ) {
                 if (\property_exists($class = $this->entity, $name)) {
                     $arguments = $this->resolveArguments($arguments);
-                    $node->addStmt(new Assign($this->builder->propertyFetch($service, $name), !\is_array($value) ? \current($arguments) : $arguments));
+                    $node->addStmt(new Assign($this->builder->propertyFetch($service, $name), !\is_array($value) ? \current($arguments) : $this->builder->val($arguments)));
 
                     continue;
                 }
@@ -314,7 +326,7 @@ trait ResolveTrait
 
             if (\str_starts_with($name, '$')) {
                 $arguments = $this->resolveArguments($arguments);
-                $node->addStmt(new Assign($this->builder->var(\substr($name, 1)), !\is_array($value) ? \reset($arguments) : $arguments));
+                $node->addStmt(new Assign($this->builder->var(\substr($name, 1)), !\is_array($value) ? \reset($arguments) : $this->builder->val($arguments)));
             }
         }
 
@@ -386,32 +398,5 @@ trait ResolveTrait
         }
 
         return $this->builder->methodCall($resolver, 'resolve', [] !== $arguments ? [$entity, $arguments] : [$entity]);
-    }
-
-    protected function resolveDeprecation(array $deprecation, Method $node): Method
-    {
-        if ([] === $deprecation) {
-            return $node;
-        }
-
-        if (\function_exists('trigger_deprecation')) {
-            return $node->addStmt(
-                $this->builder->funcCall('\trigger_deprecation', [$deprecation['package'], $deprecation['version'], $deprecation['message']])
-            );
-        }
-
-        $comment = <<<'COMMENT'
-/**
- * @deprecated %s
- */
-COMMENT;
-
-        $deprecatedComment = \sprintf(
-            $comment,
-            ($deprecation['package'] || $deprecation['version'] ? "Since {$deprecation['package']} {$deprecation['version']}: " : '') . $deprecation['message']
-        );
-        $node->setDocComment($deprecatedComment);
-
-        return $node;
     }
 }

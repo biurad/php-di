@@ -117,7 +117,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * This is useful when you want to autowire a callable or class string lazily.
      *
-     * @deprecated Since 1.0, use Statement class instead, will be dropped in v1.1
+     * @deprecated Since 1.0, use Statement class instead, will be dropped in v2
      *
      * @param callable|string $definition A class string or a callable
      */
@@ -129,7 +129,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * Marks a definition as being a factory service.
      *
-     * @deprecated Since 1.0, use definition method instead, will be dropped in v1.1
+     * @deprecated Since 1.0, use definition method instead, will be dropped in v2
      *
      * @param callable|object|string $callable A service definition to be used as a factory
      */
@@ -228,10 +228,18 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * {@inheritdoc}
      */
+    public function service(string $id)
+    {
+        return $this->values[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
         try {
-            return self::$services[$id] ?? $this->providers[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
+            return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
         } catch (NotFoundServiceException $serviceError) {
             if (\class_exists($id)) {
                 try {
@@ -313,7 +321,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     protected function getService(string $id, int $invalidBehavior)
     {
-        if ($this->resolver->has($id)) {
+        if (!isset($this->keys[$id]) && $this->resolver->has($id)) {
             return $this->resolver->get($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
         }
 
@@ -324,13 +332,13 @@ class Container extends AbstractContainer implements \ArrayAccess
         }
 
         if ($definition instanceof Definition) {
-            if ($definition->is(Definition::PRIVATE)) {
+            if (!$definition->isPublic()) {
                 throw new ContainerResolutionException(
                     \sprintf('Using service definition for "%s" as private is not supported.', $id)
                 );
             }
 
-            if ($definition->is(Definition::FACTORY)) {
+            if ($definition->isFactory()) {
                 return $this->doCreate($id, $definition);
             }
         }

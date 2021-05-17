@@ -1,0 +1,11 @@
+services:
+    Rade\DI\Tests\Fixtures\NamedArgumentsDummy:
+        arguments: { 0: ~, apiKey: ABCD }
+
+    another_one:
+        class: Rade\DI\Tests\Fixtures\NamedArgumentsDummy
+        arguments:
+            apiKey: ABCD
+            c: ~
+        calls:
+            - ['setApiKey', { apiKey: '123' }]

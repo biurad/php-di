@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use PhpParser\BuilderFactory;
 use Rade\DI\Exceptions\ContainerResolutionException;
 
 /**
@@ -47,5 +48,14 @@ class RawDefinition
     public function __invoke()
     {
         return $this->service;
+    }
+
+    /**
+     * Build the raw definition service.
+     */
+    public function build(string $id, BuilderFactory $builder): \PhpParser\Builder\Method
+    {
+        return $builder->method(Definition::createMethod($id))->makeProtected()
+            ->addStmt(new \PhpParser\Node\Stmt\Return_($builder->val($this->service)));
     }
 }

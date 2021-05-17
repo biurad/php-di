@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Config;
 
-use Psr\Container\ContainerInterface;
+use Rade\DI\AbstractContainer;
 
 abstract class AbstractConfiguration implements ConfigurationInterface
 {
@@ -31,7 +31,7 @@ abstract class AbstractConfiguration implements ConfigurationInterface
     /**
      * {@inheritdoc}
      */
-    public function setConfiguration(array $config, ContainerInterface $container): void
+    public function setConfiguration(array $config, AbstractContainer $container): void
     {
         $this->config = $config;
         //@Todo: this method can be overridden to use $container.
@@ -43,9 +43,7 @@ abstract class AbstractConfiguration implements ConfigurationInterface
     public function getConfiguration(): array
     {
         if ([] === $this->config) {
-            throw new \RuntimeException(
-                'Configurations for this provider is empty. See \'setConfiguration\' method.'
-            );
+            throw new \RuntimeException('Configurations for this provider is empty. See "setConfiguration" method.');
         }
 
         return $this->config;

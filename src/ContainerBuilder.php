@@ -38,7 +38,7 @@ class ContainerBuilder extends AbstractContainer
     /** @var ResourceInterface[] */
     private array $resources = [];
 
-    /** @var Definition[] */
+    /** @var Definition[]|RawDefinition[] */
     private array $definitions = [];
 
     /** Name of the compiled container parent class. */
@@ -100,6 +100,7 @@ class ContainerBuilder extends AbstractContainer
      * @param string $id The unique identifier for the definition
      *
      * @throws NotFoundServiceException If the identifier is not defined
+     * @throws ServiceCreationException If the definition is a raw type.
      */
     public function extend(string $id): Definition
     {
@@ -116,15 +117,25 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function service(string $id)
+    {
+        return $this->definitions[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
+    }
+
+    /**
      * Sets a autowired service definition.
      *
      * @param string|array|Definition|Statement $definition
+     *
+     * @throws ServiceCreationException If $definition instanceof RawDefinition
      */
     public function autowire(string $id, $definition): Definition
     {
         if ($definition instanceof RawDefinition) {
             throw new ServiceCreationException(
-                \sprintf('Service %s using %s instance is not supported for autowiring.', $id, RawDefinition::class)
+                \sprintf('Service "%s" using "%s" instance is not supported for autowiring.', $id, RawDefinition::class)
             );
         }
 
@@ -168,9 +179,6 @@ class ContainerBuilder extends AbstractContainer
             case $this->resolver->has($id):
                 return $this->resolver->get($id, (bool) $invalidBehavior);
 
-            case isset($this->providers[$id]):
-                return $this->providers[$id];
-
             case isset($this->aliases[$id]):
                 return $this->get($this->aliases[$id]);
 
@@ -184,8 +192,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function has(string $id): bool
     {
-        return (isset($this->definitions[$id]) || isset($this->providers[$id]))
-            || ($this->resolver->has($id) || isset($this->aliases[$id]));
+        return isset($this->definitions[$id]) || ($this->resolver->has($id) || isset($this->aliases[$id]));
     }
 
     /**
@@ -250,6 +257,7 @@ class ContainerBuilder extends AbstractContainer
      * - strictType => true,
      * - printToString => true,
      * - shortArraySyntax => true,
+     * - spacingLevel => 8,
      * - containerClass => CompiledContainer,
      *
      * @throws \ReflectionException
@@ -294,16 +302,16 @@ class ContainerBuilder extends AbstractContainer
      */
     protected function doCreate(string $id, $service, bool $build = false)
     {
-        if ($service instanceof RawDefinition) {
-            return $this->builder->val($service());
-        }
-
         if (isset($this->loading[$id])) {
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
 
         try {
             $this->loading[$id] = true;
+
+            if ($service instanceof RawDefinition) {
+                return $build ? $service->build($id, $this->builder) : $this->builder->val($service());
+            }
 
             // Strict circular reference check ...
             $compiled = $service->build($this->builder);
@@ -319,7 +327,7 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * @param Definition[] $definitions
+     * @param Definition[]|RawDefinition[] $definitions
      */
     protected function doCompile(array $definitions, array $parameters, string $containerClass): \PhpParser\Builder\Class_
     {
@@ -349,7 +357,7 @@ class ContainerBuilder extends AbstractContainer
     /**
      * Analyse all definitions, build definitions and return results.
      *
-     * @param Definition[] $definitions
+     * @param Definition[]|RawDefinition[] $definitions
      */
     protected function doAnalyse(array $definitions): array
     {
@@ -357,15 +365,13 @@ class ContainerBuilder extends AbstractContainer
         \ksort($definitions);
 
         foreach ($definitions as $id => $definition) {
-            if ($definition instanceof RawDefinition) {
-                continue; // @Todo: support exporting raw service definition.
+            $serviceMethods[] = $this->doCreate($id, $definition, true);
+
+            if ($this->ignoredDefinition($definition)) {
+                continue;
             }
 
-            $serviceMethods[$id] = $this->doCreate($id, $definition, true);
-
-            if (!$definition->is(Definition::PRIVATE)) {
-                $methodsMap[$id] = (string) $definition;
-            }
+            $methodsMap[$id] = Definition::createMethod($id);
         }
 
         // Use Default Container method ...
@@ -400,6 +406,6 @@ class ContainerBuilder extends AbstractContainer
      */
     private function ignoredDefinition($def): bool
     {
-        return $def instanceof RawDefinition || ($def instanceof Definition && $def->is(Definition::PRIVATE));
+        return $def instanceof Definition && !$def->isPublic();
     }
 }

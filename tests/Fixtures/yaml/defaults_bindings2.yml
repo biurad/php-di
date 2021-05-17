@@ -1,0 +1,6 @@
+services:
+    _defaults:
+        bind: [ quz: overridden ]
+
+    bar:
+        class: Rade\DI\Tests\Fixtures\Bar

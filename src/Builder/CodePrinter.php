@@ -40,9 +40,10 @@ COMMENT;
     public static function print(array $stmts, array $options = []): string
     {
         $printer = new self(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
+        $spacing = "{\n" . $nl = str_repeat(' ', $options['spacingLevel'] ?? 8) . "\n"; // Replace tabs with spacing
 
         // Resolve whitespace ...
-        return \str_replace(["{\n        \n", "\n\n}"], ["{\n", "\n}\n"], $printer->prettyPrintFile($stmts));
+        return \str_replace([$spacing, "\n\n}", $nl], ["{\n", "\n}\n", "\n"], $printer->prettyPrintFile($stmts));
     }
 
     protected function pStmt_Return(\PhpParser\Node\Stmt\Return_ $node): string

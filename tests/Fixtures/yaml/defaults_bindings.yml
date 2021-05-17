@@ -1,0 +1,11 @@
+services:
+    _defaults:
+        bind:
+            - quz: value
+            - foo: [value]
+
+    bar:
+        class: Rade\DI\Tests\Fixtures\Bar
+
+    foo:
+        class: stdClass

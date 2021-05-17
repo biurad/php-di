@@ -1,0 +1,6 @@
+services:
+    foo_service:
+        entity:    FooClass
+        tags:
+          # tag name is not a string
+          - [ 23: ~ ]

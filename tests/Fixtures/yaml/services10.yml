@@ -1,0 +1,11 @@
+parameters:
+    project.parameter.foo: BAR
+
+service_providers:
+    - Rade\DI\Tests\Fixtures\ProjectServiceProvider:
+        project:
+            test: '%project.parameter.foo%'
+
+services:
+    project.service.foo:
+        entity: BAR
