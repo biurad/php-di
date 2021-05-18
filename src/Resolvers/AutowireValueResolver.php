@@ -46,7 +46,7 @@ class AutowireValueResolver
         try {
             return $providedParameters[$position]
                 ?? $providedParameters[$paramName]
-                ?? $this->autowireArgument($parameter, $resolver);
+                ?? $this->autowireArgument($parameter, $resolver, $providedParameters);
         } finally {
             unset($providedParameters[$position], $providedParameters[$paramName]);
         }
@@ -55,18 +55,24 @@ class AutowireValueResolver
     /**
      * Resolves missing argument using autowiring.
      *
+     * @param array<int|string,mixed> $providedParameters
+     *
      * @throws ContainerResolutionException
      *
      * @return mixed
      */
-    private function autowireArgument(\ReflectionParameter $parameter, callable $getter)
+    private function autowireArgument(\ReflectionParameter $parameter, callable $getter, array $providedParameters)
     {
         $types = Reflection::getParameterTypes($parameter);
         $invalid = [];
 
         foreach ($types as $typeName) {
+            if ('null' === $typeName) {
+                continue;
+            }
+
             try {
-                return $getter($typeName, !$parameter->isVariadic());
+                return $providedParameters[$typeName] ?? $getter($typeName, !$parameter->isVariadic());
             } catch (NotFoundServiceException $e) {
                 $res = null;
 
