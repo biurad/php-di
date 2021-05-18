@@ -175,9 +175,14 @@ class AutowireValueResolver
      */
     private function getDefaultValue(\ReflectionParameter $parameter, array $invalid)
     {
-        if (($parameter->isOptional() || $parameter->allowsNull()) || $parameter->isDefaultValueAvailable()) {
-            // optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
-            return $parameter->isDefaultValueAvailable() ? Reflection::getParameterDefaultValue($parameter) : null;
+        // optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
+        if ($parameter->isOptional() && $parameter->isDefaultValueAvailable()) {
+            return \PHP_VERSION_ID < 80000 ? Reflection::getParameterDefaultValue($parameter) : null;
+        }
+
+        // Return null if = i.e. doSomething(?$hello, $value) ...
+        if ($parameter->allowsNull()) {
+            return null;
         }
 
         $desc = Reflection::toString($parameter);
