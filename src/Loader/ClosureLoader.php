@@ -36,6 +36,8 @@ class ClosureLoader extends Loader
 
     public function __construct(AbstractContainer $container)
     {
+        parent::__construct();
+
         $this->container = $container;
     }
 
