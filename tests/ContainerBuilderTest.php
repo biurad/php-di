@@ -125,6 +125,19 @@ class ContainerBuilderTest extends TestCase
         ], array_intersect_key(\error_get_last(), ['type' => true, 'message' => true]));
     }
 
+    public function testDefinitionClassWithProvidedParameter(): void
+    {
+        $builder = new ContainerBuilder();
+        \class_alias(Fixtures\Service::class, 'NonExistent');
+
+        $builder->set('bar', Fixtures\Bar::class)->args(['NonExistent' => new Statement('NonExistent'), 'value', 'foo' => [1, 2, 3]]);
+
+        $this->assertEquals(
+            \file_get_contents(\sprintf(self::COMPILED . '/service10_%s.phpt', PHP_VERSION_ID >= 80000 ? 1 : 2)),
+            $builder->compile()
+        );
+    }
+
     public function testDefinition(): void
     {
         $builder = new ContainerBuilder();
@@ -267,7 +280,7 @@ class ContainerBuilderTest extends TestCase
         $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> c -> a".');
         $this->expectException(CircularReferenceException::class);
 
-        $builder->compile();
+        $builder->get('a');
     }
 
     public function testIndirectDeepCircularReference(): void
@@ -281,7 +294,7 @@ class ContainerBuilderTest extends TestCase
         $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> c -> a".');
         $this->expectException(CircularReferenceException::class);
 
-        $builder->compile();
+        $builder->get('a');
     }
 
     public function testDeepCircularReference(): void
@@ -295,7 +308,7 @@ class ContainerBuilderTest extends TestCase
         $this->expectExceptionMessage('Circular reference detected for service "b", path: "a -> b -> c -> b".');
         $this->expectException(CircularReferenceException::class);
 
-        $builder->compile();
+        $builder->get('a');
     }
 
     public function testCircularReferenceWithCallableAlike(): void
@@ -308,7 +321,7 @@ class ContainerBuilderTest extends TestCase
         $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> a".');
         $this->expectException(CircularReferenceException::class);
 
-        $builder->compile();
+        $builder->get('a');
     }
 
     public function testCircularReferenceChecksMethodsCalls(): void
@@ -321,7 +334,7 @@ class ContainerBuilderTest extends TestCase
         $this->expectExceptionMessage('Circular reference detected for service "a", path: "a -> b -> a".');
         $this->expectException(CircularReferenceException::class);
 
-        $builder->compile();
+        $builder->get('a');
     }
 
     public function testCircularReferenceChecksLazyServices(): void
@@ -335,7 +348,7 @@ class ContainerBuilderTest extends TestCase
         $this->expectException(CircularReferenceException::class);
 
         // Unless no arguments are provided, circular referencing is ignored
-        $builder->compile();
+        $builder->get('a');
     }
 
     public function testAlias(): void

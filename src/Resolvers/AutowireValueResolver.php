@@ -46,7 +46,7 @@ class AutowireValueResolver
         try {
             return $providedParameters[$position]
                 ?? $providedParameters[$paramName]
-                ?? $this->autowireArgument($parameter, $resolver);
+                ?? $this->autowireArgument($parameter, $resolver, $providedParameters);
         } finally {
             unset($providedParameters[$position], $providedParameters[$paramName]);
         }
@@ -55,18 +55,24 @@ class AutowireValueResolver
     /**
      * Resolves missing argument using autowiring.
      *
+     * @param array<int|string,mixed> $providedParameters
+     *
      * @throws ContainerResolutionException
      *
      * @return mixed
      */
-    private function autowireArgument(\ReflectionParameter $parameter, callable $getter)
+    private function autowireArgument(\ReflectionParameter $parameter, callable $getter, array $providedParameters)
     {
         $types = Reflection::getParameterTypes($parameter);
         $invalid = [];
 
         foreach ($types as $typeName) {
+            if ('null' === $typeName) {
+                continue;
+            }
+
             try {
-                return $getter($typeName, !$parameter->isVariadic());
+                return $providedParameters[$typeName] ?? $getter($typeName, !$parameter->isVariadic());
             } catch (NotFoundServiceException $e) {
                 $res = null;
 
@@ -169,9 +175,14 @@ class AutowireValueResolver
      */
     private function getDefaultValue(\ReflectionParameter $parameter, array $invalid)
     {
-        if (($parameter->isOptional() || $parameter->allowsNull()) || $parameter->isDefaultValueAvailable()) {
-            // optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
-            return $parameter->isDefaultValueAvailable() ? Reflection::getParameterDefaultValue($parameter) : null;
+        // optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
+        if ($parameter->isOptional() && $parameter->isDefaultValueAvailable()) {
+            return \PHP_VERSION_ID < 80000 ? Reflection::getParameterDefaultValue($parameter) : null;
+        }
+
+        // Return null if = i.e. doSomething(?$hello, $value) ...
+        if ($parameter->allowsNull()) {
+            return null;
         }
 
         $desc = Reflection::toString($parameter);

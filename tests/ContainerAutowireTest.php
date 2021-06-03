@@ -358,16 +358,12 @@ class ContainerAutowireTest extends TestCase
         try {
             $rade['foo'] = fn (Fixtures\Service ...$service) => $service;
             $rade['foo'];
-        } catch (\TypeError $e) {
-            $message = 'Argument 1 passed to Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() ' .
-            'must be an instance of Rade\DI\Tests\Fixtures\Service, null given';
-
-            if (\PHP_VERSION_ID >= 80000) {
-                $message = 'Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}(): ' .
-                'Argument #1 must be of type Rade\DI\Tests\Fixtures\Service, null given';
-            }
-
-            $this->assertStringStartsWith($message, $e->getMessage());
+        } catch (ContainerResolutionException $e) {
+            $this->assertEquals(
+                'Parameter $service in Rade\DI\Tests\ContainerAutowireTest::Rade\DI\Tests\{closure}() typehint(s) ' .
+                '\'Rade\DI\Tests\Fixtures\Service\' not found, and no default value specified.',
+                $e->getMessage()
+            );
         }
 
         $this->expectException(ContainerResolutionException::class);

@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Resolvers;
 
 use Nette\Utils\Callback;
-use PhpParser\Node\Expr\{New_, Variable};
+use PhpParser\Node;
 use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Reference,
@@ -90,7 +90,7 @@ class Resolver implements ContainerInterface, ResetInterface
                 continue;
             }
 
-            $parents += (\class_implements($type, false) ?: []) + [$type];
+            $parents = \array_merge($parents, (\class_implements($type, false) ?: []), [$type]);
 
             foreach ($parents as $resolved) {
                 if ($this->excluded[$resolved] ?? \in_array($id, $this->find($resolved), true)) {
@@ -111,26 +111,33 @@ class Resolver implements ContainerInterface, ResetInterface
      */
     public function autowireArguments(\ReflectionFunctionAbstract $function, array $args = []): array
     {
-        $resolvedParameters = [];
+        $resolvedParameters = $nullValuesFound = [];
         $reflectionParameters = $function->getParameters();
 
         foreach ($reflectionParameters as $parameter) {
             $resolved = $this->resolver->resolve([$this, 'get'], $parameter, $args);
 
-            if ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
-                foreach (\array_chunk($resolved, 1) as $index => [$value]) {
-                    $resolvedParameters[$index + 1] = $value;
-                }
+            if (\PHP_VERSION_ID >= 80000 && (null === $resolved && $parameter->isDefaultValueAvailable())) {
+                $nullValuesFound[] = true;
 
                 continue;
             }
 
-            $resolvedParameters[$parameter->getPosition()] = $resolved;
+            if ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
+                if ($this->isBuilder()) {
+                    $resolved = [new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, true)];
+                }
 
-            if (empty(\array_diff_key($reflectionParameters, $resolvedParameters))) {
-                // Stop traversing: all parameters are resolved
-                return $resolvedParameters;
+                $resolvedParameters = \array_merge($resolvedParameters, $resolved);
+
+                continue;
             }
+
+            if ([] !== $nullValuesFound && $this->isBuilder()) {
+                $resolved = new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, false, [], new Node\Identifier($parameter->getName()));
+            }
+
+            $resolvedParameters[$parameter->getPosition()] = $resolved;
         }
 
         return $resolvedParameters;
@@ -223,13 +230,13 @@ class Resolver implements ContainerInterface, ResetInterface
                 $services += $this->resolveServiceSubscriber(\is_int($name) ? $service : $name, $service);
             }
 
-            return !$this->isBuilder() ? new ServiceLocator($services) : new New_(ServiceLocator::class, $services);
+            return !$this->isBuilder() ? new ServiceLocator($services) : new Node\Expr\New_(ServiceLocator::class, $services);
         }
 
         if (!empty($autowired = $this->wiring[$id] ?? '')) {
             if (1 === \count($autowired)) {
                 if ('container' === $id = \reset($autowired)) {
-                    $value = !$this->isBuilder() ? $this->container : new Variable('this');
+                    $value = !$this->isBuilder() ? $this->container : new Node\Expr\Variable('this');
                 }
 
                 return $single ? $value ?? $this->container->get($id) : [$value ?? $this->container->get($id)];

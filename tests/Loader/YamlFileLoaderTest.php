@@ -635,9 +635,14 @@ class YamlFileLoaderTest extends LoaderTestCase
 
         if ($container instanceof ContainerBuilder) {
             $builder = $container->getBuilder();
+            $contents = \file_get_contents(self::$fixturesPath . '/compiled/service9.phpt');
+
+            if (\PHP_VERSION_ID >= 80000) {
+                $contents = \str_replace('$service = new Rade\DI\Tests\Fixtures\Bar(null, null, null, [], []', '$service = new Rade\DI\Tests\Fixtures\Bar(', $contents);
+            }
 
             $this->assertEquals(
-                \file_get_contents(self::$fixturesPath . '/compiled/service9.phpt'),
+                $contents,
                 CodePrinter::print([
                     $definition->build($builder)->getNode(),
                     $container->service(Fixtures\Bar::class)->build($builder)->getNode(),
@@ -729,8 +734,7 @@ class YamlFileLoaderTest extends LoaderTestCase
         $this->assertEquals([null, 'apiKey' => 'ABCD'], $container->service(Fixtures\NamedArgumentsDummy::class)->getParameters());
         $this->assertEquals(['apiKey' => 'ABCD', 'c' => null], $container->service('another_one')->getParameters());
 
-        $this->assertEquals(
-            <<<'PHP'
+        $contents = <<<'PHP'
 <?php
 
 protected function getRadeDITestsFixturesNamedArgumentsDummy(): Rade\DI\Tests\Fixtures\NamedArgumentsDummy
@@ -746,7 +750,18 @@ protected function getAnotherOne(): Rade\DI\Tests\Fixtures\NamedArgumentsDummy
     return self::$services['another_one'] = $service;
 }
 
-PHP,
+PHP;
+
+        if (\PHP_VERSION_ID >= 80000) {
+            $contents = \str_replace(
+                'new Rade\DI\Tests\Fixtures\NamedArgumentsDummy(null, \'ABCD\', null, $this, [])',
+                'new Rade\DI\Tests\Fixtures\NamedArgumentsDummy(null, \'ABCD\', null, $this)',
+                $contents
+            );
+        }
+
+        $this->assertEquals(
+            $contents,
             CodePrinter::print([
                 $container->service(Fixtures\NamedArgumentsDummy::class)->build($builder)->getNode(),
                 $container->service('another_one')->build($builder)->getNode(),

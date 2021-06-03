@@ -379,6 +379,10 @@ trait ResolveTrait
                 $value = $value();
             }
 
+            if ($compile && (\is_string($value) && Validators::isType($value))) {
+                $value = $this->builder->constFetch($value . '::class');
+            }
+
             $arguments[$key] = !$compile ? $value : $this->builder->val($value);
         }
 
