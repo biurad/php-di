@@ -35,6 +35,8 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 class Container extends AbstractContainer implements \ArrayAccess
 {
+    public const IGNORE_FROM_FREEZING = 2;
+
     protected array $types = [
         ContainerInterface::class => ['container'],
         Container::class => ['container'],
@@ -322,20 +324,22 @@ class Container extends AbstractContainer implements \ArrayAccess
     protected function getService(string $id, int $invalidBehavior)
     {
         if (!isset($this->keys[$id]) && $this->resolver->has($id)) {
-            return $this->resolver->get($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+            return $this->resolver->get($id, self::IGNORE_MULTIPLE_SERVICE !== $invalidBehavior);
         }
 
         if (!\is_callable($definition = $this->values[$id] ?? $this->createNotFound($id, true))) {
-            $this->frozen[$id] = true;
+            if (self::IGNORE_FROM_FREEZING !== $invalidBehavior) {
+                $this->frozen[$id] = true;
 
-            return self::$services[$id] = $definition; // If definition is frozen, cache it ...
+                return self::$services[$id] = $definition; // If definition is frozen, cache it ...
+            }
+
+            return $this->values[$id] = $definition;
         }
 
         if ($definition instanceof Definition) {
             if (!$definition->isPublic()) {
-                throw new ContainerResolutionException(
-                    \sprintf('Using service definition for "%s" as private is not supported.', $id)
-                );
+                throw new ContainerResolutionException(\sprintf('Using service definition for "%s" as private is not supported.', $id));
             }
 
             if ($definition->isFactory()) {
@@ -343,7 +347,9 @@ class Container extends AbstractContainer implements \ArrayAccess
             }
         }
 
-        return $this->values[$id] = self::$services[$id] = $this->doCreate($id, $definition, true);
+        $definition = $this->doCreate($id, $definition, self::IGNORE_FROM_FREEZING !== $invalidBehavior);
+
+        return $this->values[$id] = self::IGNORE_FROM_FREEZING !== $invalidBehavior ? self::$services[$id] = $definition : $definition;
     }
 
     /**

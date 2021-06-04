@@ -123,6 +123,17 @@ class ContainerTest extends TestCase
         $this->assertTrue($rade->initialized('foo'));
     }
 
+    public function testServiceIgnoresFreezing(): void
+    {
+        $rade = new Container();
+        $rade['foo'] = new Fixtures\Service();
+        $rade['bar'] = fn (Container $container) => $container->get('foo', Container::IGNORE_FROM_FREEZING);
+
+        $this->assertSame($rade->get('foo', Container::IGNORE_FROM_FREEZING), $rade->get('bar', Container::IGNORE_FROM_FREEZING));
+        $this->assertFalse($rade->initialized('foo'));
+        $this->assertFalse($rade->initialized('bar'));
+    }
+
     public function testServicesShouldBeSame(): void
     {
         $rade = new Container();
