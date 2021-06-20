@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI\Loader;
 
 use Rade\DI\{AbstractContainer, Container, ContainerBuilder};
-use Rade\DI\Config\ConfigurationInterface;
 use Rade\DI\Services\ServiceProviderInterface;
 
 /**
