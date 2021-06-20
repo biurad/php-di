@@ -166,7 +166,7 @@ class FooProvider implements Rade\DI\ServiceProviderInterface
     /**
      * {@inheritdoc}
      */
-    public function register(Container $app)
+    public function register(AbstractContainer $app, array $configs = []): void
     {
         // register some services and parameters
         // on $app
