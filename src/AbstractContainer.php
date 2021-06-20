@@ -166,34 +166,25 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     final public function register(ServiceProviderInterface $provider, array $config = []): self
     {
-        $this->providers[\get_class($provider)] = $provider;
-
-        if ($provider instanceof Config\ConfigurationInterface) {
-            $id = $provider->getId();
-
-            if ($provider instanceof ConfigurationInterface) {
-                if (!isset($config[$id])) {
-                    $config = [$id => $config];
-                }
-
-                $config = (new Processor())->processConfiguration($provider, $config);
-            }
-
-            $provider->setConfiguration($config[$id] ?? $config, $this);
-        }
-
         // If service provider depends on other providers ...
         if ($provider instanceof Services\DependedInterface) {
             foreach ($provider->dependencies() as $dependency) {
-                $dependency = $this->resolver->resolveClass($dependency);
+                $dependencyProvider = $this->resolver->resolveClass($dependency);
 
-                if ($dependency instanceof ServiceProviderInterface) {
-                    $this->register($dependency);
+                if ($dependencyProvider instanceof ServiceProviderInterface) {
+                    $this->register($dependencyProvider, $config[$dependency] ?? []);
                 }
             }
         }
 
-        $provider->register($this);
+        $this->providers[$providerId = \get_class($provider)] = $provider;
+
+        // If symfony's config is present ...
+        if ($provider instanceof ConfigurationInterface) {
+            $config = (new Processor())->processConfiguration($provider, [$providerId => $config[$providerId] ?? $config]);
+        }
+
+        $provider->register($this, $config[$providerId] ?? $config);
 
         return $this;
     }

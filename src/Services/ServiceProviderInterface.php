@@ -33,5 +33,5 @@ interface ServiceProviderInterface
      *
      * @param Container|ContainerBuilder $container A container instance
      */
-    public function register(AbstractContainer $container): void;
+    public function register(AbstractContainer $container, array $configs = []): void;
 }

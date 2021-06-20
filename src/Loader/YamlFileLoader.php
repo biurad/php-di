@@ -19,7 +19,6 @@ namespace Rade\DI\Loader;
 
 use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;
-use Rade\DI\Config\ConfigurationInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
@@ -257,11 +256,7 @@ class YamlFileLoader extends FileLoader
                 $extension = (new \ReflectionClass($provider))->newInstanceArgs($args ?? []);
             }
 
-            if (!\is_array($config ?? null)) {
-                $config = $extension instanceof ConfigurationInterface ? (array) $content[$extension->getId()] ?? [] : [];
-            }
-
-            $this->container->register($extension, $config ?? []);
+            $this->container->register($extension, $config ?? $content[$provider] ?? []);
         }
 
         unset($content['service_providers']);

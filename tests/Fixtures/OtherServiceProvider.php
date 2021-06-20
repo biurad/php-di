@@ -27,10 +27,11 @@ class OtherServiceProvider implements ServiceProviderInterface
     /**
      * {@inheritdoc}
      */
-    public function register(AbstractContainer $container): void
+    public function register(AbstractContainer $container, array $configs = []): void
     {
         if ($container instanceof Container) {
             $container['other'] = $container;
+            $container->parameters['other'] = $configs;
 
             return;
         }

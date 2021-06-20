@@ -23,28 +23,19 @@ use Rade\DI\Builder\PrependInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Definition;
-use Rade\DI\Config\AbstractConfiguration;
 use Rade\DI\Services\ServiceProviderInterface;
 use Rade\DI\Services\DependedInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider extends AbstractConfiguration implements ConfigurationInterface, DependedInterface, ServiceProviderInterface, PrependInterface
+class RadeServiceProvider implements ConfigurationInterface, DependedInterface, ServiceProviderInterface, PrependInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function getId(): string
-    {
-        return 'rade_di';
-    }
-
     /**
      * {@inheritdoc}
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder($this->getId());
+        $treeBuilder = new TreeBuilder(__CLASS__);
 
         $treeBuilder->getRootNode()
             ->children()
@@ -53,24 +44,6 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
         ;
 
         return $treeBuilder;
-    }
-
-    public function setConfiguration(array $config, AbstractContainer $container): void
-    {
-        try {
-            $this->getConfiguration();
-        } catch (\RuntimeException $e) {
-            Assert::assertEquals(
-                'Configurations for this provider is empty. See "setConfiguration" method.',
-                $e->getMessage()
-            );
-        }
-
-        parent::setConfiguration($config, $container);
-
-        if ($container instanceof AbstractContainer) {
-            $container->parameters[$this->getId()] = $this->getConfiguration();
-        }
     }
 
     /**
@@ -84,8 +57,10 @@ class RadeServiceProvider extends AbstractConfiguration implements Configuration
     /**
      * {@inheritdoc}
      */
-    public function register(AbstractContainer $container): void
+    public function register(AbstractContainer $container, array $configs = []): void
     {
+        $container->parameters['rade_di'] = $configs;
+
         if ($container instanceof Container) {
             $container['param'] = $container->raw('value');
             $container['factory'] = $container->definition(Service::class, Definition::FACTORY);

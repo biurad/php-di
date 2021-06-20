@@ -18,27 +18,18 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Fixtures;
 
 use Rade\DI\AbstractContainer;
-use Rade\DI\Config\AbstractConfiguration;
 use Rade\DI\Container;
 use Rade\DI\Services\ServiceProviderInterface;
 
-class ProjectServiceProvider extends AbstractConfiguration implements ServiceProviderInterface
+class ProjectServiceProvider implements ServiceProviderInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function getId(): string
+    public function register(AbstractContainer $container, array $configs = []): void
     {
-        return 'project';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function setConfiguration(array $config, AbstractContainer $container): void
-    {
-        $container->parameters['project.configs'] = $config;
-        $config = \array_filter($config);
+        $container->parameters['project.configs'] = $configs;
+        $config = \array_filter($configs);
 
         if ($container instanceof Container) {
             $entity = $container->definition('FooClass');
@@ -49,12 +40,5 @@ class ProjectServiceProvider extends AbstractConfiguration implements ServicePro
 
         $container->set('project.service.foo', $entity ?? 'FooClass');
         $container->parameters['project.parameter.foo'] = $config['foo'] ?? 'foobar';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function register(AbstractContainer $container): void
-    {
     }
 }
