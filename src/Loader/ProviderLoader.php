@@ -51,11 +51,7 @@ class ProviderLoader
     public function load(AbstractContainer $container)
     {
         foreach ($this->providers as $provider) {
-            if ($provider instanceof ConfigurationInterface) {
-                $config = $this->config[\get_class($provider)] ?? [];
-            }
-
-            $container->register($provider, $config ?? []);
+            $container->register($provider, $this->config[\get_class($provider)] ?? []);
         }
 
         return $container;
