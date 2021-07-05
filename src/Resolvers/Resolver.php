@@ -111,14 +111,14 @@ class Resolver implements ContainerInterface, ResetInterface
      */
     public function autowireArguments(\ReflectionFunctionAbstract $function, array $args = []): array
     {
-        $resolvedParameters = $nullValuesFound = [];
-        $reflectionParameters = $function->getParameters();
+        $resolvedParameters = [];
+        $nullValuesFound = 0;
 
-        foreach ($reflectionParameters as $parameter) {
+        foreach ($function->getParameters() as $parameter) {
             $resolved = $this->resolver->resolve([$this, 'get'], $parameter, $args);
 
             if (\PHP_VERSION_ID >= 80000 && (null === $resolved && $parameter->isDefaultValueAvailable())) {
-                $nullValuesFound[] = true;
+                ++$nullValuesFound;
 
                 continue;
             }
@@ -133,7 +133,7 @@ class Resolver implements ContainerInterface, ResetInterface
                 continue;
             }
 
-            if ([] !== $nullValuesFound && $this->isBuilder()) {
+            if ($nullValuesFound > 0 && $this->isBuilder()) {
                 $resolved = new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, false, [], new Node\Identifier($parameter->getName()));
             }
 
