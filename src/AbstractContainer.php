@@ -241,6 +241,22 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * Checks if a service definition has been aliased.
+     *
+     * @param string $id The registered service id
+     */
+    public function aliased(string $id): bool
+    {
+        foreach ($this->aliases as $serviceId) {
+            if ($id === $serviceId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Assign a set of tags to service(s).
      *
      * @param string[]|string         $serviceIds
