@@ -217,6 +217,7 @@ class ContainerTest extends TestCase
         $rade->alias('baz', 'foo');
         $rade->alias('bat', 'baz');
 
+        $this->assertTrue($rade->aliased('foo'));
         $this->assertSame('bar', $rade['foo']);
         $this->assertSame('bar', $rade['baz']);
         $this->assertSame('bar', $rade['bat']);
