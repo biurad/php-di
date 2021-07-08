@@ -81,7 +81,7 @@ $storage = new SessionStorage('SESSION_ID');
 $session = new Session($storage);
 ```
 
-Container supports reuseable service instance. This is means, a registered service which is resolved is frozen and object's id doesn't change throughout your application using Rade DI.
+Container supports reuseable service instance. This is means, a registered service which is resolved, is frozen and object's id does not change throughout your application using Rade DI.
 
 Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's **set** method. By default, registering services with `ArrayAccess` implementation are all autowired.
 
@@ -112,7 +112,7 @@ $container->extend('session_storage', function ($storage) {
 
 The first argument is the name of the service to extend, the second a function that gets access to the object instance and the container.
 
-Also Rade has a alias and tagging support for services. If you want to add a different name to a registered service, use `alias` method.
+Also Rade has aliasing and tagging support for services. If you want to add a different name to a registered service, use `alias` method.
 
 ```php
 $container['film'] = new Movie('S1', 'EP202');
@@ -156,7 +156,7 @@ foreach ($container->tagged('process') as [$process, $enabled]) {
 }
 ```
 
-Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so must. Just create a service provider for your project, and you done.
+Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so much. Using service providers in your project, saves you alot.
 
 ```php
 use Rade\DI\Container;
@@ -166,10 +166,10 @@ class FooProvider implements Rade\DI\ServiceProviderInterface
     /**
      * {@inheritdoc}
      */
-    public function register(AbstractContainer $app, array $configs = []): void
+    public function register(AbstractContainer $container, array $configs = []): void
     {
         // register some services and parameters
-        // on $app
+        // on $container
     }
 }
 ```
@@ -180,7 +180,9 @@ Then, register the provider on a Container:
 $container->register(new FooProvider());
 ```
 
-Service provider support [Symfony's config component][symfony-config] for writing configuration for service definitions found in a provider. to be able to achieve that, implement service provider class to `Rade\DI\Services\ConfigurationInterface`, add a method `getName` returning a string of a unique name that will be used to resolve configs, after which a `setConfiguration` method is needed to receive the resolved configurations, then a `getConfiguration` method to return the configurations resolved.
+Service providers support [Symfony's config component][symfony-config] for writing configuration for service definitions found in a provider. Implement the service provider class to `Symfony\Component\Config\Definition\ConfigurationInterface`.
+
+Writing configurations for a service provider by default, the service provider's class name, becomes the key pointing to the require config data. Want to use a custom key name, set add a static **getId** method returning your custom key name.
 
 >Using [Symfony's config component][symfony-config] + `Rade\DI\ContainerBuilder` class is highly recommended.
 
@@ -188,7 +190,7 @@ Service provider support [Symfony's config component][symfony-config] for writin
 $ composer require symfony/config
 ```
 
-Also the `Rade\DI\ServiceLocator` is intended to solve this problem by giving access to a set of predefined services while instantiating them only when actually needed.
+Also the `Rade\DI\ServiceLocator` class is intended of setting predefined services while instantiating them only when actually needed.
 
 For service locators, Rade uses [symfony's service contracts](https://github.com/symfony/service-contracts).
 
