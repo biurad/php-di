@@ -373,7 +373,7 @@ class ContainerTest extends TestCase
         $this->assertSame($rade, $rade->register($this->getMockBuilder(ServiceProviderInterface::class)->getMock()));
 
         $rade->register($provider1 = new Fixtures\RadeServiceProvider(), [
-            Fixtures\RadeServiceProvider::class => ['hello' => 'Divine'],
+            'rade_provider' => ['hello' => 'Divine'],
             Fixtures\OtherServiceProvider::class => ['great']
         ]);
         $this->assertInstanceOf(Fixtures\RadeServiceProvider::class, $provider2 = $rade->provider(Fixtures\RadeServiceProvider::class));

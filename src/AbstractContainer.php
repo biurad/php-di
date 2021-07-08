@@ -19,9 +19,7 @@ namespace Rade\DI;
 
 use Nette\Utils\Helpers;
 use Psr\Container\ContainerInterface;
-use Rade\DI\Exceptions\{
-    CircularReferenceException, ContainerResolutionException, NotFoundServiceException
-};
+use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Services\ServiceProviderInterface;
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
 use Symfony\Contracts\Service\ResetInterface;
@@ -168,16 +166,21 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     {
         // If service provider depends on other providers ...
         if ($provider instanceof Services\DependedInterface) {
-            foreach ($provider->dependencies() as $dependency) {
+            foreach ($provider->dependencies() as $name => $dependency) {
                 $dependencyProvider = $this->resolver->resolveClass($dependency);
 
                 if ($dependencyProvider instanceof ServiceProviderInterface) {
-                    $this->register($dependencyProvider, $config[$dependency] ?? []);
+                    $this->register($dependencyProvider, $config[!\is_numeric($name) ? $name : $dependency] ?? []);
                 }
             }
         }
 
         $this->providers[$providerId = \get_class($provider)] = $provider;
+        
+        // Override $providerId if method exists ...
+        if (\method_exists($provider, 'getId')) {
+            $providerId = $providerId::getId();
+        }
 
         // If symfony's config is present ...
         if ($provider instanceof ConfigurationInterface) {

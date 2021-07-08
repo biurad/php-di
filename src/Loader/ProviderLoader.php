@@ -48,10 +48,11 @@ class ProviderLoader
      *
      * @return Container|ContainerBuilder
      */
-    public function load(AbstractContainer $container)
+    public function load(AbstractContainer $container): AbstractContainer
     {
         foreach ($this->providers as $provider) {
-            $container->register($provider, $this->config[\get_class($provider)] ?? []);
+            $id = \method_exists($provider, 'getId') ? $provider::getId() : \get_class($provider);
+            $container->register($provider, $this->config[$id] ?? []);
         }
 
         return $container;

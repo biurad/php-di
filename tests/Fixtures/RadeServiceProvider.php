@@ -30,12 +30,17 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 class RadeServiceProvider implements ConfigurationInterface, DependedInterface, ServiceProviderInterface, PrependInterface
 {
+    public static function getId(): string
+    {
+        return 'rade_provider';
+    }
+
     /**
      * {@inheritdoc}
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder(__CLASS__);
+        $treeBuilder = new TreeBuilder(self::getId());
 
         $treeBuilder->getRootNode()
             ->children()

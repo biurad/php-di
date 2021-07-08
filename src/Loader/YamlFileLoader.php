@@ -243,7 +243,7 @@ class YamlFileLoader extends FileLoader
                 $config = $this->resolveServices($value['config'] ?? [], $path);
             } elseif (\is_array($provider)) {
                 $provider = \key($value = $provider);
-                $config = $this->resolveServices($value[$provider] ?? [], $path);
+                $config = $this->resolveServices($value[\method_exists($provider, 'getId') ? $provider::getId() : $provider] ?? [], $path);
             }
 
             if (!\is_string($provider)) {
