@@ -176,7 +176,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         }
 
         $this->providers[$providerId = \get_class($provider)] = $provider;
-        
+
         // Override $providerId if method exists ...
         if (\method_exists($provider, 'getId')) {
             $providerId = $providerId::getId();
