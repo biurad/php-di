@@ -33,5 +33,8 @@ parameters:
             message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Access to an undefined property PhpParser\\\\Node\\\\Expr\\:\\:\\$dim|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\).$#"
             path: src/Traits/ResolveTrait.php
         -
+            message: "#^Call to an undefined static method Rade\\\\DI\\\\Services\\\\ServiceProviderInterface\\:\\:getId\\(\\).$#"
+            path: src/AbstractContainer.php
+        -
             message: "#^Variable \\$excludePattern might not be defined.$#"
             path: src/Loader/FileLoader.php
