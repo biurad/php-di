@@ -59,11 +59,11 @@ jobs:
         run: vendor/bin/phpcs
 
       - name: Test with Phpunit
-        run: vendor/bin/phpunit --coverage-text --coverage-clover=coverage.clover
+        run: vendor/bin/phpunit --coverage-clover=clover.xml
 
       - name: Upload Test Coverage
         run: |
-          bash <(curl -s https://codecov.io/bash) -f coverage.clover
+          bash <(curl -s https://codecov.io/bash) -f clover.xml
           ./cc-test-reporter after-build --coverage-input-type clover
 
       - name: Test with Phpstan
