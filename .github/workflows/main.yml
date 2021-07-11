@@ -50,6 +50,7 @@ jobs:
           composer install --no-progress --optimize-autoloader $composer_flags
 
       - name: Setup Code Climate test-reporter
+        if: matrix.operating-system == ubuntu-latest
         run: |
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
           chmod +x ./cc-test-reporter
@@ -59,9 +60,10 @@ jobs:
         run: vendor/bin/phpcs
 
       - name: Test with Phpunit
-        run: vendor/bin/phpunit --coverage-clover=clover.xml
+        run: vendor/bin/phpunit --coverage-text --coverage-clover=clover.xml
 
       - name: Upload Test Coverage
+        if: matrix.operating-system == ubuntu-latest
         run: |
           bash <(curl -s https://codecov.io/bash) -f clover.xml
           ./cc-test-reporter after-build --coverage-input-type clover
