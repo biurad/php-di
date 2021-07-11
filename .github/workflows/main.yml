@@ -68,7 +68,7 @@ jobs:
         if: matrix.operating-system == 'ubuntu-latest'
         run: |
           bash <(curl -s https://codecov.io/bash) -f clover.xml
-          if [ ${{ matrix.php-versions == 8.0 }} ]; then ./cc-test-reporter after-build --coverage-input-type clover; fi;
+          if [ ${{ matrix.php-versions }} == 8.0 ]; then ./cc-test-reporter after-build --coverage-input-type clover; fi;
 
       - name: Test with Phpstan
         run: vendor/bin/phpstan analyse
