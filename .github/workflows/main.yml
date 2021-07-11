@@ -26,16 +26,12 @@ jobs:
           coverage: xdebug
           tools: composer:v2
 
-      - name: Get composer cache directory
-        id: composercache
+      - name: Get Composer Cache Directory
+        id: composer-cache
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
-
-      - name: Cache composer dependencies
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         with:
-          path: ${{ steps.composercache.outputs.dir }}
-          # Use composer.json for key, if composer.lock is not committed.
-          # key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.json') }}
+          path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
@@ -43,21 +39,19 @@ jobs:
         shell: bash
         run: |
           composer_flags=""
-
-          if [ ${{ matrix.php-versions }} == 8.1 ]; then
-              composer_flags="--ignore-platform-req=php"
-          fi
+          if [ ${{ matrix.php-versions }} == 8.1 ]; then composer_flags="--ignore-platform-req=php"; fi;
 
           composer install --no-progress --optimize-autoloader $composer_flags
 
       - name: Setup Code Climate test-reporter
-        if: ${{ matrix.operating-system == 'ubuntu-latest' }}
+        if: ${{ matrix.operating-system == 'ubuntu-latest' }} && ${{ matrix.php-versions == 8.0 }}
         run: |
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
           chmod +x ./cc-test-reporter
           ./cc-test-reporter before-build
 
       - name: Check Coding Standard
+        if: ${{ matrix.operating-system != 'windows-latest' }}
         run: vendor/bin/phpcs
 
       - name: Test with Phpunit
@@ -67,7 +61,7 @@ jobs:
         if: ${{ matrix.operating-system == 'ubuntu-latest' }}
         run: |
           bash <(curl -s https://codecov.io/bash) -f clover.xml
-          ./cc-test-reporter after-build --coverage-input-type clover
+          if [ ${{ matrix.php-versions == 8.0 }} ]; then ./cc-test-reporter after-build --coverage-input-type clover; fi;
 
       - name: Test with Phpstan
         run: vendor/bin/phpstan analyse
