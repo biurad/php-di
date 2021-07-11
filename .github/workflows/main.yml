@@ -40,6 +40,7 @@ jobs:
           restore-keys: ${{ runner.os }}-composer-
 
       - name: Install dependencies
+        shell: bash
         run: |
           composer_flags=""
 
