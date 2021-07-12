@@ -104,20 +104,13 @@ class Resolver
             }
 
             if ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
-                if ($this->isBuilder()) {
-                    $resolved = [new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, true)];
-                }
-
                 $resolvedParameters = \array_merge($resolvedParameters, $resolved);
 
                 continue;
             }
 
-            if ($nullValuesFound > 0 && $this->isBuilder()) {
-                $resolved = new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, false, [], new Node\Identifier($parameter->getName()));
-            }
-
-            $resolvedParameters[$parameter->getPosition()] = $resolved;
+            $position = \PHP_VERSION_ID >= 80000 && $nullValuesFound > 0 ? $parameter->getName() : $parameter->getPosition();
+            $resolvedParameters[$position] = $resolved;
         }
 
         return $resolvedParameters;
