@@ -282,12 +282,27 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     protected function doGet(string $id, int $invalidBehavior)
     {
-        if (!isset($this->keys[$id]) && $this->resolver->has($id)) {
-            return $this->resolver->get($id, self::IGNORE_MULTIPLE_SERVICE !== $invalidBehavior);
+        if (isset($this->raw[$id])) {
+            $rawService = $this->raw[$id];
+            unset($this->raw[$id]);
+
+            return self::$services[$id] = $rawService();
         }
 
-        if (!\is_callable($definition = $this->values[$id] ?? $this->createNotFound($id, true))) {
-            if (self::IGNORE_FROM_FREEZING !== $invalidBehavior) {
+        if (isset($this->values[$id])) {
+            if (\is_callable($definition = $this->values[$id])) {
+                if ($definition instanceof Definition) {
+                    if (!$definition->isPublic()) {
+                        throw new ContainerResolutionException(\sprintf('Using service definition for "%s" as private is not supported.', $id));
+                    }
+
+                    if ($definition->isFactory()) {
+                        return $this->doCreate($id, $definition);
+                    }
+                }
+
+                $definition = $this->doCreate($id, $definition, self::IGNORE_FROM_FREEZING !== $invalidBehavior);
+            } elseif (self::IGNORE_FROM_FREEZING !== $invalidBehavior) {
                 $this->frozen[$id] = true;
 
                 return self::$services[$id] = $definition; // If definition is frozen, cache it ...
@@ -296,19 +311,19 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $this->values[$id] = $definition;
         }
 
-        if ($definition instanceof Definition) {
-            if (!$definition->isPublic()) {
-                throw new ContainerResolutionException(\sprintf('Using service definition for "%s" as private is not supported.', $id));
-            }
+        if (isset($this->types[$id])) {
+            return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+        }
 
-            if ($definition->isFactory()) {
-                return $this->doCreate($id, $definition);
+        if (\class_exists($id)) {
+            try {
+                return $this->resolver->resolveClass($id);
+            } catch (ContainerResolutionException $e) {
+                // Only resolves class string and not throw it's error.
             }
         }
 
-        $definition = $this->doCreate($id, $definition, self::IGNORE_FROM_FREEZING !== $invalidBehavior);
-
-        return $this->values[$id] = self::IGNORE_FROM_FREEZING !== $invalidBehavior ? self::$services[$id] = $definition : $definition;
+        throw $this->createNotFound($id);
     }
 
     /**
