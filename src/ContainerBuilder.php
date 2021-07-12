@@ -17,7 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr\ArrayItem, Stmt\Declare_, Stmt\DeclareDeclare};
+use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\Variable, Expr\StaticPropertyFetch};
+use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
@@ -34,6 +35,8 @@ use Symfony\Component\Config\Resource\FileExistenceResource;
 class ContainerBuilder extends AbstractContainer
 {
     private bool $trackResources;
+
+    private int $hasPrivateServices = 0;
 
     /** @var ResourceInterface[] */
     private array $resources = [];
@@ -327,16 +330,23 @@ class ContainerBuilder extends AbstractContainer
     protected function doCompile(array $definitions, array $parameters, string $containerClass): \PhpParser\Builder\Class_
     {
         [$methodsMap, $serviceMethods, $wiredTypes] = $this->doAnalyse($definitions);
+        $compiledContainerNode = $this->builder->class($containerClass)->extend($this->containerParentClass);
 
-        return $this->builder->class($containerClass)->extend($this->containerParentClass)
+        if ($this->hasPrivateServices > 0) {
+            $compiledContainerNode
+                ->addStmt($this->builder->property('privates')->makeProtected()->setType('array')->makeStatic())
+                ->addStmt($this->builder->method('__construct')->makePublic()
+                    ->addStmt($this->builder->staticCall($this->builder->constFetch('parent'), '__construct'))
+                    ->addStmt(new Assign(new StaticPropertyFetch(new Name('self'), 'privates'), $this->builder->val([]))))
+            ;
+        }
+
+        return $compiledContainerNode
             ->setDocComment(Builder\CodePrinter::COMMENT)
             ->addStmts($serviceMethods)
             ->addStmt($this->builder->property('parameters')
                 ->makePublic()->setType('array')
                 ->setDefault($parameters))
-            ->addStmt($this->builder->property('privates')
-                ->makeProtected()->setType('array')
-                ->makeStatic()->setDefault([]))
             ->addStmt($this->builder->property('methodsMap')
                 ->makeProtected()->setType('array')
                 ->setDefault($methodsMap))
@@ -363,6 +373,8 @@ class ContainerBuilder extends AbstractContainer
             $serviceMethods[] = $this->doCreate($id, $definition, true);
 
             if ($this->ignoredDefinition($definition)) {
+                ++$this->hasPrivateServices;
+
                 continue;
             }
 
