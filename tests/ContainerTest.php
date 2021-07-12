@@ -830,8 +830,9 @@ class ContainerTest extends TestCase
 
     public function testFallbackContainer(): void
     {
+        $fallback = new AppContainer();
         $rade = new FallbackContainer();
-        $rade->fallback($fallback = new AppContainer());
+        $rade->fallback($fallback);
 
         $this->assertTrue(isset($rade[AppContainer::class]));
         $this->assertSame($fallback, $rade[AppContainer::class]);

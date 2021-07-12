@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\{ContainerExceptionInterface, ContainerInterface};
-use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -60,6 +60,14 @@ class FallbackContainer extends Container
                     return self::$services[$id] = $container->get($id);
                 } catch (ContainerExceptionInterface $e) {
                     // Fallback services not allowed to throw a PSR-11 exception.
+                }
+            }
+
+            if (\class_exists($id)) {
+                try {
+                    return $this->resolver->resolveClass($id);
+                } catch (ContainerResolutionException $e) {
+                    // Only resolves class string and not throw it's error.
                 }
             }
         }

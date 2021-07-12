@@ -389,8 +389,9 @@ class ContainerAutowireTest extends TestCase
 
     public function testThatAFallbackContainerSupportAutowiring(): void
     {
+        $fallback = new AppContainer();
         $rade = new FallbackContainer();
-        $rade->fallback($fallback = new AppContainer());
+        $rade->fallback($fallback);
         $rade['t_call'] = fn (AppContainer $app) => $app['scoped'];
 
         $this->assertInstanceOf(Definition::class, $one = $rade['scoped']);

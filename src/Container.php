@@ -315,7 +315,7 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
         }
 
-        if (\class_exists($id)) {
+        if (\class_exists($id) && !$this instanceof FallbackContainer) {
             try {
                 return $this->resolver->resolveClass($id);
             } catch (ContainerResolutionException $e) {
