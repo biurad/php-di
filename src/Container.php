@@ -183,6 +183,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         foreach ($this->values as $id => $service) {
             if (isset(self::$services[$id])) {
                 $service = self::$services[$id];
+                unset(self::$services[$id]);
             }
 
             if ($service instanceof ResetInterface) {
