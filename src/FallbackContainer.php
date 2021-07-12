@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\{ContainerExceptionInterface, ContainerInterface};
+use Rade\DI\Exceptions\NotFoundServiceException;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -51,23 +52,19 @@ class FallbackContainer extends Container
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if (null !== $service = self::$services[$id] ?? $this->fallbacks[$id] ?? null) {
-            return $service;
-        }
-
-        if ('container' === $id || \in_array($id, [Container::class, ContainerInterface::class], true)) {
-            return $this;
-        }
-
-        foreach ($this->fallbacks as $container) {
-            try {
-                return self::$services[$id] = $container->get($id);
-            } catch (ContainerExceptionInterface $e) {
-                // Fallback services not allowed to throw a PSR-11 exception.
+        try {
+            $service = $this->fallbacks[$id] ?? parent::get($id, $invalidBehavior);
+        } catch (NotFoundServiceException $e) {
+            foreach ($this->fallbacks as $container) {
+                try {
+                    return self::$services[$id] = $container->get($id);
+                } catch (ContainerExceptionInterface $e) {
+                    // Fallback services not allowed to throw a PSR-11 exception.
+                }
             }
         }
 
-        return parent::get($id, $invalidBehavior);
+        return $service ?? $this->createNotFound($id, true);
     }
 
     /**
