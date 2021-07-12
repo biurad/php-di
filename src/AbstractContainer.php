@@ -30,7 +30,6 @@ use Symfony\Contracts\Service\ResetInterface;
  * @method call($callback, array $args = [])
  *      Resolve a service definition, class string, invocable object or callable using autowiring.
  * @method resolveClass(string $class, array $args = []) Resolves a class string.
- * @method autowire(string $id, array $types) Resolve wiring classes + interfaces to service id.
  * @method exclude(string $type) Exclude an interface or class type from being autowired.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
@@ -87,15 +86,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
             case 'call':
                 return $this->resolver->resolve($args[0], $args[1] ?? []);
-
-            case 'autowire':
-                if (!$this->has($args[0])) {
-                    throw $this->createNotFound($args[0]);
-                }
-
-                $this->resolver->autowire($args[0], $args[1] ?? []);
-
-                break;
 
             case 'exclude':
                 $this->resolver->exclude($args[0]);
