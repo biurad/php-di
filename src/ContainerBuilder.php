@@ -59,6 +59,7 @@ class ContainerBuilder extends AbstractContainer
         $this->builder = new \PhpParser\BuilderFactory();
         $this->resolver = new Resolvers\Resolver($this);
 
+        self::$services = ['container' => new Variable('this')];
         $this->type('container', [ContainerInterface::class, $containerParentClass]);
     }
 
@@ -371,9 +372,6 @@ class ContainerBuilder extends AbstractContainer
 
             $methodsMap[$id] = Definition::createMethod($id);
         }
-
-        // Use Default Container method ...
-        $methodsMap['container'] = 'getServiceContainer';
 
         // Remove private aliases
         foreach ($this->aliases as $aliased => $service) {

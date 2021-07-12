@@ -30,6 +30,12 @@ class FallbackContainer extends Container
     /** @var ContainerInterface[] A list of fallback PSR-11 containers */
     protected array $fallbacks = [];
 
+    public function __construct()
+    {
+        parent::__construct();
+        $this->types += [self::class => ['container']]; // Autowire this container
+    }
+
     /**
      * Register a PSR-11 fallback container.
      */

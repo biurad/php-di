@@ -37,7 +37,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public const IGNORE_FROM_FREEZING = 2;
 
     /** @var array<string,string> internal cached services */
-    protected array $methodsMap = ['container' => 'getServiceContainer'];
+    protected array $methodsMap = [];
 
     /** @var array<string,mixed> service name => instance */
     private array $values = [];
@@ -191,6 +191,8 @@ class Container extends AbstractContainer implements \ArrayAccess
 
             $this->remove($id);
         }
+
+        self::$services['container'] = $this;
     }
 
     /**
@@ -268,16 +270,6 @@ class Container extends AbstractContainer implements \ArrayAccess
         $this->keys[$id] = true;
 
         return $this->values[$id] = $definition;
-    }
-
-    /**
-     * @internal
-     *
-     * Get the mapped service container instance
-     */
-    protected function getServiceContainer(): self
-    {
-        return self::$services['container'] = $this;
     }
 
     /**

@@ -86,7 +86,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
     public function __construct()
     {
-        self::$services = [];
+        self::$services = ['container' => $this];
         $this->resolver = new Resolver($this);
     }
 
