@@ -44,12 +44,8 @@ class Resolver implements ContainerInterface, ResetInterface
 
     private AutowireValueResolver $resolver;
 
-    /** @var array type => services */
-    private array $wiring;
-
-    public function __construct(ContainerInterface $container, array $wiring = [])
+    public function __construct(AbstractContainer $container)
     {
-        $this->wiring = $wiring;
         $this->container = $container;
         $this->resolver = new AutowireValueResolver();
     }
@@ -203,29 +199,14 @@ class Resolver implements ContainerInterface, ResetInterface
             static $services = [];
 
             foreach ($id::getSubscribedServices() as $name => $service) {
-                $services += $this->resolveServiceSubscriber(\is_int($name) ? $service : $name, $service);
+                $services += $this->resolveServiceSubscriber(!\is_numeric($name) ? $name : $service, $service);
             }
 
             return !$this->isBuilder() ? new ServiceLocator($services) : new Node\Expr\New_(ServiceLocator::class, $services);
         }
 
-        if (!empty($autowired = $this->wiring[$id] ?? '')) {
-            if (1 === \count($autowired)) {
-                if ('container' === $id = \reset($autowired)) {
-                    $value = !$this->isBuilder() ? $this->container : new Node\Expr\Variable('this');
-                }
-
-                return $single ? $value ?? $this->container->get($id) : [$value ?? $this->container->get($id)];
-            }
-
-            if (!$single) {
-                return \array_map([$this->container, 'get'], $autowired);
-            }
-            \natsort($autowired);
-
-            throw new ContainerResolutionException(
-                \sprintf('Multiple services of type %s found: %s.', $id, \implode(', ', $autowired))
-            );
+        if ($this->container->typed($id)) {
+            return $this->container->autowired($id, $single);
         }
 
         if ($this->container instanceof FallbackContainer) {
@@ -233,53 +214,6 @@ class Resolver implements ContainerInterface, ResetInterface
         }
 
         throw new NotFoundServiceException("Service of type '$id' not found. Check class name because it cannot be found.");
-    }
-
-    /**
-     * Check if service type exist.
-     *
-     * @param string $id A class or an interface name
-     */
-    public function has(string $id): bool
-    {
-        return isset($this->wiring[$id]);
-    }
-
-    /**
-     * Clears all available autowired types.
-     */
-    public function reset(): void
-    {
-        $this->wiring = [];
-    }
-
-    /**
-     * Return the list of service ids registered to a type.
-     *
-     * @param string $id A class or an interface name
-     *
-     * @return string[]
-     */
-    public function find(string $id): array
-    {
-        return $this->wiring[$id] ?? [];
-    }
-
-
-    /**
-     * Export the array containing services parent classes and interfaces.
-     */
-    public function export(): array
-    {
-        return $this->wiring;
-    }
-
-    /**
-     * Return the PS11 container aiding autowiring.
-     */
-    public function getContainer(): ContainerInterface
-    {
-        return $this->container;
     }
 
     /**
@@ -300,12 +234,12 @@ class Resolver implements ContainerInterface, ResetInterface
                 $arrayLike = $resolved;
                 $resolved = \substr($resolved, 0, -2);
 
-                if ($this->container->has($resolved) || $this->has($resolved)) {
+                if ($this->container->has($resolved) || $this->container->typed($resolved)) {
                     return $this->resolveServiceSubscriber($id, $arrayLike);
                 }
             }
 
-            $service = fn () => ($this->container->has($resolved) || $this->has($resolved)) ? $this->container->get($resolved) : null;
+            $service = fn () => ($this->container->has($resolved) || $this->container->typed($resolved)) ? $this->container->get($resolved) : null;
 
             return [$id => !$this->isBuilder() ? $service : $service()];
         }
@@ -313,7 +247,7 @@ class Resolver implements ContainerInterface, ResetInterface
         if ('[]' === \substr($value, -2)) {
             $resolved = \substr($value, 0, -2);
             $service = function () use ($resolved) {
-                if ($this->has($resolved)) {
+                if ($this->container->typed($resolved)) {
                     return $this->get($resolved);
                 }
 

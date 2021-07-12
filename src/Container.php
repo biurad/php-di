@@ -37,11 +37,6 @@ class Container extends AbstractContainer implements \ArrayAccess
 {
     public const IGNORE_FROM_FREEZING = 2;
 
-    protected array $types = [
-        ContainerInterface::class => ['container'],
-        Container::class => ['container'],
-    ];
-
     /** @var array<string,string> internal cached services */
     protected array $methodsMap = ['container' => 'getServiceContainer'];
 
@@ -63,13 +58,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function __construct()
     {
         parent::__construct();
-
-        // Incase this class it extended ...
-        if (__CLASS__ !== static::class) {
-            $this->types += [static::class => ['container']];
-        }
-
-        $this->resolver = new Resolvers\Resolver($this, $this->types);
+        $this->types += [self::class => ['container']];
     }
 
     /**

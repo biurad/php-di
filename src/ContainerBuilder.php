@@ -53,15 +53,13 @@ class ContainerBuilder extends AbstractContainer
      */
     public function __construct(string $containerParentClass = Container::class)
     {
-        parent::__construct();
-
         $this->containerParentClass = $containerParentClass;
         $this->trackResources = \interface_exists(ResourceInterface::class);
 
         $this->builder = new \PhpParser\BuilderFactory();
         $this->resolver = new Resolvers\Resolver($this);
 
-        $this->resolver->autowire('container', [$containerParentClass]);
+        $this->type('container', [ContainerInterface::class, $containerParentClass]);
     }
 
     /**
@@ -176,8 +174,8 @@ class ContainerBuilder extends AbstractContainer
             case isset($this->definitions[$id]):
                 return self::$services[$id] = $this->doCreate($id, $this->definitions[$id]);
 
-            case $this->resolver->has($id):
-                return $this->resolver->get($id, (bool) $invalidBehavior);
+            case $this->typed($id):
+                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
 
             case isset($this->aliases[$id]):
                 return $this->get($this->aliases[$id]);
@@ -192,7 +190,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function has(string $id): bool
     {
-        return isset($this->definitions[$id]) || ($this->resolver->has($id) || isset($this->aliases[$id]));
+        return isset($this->definitions[$id]) || ($this->typed($id) || isset($this->aliases[$id]));
     }
 
     /**
@@ -385,15 +383,13 @@ class ContainerBuilder extends AbstractContainer
         }
 
         // Prevent autowired private services from be exported.
-        foreach ($this->resolver->export() as $type => $ids) {
+        foreach ($this->types as $type => $ids) {
             if (1 === \count($ids) && $this->ignoredDefinition($definitions[\reset($ids)] ?? null)) {
                 continue;
             }
 
             $ids = \array_filter($ids, fn (string $id): bool => !$this->ignoredDefinition($definitions[$id] ?? null));
-
-            // If $ids are filtered, keys should not be preserved.
-            $ids = \array_values($ids);
+            $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
 
             $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
         }
