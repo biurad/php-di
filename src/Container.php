@@ -251,23 +251,24 @@ class Container extends AbstractContainer implements \ArrayAccess
             throw new FrozenServiceException($id);
         }
 
-        // Incase new service definition exists in aliases.
-        unset($this->aliases[$id]);
+        unset($this->aliases[$id]); // Incase new service definition exists in aliases.
+        $this->keys[$id] = true;
 
-        if ($definition instanceof Definition) {
-            $definition->attach($id, $this->resolver);
-            $definition = $autowire ? $definition->autowire() : $definition;
-        } elseif ($definition instanceof Statement) {
-            if ($autowire) {
-                $this->autowireService($id, $definition->value);
-            }
-
-            $definition = fn () => $this->resolver->resolve($definition->value, $definition->args);
-        } elseif ($autowire && !$definition instanceof RawDefinition) {
-            $this->autowireService($id, $definition);
+        if ($definition instanceof RawDefinition) {
+            return $this->raw[$id] = $definition;
         }
 
-        $this->keys[$id] = true;
+        if ($definition instanceof Definition) {
+            $typed = $definition->get('entity');
+            $definition->withContainer($id, $this);
+        } elseif ($definition instanceof Statement) {
+            $typed = $definition->value;
+            $definition = fn () => $this->resolver->resolve($typed, $definition->args);
+        }
+
+        if ($autowire) {
+            $this->type($id, Resolver::autowireService($typed ?? $definition));
+        }
 
         return $this->values[$id] = $definition;
     }
