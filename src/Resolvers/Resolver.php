@@ -18,8 +18,8 @@ declare(strict_types=1);
 namespace Rade\DI\Resolvers;
 
 use Nette\Utils\Callback;
+use Nette\Utils\Reflection;
 use PhpParser\Node;
-use Psr\Container\ContainerInterface;
 use Rade\DI\{
     AbstractContainer,
     Builder\Reference,
@@ -29,16 +29,14 @@ use Rade\DI\{
     FallbackContainer,
     Services\ServiceLocator
 };
-use Symfony\Contracts\Service\{
-    ResetInterface, ServiceProviderInterface, ServiceSubscriberInterface
-};
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 /**
  * Class Resolver.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Resolver implements ContainerInterface, ResetInterface
+class Resolver
 {
     private AbstractContainer $container;
 
