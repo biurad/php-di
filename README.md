@@ -88,9 +88,7 @@ Rade DI also supports autowiring except a return type of a callable is not defin
 >To prevent registered services from being shared, use the container's **factory** method.
 
 ```php
-$container['session'] = $container->factory(
-    static fn(): Session => new Session($container['session_storage'])
-);
+$container['session'] = $container->definition(new Session($container['session_storage']), Definition::FACTORY);
 ```
 
 With the example above, each call to `$container['session']` returns a new instance of the session.
