@@ -108,27 +108,14 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * This is useful when you want to autowire a callable or class string lazily.
+     * A helper method of Statement class for calling a service lazily.
      *
-     * @deprecated Since 1.0, use Statement class instead, will be dropped in v2
-     *
-     * @param callable|string $definition A class string or a callable
+     * @param callable|string         $definition A class string or a callable
+     * @param array<int|string,mixed> $args
      */
-    public function lazy($definition): Statement
+    public function lazy($definition, array $args = []): Statement
     {
-        return new Statement($definition);
-    }
-
-    /**
-     * Marks a definition as being a factory service.
-     *
-     * @deprecated Since 1.0, use definition method instead, will be dropped in v2
-     *
-     * @param callable|object|string $callable A service definition to be used as a factory
-     */
-    public function factory($callable): Definition
-    {
-        return $this->definition($callable, Definition::FACTORY);
+        return new Statement($definition, $args);
     }
 
     /**
