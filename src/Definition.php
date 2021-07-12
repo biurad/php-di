@@ -322,6 +322,18 @@ class Definition
     }
 
     /**
+     * Assign a set of tags to the definition.
+     *
+     * @param array<int|string,mixed> $tags
+     */
+    public function tag(array $tags): self
+    {
+        $this->container->tag($this->id, $tags);
+
+        return $this;
+    }
+
+    /**
      * Should the this definition be a type of
      * self::FACTORY|self::PRIVATE|self::LAZY, then set enabled or not.
      *
