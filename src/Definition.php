@@ -76,10 +76,11 @@ class Definition
     ];
 
     private const IS_TYPE_OF = [
-        'lazy' => 'lazy',
-        'factory' => 'factory',
-        'public' => 'public',
-        'deprecated' => 'deprecated',
+        'isLazy' => 'lazy',
+        'isFactory' => 'factory',
+        'isPublic' => 'public',
+        'isAutowired' => 'autowired',
+        'isDeprecated' => 'deprecated',
     ];
 
     private string $id;
@@ -114,19 +115,11 @@ class Definition
      */
     public function __call($method, $arguments)
     {
-        // Fix autowired conflict
-        if ('isAutowired' === $method) {
-            return $this->autowired;
-        }
-
-        $method = (string) \preg_replace('/^get|is([A-Z]{1}[a-z]+)$/', '\1', $method, 1);
-        $method = \strtolower($method);
-
         if (isset(self::IS_TYPE_OF[$method])) {
-            return (bool) $this->{$method};
+            return (bool) $this->{self::IS_TYPE_OF[$method]};
         }
 
-        return $this->get($method);
+        return $this->get(\strtolower((string) \preg_replace('/^get([A-Z]{1}[a-z]+)$/', '\1', $method, 1)));
     }
 
     /**
