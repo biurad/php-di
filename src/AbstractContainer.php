@@ -30,7 +30,6 @@ use Symfony\Contracts\Service\ResetInterface;
  * @method call($callback, array $args = [])
  *      Resolve a service definition, class string, invocable object or callable using autowiring.
  * @method resolveClass(string $class, array $args = []) Resolves a class string.
- * @method exclude(string $type) Exclude an interface or class type from being autowired.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -60,6 +59,28 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array[] tag name => service name => tag value */
     private array $tags = [];
 
+    /** @var array<string,bool> of classes excluded from autowiring */
+    private array $excluded = [
+        \ArrayAccess::class => true,
+        \Countable::class => true,
+        \IteratorAggregate::class => true,
+        \SplDoublyLinkedList::class => true,
+        \stdClass::class => true,
+        \SplStack::class => true,
+        \Stringable::class => true,
+        \Iterator::class => true,
+        \Traversable::class => true,
+        \Serializable::class => true,
+        \JsonSerializable::class => true,
+        ServiceProviderInterface::class => true,
+        ResetInterface::class => true,
+        Services\ServiceLocator::class => true,
+        Builder\Reference::class => true,
+        Builder\Statement::class => true,
+        RawDefinition::class => true,
+        Definition::class => true,
+    ];
+
     public function __construct()
     {
         self::$services = [];
@@ -86,11 +107,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
             case 'call':
                 return $this->resolver->resolve($args[0], $args[1] ?? []);
-
-            case 'exclude':
-                $this->resolver->exclude($args[0]);
-
-                break;
 
             default:
                 if (\method_exists($this, $name)) {
@@ -247,6 +263,18 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         }
 
         return false;
+    }
+
+    /**
+     * Add a class or interface that should be excluded from autowiring.
+     *
+     * @param string|string[] $types
+     */
+    public function exclude($types): void
+    {
+        foreach ((array) $types as $type) {
+            $this->excluded[$type] = true;
+        }
     }
 
     /**

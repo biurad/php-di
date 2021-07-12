@@ -21,14 +21,12 @@ use Nette\Utils\Callback;
 use PhpParser\Node;
 use Psr\Container\ContainerInterface;
 use Rade\DI\{
+    AbstractContainer,
     Builder\Reference,
-    Builder\Statement,
     ContainerBuilder,
-    Definition,
     Exceptions\ContainerResolutionException,
     Exceptions\NotFoundServiceException,
     FallbackContainer,
-    RawDefinition,
     Services\ServiceLocator
 };
 use Symfony\Contracts\Service\{
@@ -42,34 +40,12 @@ use Symfony\Contracts\Service\{
  */
 class Resolver implements ContainerInterface, ResetInterface
 {
-    private ContainerInterface $container;
+    private AbstractContainer $container;
 
     private AutowireValueResolver $resolver;
 
     /** @var array type => services */
     private array $wiring;
-
-    /** @var array<string,bool> of classes excluded from autowiring */
-    private array $excluded = [
-        \ArrayAccess::class => true,
-        \Countable::class => true,
-        \IteratorAggregate::class => true,
-        \SplDoublyLinkedList::class => true,
-        \stdClass::class => true,
-        \SplStack::class => true,
-        \Stringable::class => true,
-        \Iterator::class => true,
-        \Traversable::class => true,
-        \Serializable::class => true,
-        \JsonSerializable::class => true,
-        ServiceProviderInterface::class => true,
-        ResetInterface::class => true,
-        ServiceLocator::class => true,
-        RawDefinition::class => true,
-        Reference::class => true,
-        Definition::class => true,
-        Statement::class => true,
-    ];
 
     public function __construct(ContainerInterface $container, array $wiring = [])
     {
@@ -289,13 +265,6 @@ class Resolver implements ContainerInterface, ResetInterface
         return $this->wiring[$id] ?? [];
     }
 
-    /**
-     * Add a class or interface that should be excluded from autowiring.
-     */
-    public function exclude(string $type): void
-    {
-        $this->excluded[$type] = true;
-    }
 
     /**
      * Export the array containing services parent classes and interfaces.
