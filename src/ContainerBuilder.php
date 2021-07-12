@@ -157,7 +157,7 @@ class ContainerBuilder extends AbstractContainer
                 $definition = new Definition($definition);
             }
 
-            $definition->attach($id, $this->resolver);
+            $definition->withContainer($id, $this);
         }
 
         return $this->definitions[$id] = $definition;
@@ -313,13 +313,9 @@ class ContainerBuilder extends AbstractContainer
             }
 
             // Strict circular reference check ...
-            $compiled = $service->build($this->builder);
+            $compiled = $service->build();
 
-            if (!$build) {
-                return $service->resolve($this->builder);
-            }
-
-            return $compiled;
+            return $build ? $compiled : $service->resolve();
         } finally {
             unset($this->loading[$id]);
         }

@@ -28,8 +28,8 @@ use PhpParser\Node\{
     Stmt\Return_,
     UnionType
 };
-use PhpParser\BuilderFactory;
 use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
+use Rade\DI\Resolvers\Resolver;
 
 /**
  * Represents definition of standard service.
@@ -136,10 +136,14 @@ class Definition
      *
      * @internal
      */
-    final public function attach(string $id, Resolvers\Resolver $resolver): void
+    final public function withContainer(string $id, AbstractContainer $container): void
     {
         $this->id = $id;
-        $this->resolver = $resolver;
+        $this->container = $container;
+
+        if ($container instanceof ContainerBuilder) {
+            $this->builder = $container->getBuilder();
+        }
     }
 
     /**
@@ -373,9 +377,9 @@ class Definition
     /**
      * Resolves the Definition when in use in ContainerBuilder.
      */
-    public function resolve(BuilderFactory $builder): \PhpParser\Node\Expr
+    public function resolve(): \PhpParser\Node\Expr
     {
-        $resolved = $builder->methodCall($builder->var('this'), self::createMethod($this->id));
+        $resolved = $this->builder->methodCall($this->builder->var('this'), self::createMethod($this->id));
 
         if ($this->factory) {
             return $resolved;
@@ -395,10 +399,9 @@ class Definition
      *
      * @throws \ReflectionException
      */
-    public function build(BuilderFactory $builder): \PhpParser\Builder\Method
+    public function build(): \PhpParser\Builder\Method
     {
-        $this->builder = $builder;
-        $node = $builder->method(self::createMethod($this->id))->makeProtected();
+        $node = $this->builder->method(self::createMethod($this->id))->makeProtected();
         $factory = $this->resolveEntity($this->entity, $this->parameters);
 
         if ([] !== $deprecation = $this->deprecated) {
@@ -407,7 +410,7 @@ class Definition
         }
 
         if (!empty($this->calls + $this->extras)) {
-            $node->addStmt(new Assign($resolved = $builder->var($this->public ? 'service' : 'private'), $factory));
+            $node->addStmt(new Assign($resolved = $this->builder->var($this->public ? 'service' : 'private'), $factory));
             $node = $this->resolveCalls($resolved, $factory, $node);
         }
 
