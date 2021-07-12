@@ -19,6 +19,7 @@ namespace Rade\DI;
 
 use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\Variable, Expr\StaticPropertyFetch};
 use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
+use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
@@ -28,9 +29,9 @@ use Rade\DI\{
 use Symfony\Component\Config\{
     Resource\ClassExistenceResource,
     Resource\FileResource,
+    Resource\FileExistenceResource,
     Resource\ResourceInterface
 };
-use Symfony\Component\Config\Resource\FileExistenceResource;
 
 class ContainerBuilder extends AbstractContainer
 {
@@ -102,7 +103,7 @@ class ContainerBuilder extends AbstractContainer
      * @param string $id The unique identifier for the definition
      *
      * @throws NotFoundServiceException If the identifier is not defined
-     * @throws ServiceCreationException If the definition is a raw type.
+     * @throws ServiceCreationException if the definition is a raw type
      */
     public function extend(string $id): Definition
     {

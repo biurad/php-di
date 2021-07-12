@@ -15,8 +15,8 @@ parameters:
             message: "#^Parameter \\#2 \\$service \\(Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\RawDefinition\\) of method Rade\\\\DI\\\\ContainerBuilder\\:\\:doCreate\\(\\) should be contravariant with parameter \\$service \\(callable\\(\\): mixed\\) of method Rade\\\\DI\\\\AbstractContainer\\:\\:doCreate\\(\\)$#"
             path: src/ContainerBuilder.php
         -
-            message: "#^Call to function is_callable\\(\\) with mixed will always evaluate to false|Result of && is always false.$#"
-            path: src/Container.php
+            message: "#^Rade\\\\DI\\\\ContainerBuilder\\:\\:__construct\\(\\) does not call parent constructor from Rade\\\\DI\\\\AbstractContainer.$#"
+            path: src/ContainerBuilder.php
         -
             message: "#^Parameter \\#1 \\$offset (string) of method Rade\\\\DI\\\\Container\\:\\:offset|Set|Get|Exists|Unset\\(\\) should be contravariant with parameter \\$offset (mixed) of method ArrayAccess<mixed,mixed>\\:\\:offset|Set|Get|Exists|Unset\\(\\)|Variable method call on \\$this\\(Rade\\\\DI\\\\Container\\).$#"
             path: src/Container.php

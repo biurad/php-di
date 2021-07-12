@@ -86,9 +86,7 @@ class AutowireValueResolver
                     return \current($res);
                 }
 
-                throw new ContainerResolutionException(
-                    \sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter))
-                );
+                throw new ContainerResolutionException(\sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter)));
             }
 
             $res = $res ?? $this->resolveNotFoundService($parameter, $getter, $typeName);

@@ -121,8 +121,8 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * Create a definition service.
      *
-     * @param Definition|Statement|object|callable|string $service
-     * @param int|null                                    $type    of Definition::FACTORY | Definition::LAZY
+     * @param Definition|object|callable|string $service
+     * @param int|null                          $type    of Definition::FACTORY | Definition::LAZY
      */
     public function definition($service, int $type = null): Definition
     {
@@ -335,6 +335,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         if (isset($this->loading[$id])) {
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
+
         $this->loading[$id] = true;
 
         try {

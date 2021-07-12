@@ -157,9 +157,7 @@ class Resolver
             return $this->resolve($callback, $args);
         }
 
-        throw new ContainerResolutionException(
-            \sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback))
-        );
+        throw new ContainerResolutionException(\sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback)));
     }
 
     /**

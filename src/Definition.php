@@ -33,18 +33,18 @@ use Rade\DI\Resolvers\Resolver;
 /**
  * Represents definition of standard service.
  *
- * @method string getId() Get the definition's id.
- * @method mixed getEntity() Get the definition's entity.
- * @method array<string,mixed> getParameters() Get the definition's parameters.
- * @method string|string[] getType() Get the return types for definition.
- * @method array<string,mixed> getCalls() Get the bind calls to definition.
- * @method array<int,mixed> getExtras() Get the list of extras binds.
- * @method string[] getDeprecation() Return a non-empty array if definition is deprecated.
- * @method bool isDeprecated() Whether this definition is deprecated, that means it should not be used anymore.
- * @method bool isLazy() Whether this service is lazy.
- * @method bool isFactory() Whether this service is not a shared service.
- * @method bool isPublic() Whether this service is a public type.
- * @method bool isAutowired() Whether this service is autowired.
+ * @method string              getId()          Get the definition's id.
+ * @method mixed               getEntity()      Get the definition's entity.
+ * @method array<string,mixed> getParameters()  Get the definition's parameters.
+ * @method string|string[]     getType()        Get the return types for definition.
+ * @method array<string,mixed> getCalls()       Get the bind calls to definition.
+ * @method array<int,mixed>    getExtras()      Get the list of extras binds.
+ * @method string[]            getDeprecation() Return a non-empty array if definition is deprecated.
+ * @method bool                isDeprecated()   Whether this definition is deprecated, that means it should not be used anymore.
+ * @method bool                isLazy()         Whether this service is lazy.
+ * @method bool                isFactory()      Whether this service is not a shared service.
+ * @method bool                isPublic()       Whether this service is a public type.
+ * @method bool                isAutowired()    Whether this service is autowired.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -66,7 +66,7 @@ class Definition
 
     /** supported call in get() method. */
     private const SUPPORTED_GET = [
-        'id'  => 'id',
+        'id' => 'id',
         'entity' => 'entity',
         'parameters' => 'parameters',
         'type' => 'type',
@@ -105,7 +105,7 @@ class Definition
     }
 
     /**
-     * @param string   $method
+     * @param string  $method
      * @param mixed[] $arguments
      *
      * @throws \BadMethodCallException
