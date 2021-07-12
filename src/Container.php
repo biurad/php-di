@@ -232,8 +232,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function has(string $id): bool
     {
-        return $this->keys[$id] ?? isset($this->methodsMap[$id]) ||
-            (isset($this->providers[$id]) || isset($this->aliases[$id]));
+        return ($this->keys[$id] ?? isset($this->methodsMap[$id])) || isset($this->aliases[$id]);
     }
 
     /**
