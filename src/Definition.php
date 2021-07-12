@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\{Callback, Reflection};
 use PhpParser\Node\{
     Expr\ArrayDimFetch,
     Expr\Assign,
@@ -262,15 +261,11 @@ class Definition
             $service = $service->value;
         }
 
-        if ([] === $types) {
-            if (\is_string($service) && \class_exists($service)) {
-                $types = [$service];
-            } elseif (\is_callable($service)) {
-                $types = Reflection::getReturnTypes(Callback::toReflection($service));
-            }
+        if ([] === $types && null !== $service) {
+            $types = Resolver::autowireService($service);
         }
 
-        $this->resolver->autowire($this->id, $types);
+        $this->container->type($this->id, $types);
 
         return $this->typeOf($types);
     }
