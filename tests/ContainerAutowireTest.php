@@ -380,7 +380,7 @@ class ContainerAutowireTest extends TestCase
 
         $callable = [$rade->call(Fixtures\ServiceAutowire::class), 'missingService'];
 
-        $rade['factory'] = $factory = $rade->factory($callable);
+        $rade['factory'] = $factory = $rade->definition($callable, Definition::FACTORY);
         $rade['protect'] = $protect = $rade->raw($callable);
 
         $this->assertNotSame($factory, $rade['factory']);
@@ -411,7 +411,7 @@ class ContainerAutowireTest extends TestCase
     {
         $rade = new Container();
         $rade->set('service', $rade->lazy(Fixtures\Constructor::class));
-        $rade->autowire('service', [Fixtures\Service::class]);
+        $rade->type('service', [Fixtures\Service::class]);
         $service = fn (Fixtures\Service $service) => $service;
 
         $this->assertInstanceOf(Fixtures\Service::class, $one = $rade->get('service'));
@@ -434,7 +434,7 @@ class ContainerAutowireTest extends TestCase
         $this->expectExceptionMessage('Identifier "service" is not defined.');
         $this->expectException(NotFoundServiceException::class);
 
-        $rade->autowire('service', [Fixtures\Service::class]);
+        $rade->autowired(Fixtures\Service::class);
     }
 
     public function testAutowiredSameIdAndService(): void
@@ -469,10 +469,10 @@ class ContainerAutowireTest extends TestCase
             $this->assertEquals('Method call Rade\DI\AbstractContainer->nothing() invalid, "nothing" doesn\'t exist.', $e->getMessage());
         }
 
-        $this->expectExceptionMessage('Method call \'getServiceContainer()\' is either a member of container or a protected service method.');
+        $this->expectExceptionMessage('Method call \'doGet()\' is either a member of container or a protected service method.');
         $this->expectException(\BadMethodCallException::class);
 
-        $rade->getServiceContainer();
+        $rade->doGet();
     }
 
     public function testAutowiringWithUnionType(): void

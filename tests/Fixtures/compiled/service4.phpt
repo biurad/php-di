@@ -9,11 +9,9 @@ class FactoryContainer extends Rade\DI\Container
 {
     public array $parameters = [];
 
-    protected static array $privates = [];
+    protected array $methodsMap = ['service_1' => 'getService1', 'service_2' => 'getService2'];
 
-    protected array $methodsMap = ['service_1' => 'getService1', 'service_2' => 'getService2', 'container' => 'getServiceContainer'];
-
-    protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container']];
+    protected array $types = [Psr\Container\ContainerInterface::class => ['container'], Rade\DI\AbstractContainer::class => ['container'], Rade\DI\Container::class => ['container']];
 
     protected array $aliases = [];
 

@@ -413,11 +413,8 @@ class YamlFileLoaderTest extends LoaderTestCase
 
         $ids = $container->keys();
         $expectIds = [Fixtures\Prototype\Foo::class, Fixtures\Prototype\Sub\Bar::class];
-
-        if ($container instanceof Container) {
-            $expectIds[] = 'container';
-        }
         \sort($ids);
+
         $this->assertSame($expectIds, $ids);
 
         if ($container instanceof ContainerBuilder) {
@@ -457,11 +454,8 @@ class YamlFileLoaderTest extends LoaderTestCase
             Fixtures\Prototype\OtherDir\Component2\Dir1\Service4::class,
             Fixtures\Prototype\OtherDir\Component2\Dir2\Service5::class,
         ];
-
-        if ($container instanceof Container) {
-            $expectIds[] = 'container';
-        }
         \sort($ids);
+
         $this->assertSame($expectIds, $ids);
 
         $this->assertEquals(
@@ -604,8 +598,8 @@ class YamlFileLoaderTest extends LoaderTestCase
         } else {
             $this->assertSame($container->service('BAR')->getParameters()[0], $container->get('Bar'));
             $this->assertSame($container->service('BAR')->getCalls()['setBar'][0], $container->get('bar'));
+            $this->assertNotSame($container->get('BAR'), $container->get('bar'));
         }
-        $this->assertNotSame($container->get('BAR'), $container->get('bar'));
     }
 
     /**

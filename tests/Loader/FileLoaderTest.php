@@ -78,8 +78,10 @@ class FileLoaderTest extends LoaderTestCase
         $expectedKeys = [Bar::class];
 
         if ($container instanceof Container) {
-            $expectedKeys[] = 'container';
+            $this->assertTrue($container->initialized('container'));
+            $this->assertTrue($container->typed(ContainerInterface::class));
         } else {
+            $this->assertTrue($container->initialized('container'));
             $this->assertTrue($container->has(ContainerInterface::class));
         }
 

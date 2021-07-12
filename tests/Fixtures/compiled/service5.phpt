@@ -7,15 +7,21 @@ declare (strict_types=1);
  */
 class PrivateContainer extends Rade\DI\Container
 {
+    protected static array $privates;
+
     public array $parameters = [];
 
-    protected static array $privates = [];
+    protected array $methodsMap = [];
 
-    protected array $methodsMap = ['container' => 'getServiceContainer'];
-
-    protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container']];
+    protected array $types = [Psr\Container\ContainerInterface::class => ['container'], Rade\DI\AbstractContainer::class => ['container'], Rade\DI\Container::class => ['container']];
 
     protected array $aliases = [];
+
+    public function __construct()
+    {
+        parent::__construct();
+        self::$privates = [];
+    }
 
     protected function getService1(): Rade\DI\Tests\Fixtures\Service
     {
