@@ -17,8 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\{Callback, Reflection};
-use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
@@ -26,6 +24,7 @@ use Rade\DI\{
     Exceptions\NotFoundServiceException,
     Exceptions\ContainerResolutionException
 };
+use Rade\DI\Resolvers\Resolver;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -352,24 +351,5 @@ class Container extends AbstractContainer implements \ArrayAccess
                 $this->frozen[$id] = true; // Freeze resolved service ...
             }
         }
-    }
-
-    /**
-     * @param mixed $definition
-     */
-    private function autowireService(string $id, $definition): void
-    {
-        static $types = [];
-
-        if (\is_callable($definition)) {
-            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
-        } elseif (\is_object($definition) && !$definition instanceof \stdClass) {
-            $types = [\get_class($definition)];
-        } elseif (\is_string($definition) && \class_exists($definition)) {
-            $types = [$definition];
-        }
-
-        // Resolving wiring so we could call the service parent classes and interfaces.
-        $this->resolver->autowire($id, $types);
     }
 }

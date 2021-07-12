@@ -51,27 +51,37 @@ class Resolver implements ContainerInterface, ResetInterface
     }
 
     /**
-     * Resolve wiring classes + interfaces.
-     *
-     * @param string[] $types
+     * @param mixed $definition
      */
-    public function autowire(string $id, array $types): void
+    public static function autowireService($definition): array
     {
+        $types = $autowired = [];
+
+        try {
+            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
+        } catch (\ReflectionException $e) {
+            if ($definition instanceof \stdClass) {
+                return $types;
+            }
+
+            if (\is_string($definition) && \class_exists($definition)) {
+                $types[] = $definition;
+            } elseif (\is_object($definition)) {
+                $types[] = \get_class($definition);
+            }
+        }
+
         foreach ($types as $type) {
+            $autowired[] = $type;
+
             if (false === $parents = @\class_parents($type)) {
                 continue;
             }
 
-            $parents = \array_merge($parents, (\class_implements($type, false) ?: []), [$type]);
-
-            foreach ($parents as $resolved) {
-                if ($this->excluded[$resolved] ?? \in_array($id, $this->find($resolved), true)) {
-                    continue;
-                }
-
-                $this->wiring[$resolved][] = $id;
-            }
+            $autowired = \array_merge($autowired, $parents, (\class_implements($type, false) ?: []));
         }
+
+        return $autowired;
     }
 
     /**
