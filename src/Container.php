@@ -48,6 +48,9 @@ class Container extends AbstractContainer implements \ArrayAccess
     /** @var array<string,mixed> service name => instance */
     private array $values = [];
 
+    /** @var RawDefinition[] */
+    private array $raw = [];
+
     /** @var array<string,bool> service name => bool */
     private array $frozen = [];
 
@@ -174,14 +177,14 @@ class Container extends AbstractContainer implements \ArrayAccess
             throw new FrozenServiceException($id);
         }
 
-        $extended = $this->values[$id] ?? $this->createNotFound($id, true);
+        $extended = $this->raw[$id] ?? $this->values[$id] ?? $this->createNotFound($id, true);
 
         if ($extended instanceof RawDefinition) {
-            return $this->values[$id] = new RawDefinition($scope($extended(), $this));
+            return $this->raw[$id] = new RawDefinition($scope($extended(), $this));
         }
 
-        if (!$extended instanceof Definition && \is_callable($extended)) {
-            $extended = $this->doCreate($id, $extended);
+        if (\is_callable($extended)) {
+            $extended = $extended instanceof Definition ? $extended : $this->doCreate($id, $extended);
         }
 
         return $this->values[$id] = $scope($extended, $this);
@@ -221,7 +224,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function remove(string $id): void
     {
         if (isset($this->keys[$id])) {
-            unset($this->values[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
+            unset($this->values[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
         }
 
         parent::remove($id);
@@ -240,23 +243,11 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        try {
-            return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
-        } catch (NotFoundServiceException $serviceError) {
-            if (\class_exists($id)) {
-                try {
-                    return $this->resolver->resolveClass($id);
-                } catch (ContainerResolutionException $e) {
-                    // Only resolves class string and not throw it's error.
-                }
-            }
-
-            if (isset($this->aliases[$id])) {
-                return $this->get($this->aliases[$id]);
-            }
-
-            throw $serviceError;
+        if (isset($this->aliases[$id])) {
+            $id = $this->aliases[$id];
         }
+
+        return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'doGet'}($id, $invalidBehavior);
     }
 
     /**
@@ -321,7 +312,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @return mixed
      */
-    protected function getService(string $id, int $invalidBehavior)
+    protected function doGet(string $id, int $invalidBehavior)
     {
         if (!isset($this->keys[$id]) && $this->resolver->has($id)) {
             return $this->resolver->get($id, self::IGNORE_MULTIPLE_SERVICE !== $invalidBehavior);
