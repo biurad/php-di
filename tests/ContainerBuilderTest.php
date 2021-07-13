@@ -47,6 +47,16 @@ class ContainerBuilderTest extends TestCase
         $this->assertInstanceOf(Variable::class, $builder->get('container'));
     }
 
+    public function testCompileMethod(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->set('foo', Fixtures\Service::class);
+
+        $this->assertNotEmpty($builder->compile());
+        $this->assertIsString($builder->compile());
+        $this->assertIsArray($builder->compile(['printToString' => false]));
+    }
+
     public function testEmptyContainer(): void
     {
         $builder = new ContainerBuilder();
@@ -253,6 +263,7 @@ class ContainerBuilderTest extends TestCase
         $this->assertSame($provider1, $provider2);
 
         $this->assertTrue(isset($builder->parameters['rade_di']['hello']));
+        $this->assertArrayHasKey('other', $builder->parameters);
         $this->assertCount(3, $builder->keys());
         $this->assertEmpty($builder->service('service')->getCalls());
 
@@ -374,6 +385,8 @@ class ContainerBuilderTest extends TestCase
 
         $container = new \AliasContainer();
 
+        $this->assertFalse($container->aliased('service_5'));
+        $this->assertTrue($container->aliased('service_6'));
         $this->assertTrue($container->has('alias_1'));
         $this->assertTrue($container->has('alias_2'));
         $this->assertTrue($container->has('alias_3'));
@@ -382,5 +395,25 @@ class ContainerBuilderTest extends TestCase
         $this->assertTrue($container->has('alias_6'));
 
         $this->assertEquals(['service_1', 'service_2', 'service_3', 'service_6'], $container->keys());
+    }
+
+    public function testCallMethod(): void
+    {
+        $this->expectExceptionObject(new ServiceCreationException(\sprintf('Refactor your code to use %s class instead.', Statement::class)));
+
+        $builder = new ContainerBuilder();
+        $builder->call(Fixtures\Service::class);
+    }
+
+    public function testRemovedService(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->set(Fixtures\Service::class, new Definition(Fixtures\Service::class));
+
+        $this->assertTrue($builder->has(Fixtures\Service::class));
+        $this->expectExceptionObject(new NotFoundServiceException('Identifier "Rade\DI\Tests\Fixtures\Service" is not defined.'));
+
+        $builder->remove(Fixtures\Service::class);
+        $builder->get(Fixtures\Service::class);
     }
 }

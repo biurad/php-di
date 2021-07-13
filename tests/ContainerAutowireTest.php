@@ -31,8 +31,6 @@ use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\FallbackContainer;
-use Rade\DI\Tests\Fixtures\AppContainer;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 
 class ContainerAutowireTest extends TestCase
@@ -385,27 +383,6 @@ class ContainerAutowireTest extends TestCase
 
         $this->assertNotSame($factory, $rade['factory']);
         $this->assertSame($protect(), $rade['protect']);
-    }
-
-    public function testThatAFallbackContainerSupportAutowiring(): void
-    {
-        $fallback = new AppContainer();
-        $rade = new FallbackContainer();
-        $rade->fallback($fallback);
-        $rade['t_call'] = fn (AppContainer $app) => $app['scoped'];
-
-        $this->assertInstanceOf(Definition::class, $one = $rade['scoped']);
-        $this->assertSame($one, $rade['t_call']);
-        $this->assertSame($rade, $rade->get(ContainerInterface::class));
-        $this->assertNotSame($rade[AppContainer::class], $rade->get(ContainerInterface::class));
-
-        $this->assertTrue(isset($rade['scoped']));
-        $this->assertInstanceOf(Definition::class, $def = $rade['scoped']);
-        $this->assertSame($def, $rade->get(Definition::class));
-
-        $this->assertInstanceOf(Definition::class, $rade->call(fn (Definition $def) => $def));
-        $this->assertSame($def, $rade->call(fn (Definition $def) => $def));
-        $this->assertSame($fallback, $rade->call(fn (AppContainer $app) => $app));
     }
 
     public function testContainerAutowireMethod(): void

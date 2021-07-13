@@ -1,0 +1,4 @@
+services:
+    invalid:
+        namespace: Rade\DI\Tests\Fixtures\Prototype\OtherDir\
+        resource: 123
