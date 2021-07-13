@@ -125,9 +125,7 @@ trait ResolveTrait
     protected function resolveEntity($entity, array $arguments = [], bool $type = true)
     {
         if ($entity instanceof Reference) {
-            throw new ServiceCreationException(
-                \sprintf('Referenced definition entity for "%s" is not supported. Alias %1$s to %s instead.', $this->id, (string) $entity)
-            );
+            throw new ServiceCreationException(\sprintf('Referenced definition entity for "%s" is not supported. Alias %1$s to %s instead.', $this->id, (string) $entity));
         }
 
         if ($entity instanceof Statement) {

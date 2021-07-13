@@ -226,8 +226,7 @@ class Definition
      * Sets method, property, Class|@Ref::Method or php code bindings.
      *
      * Binding map method name, property name, mixed type or php code that should be
-     * injected in the definition's entity as assigned property, method or
-     * extra code added in running that entity.
+     * injected in the definition's entity as assigned property, method or extra code added in running that entity.
      *
      * @param string $nameOrMethod A parameter name, a method name, or self::EXTRA_BIND
      * @param mixed  $valueOrRef   The value, reference or statement to bind

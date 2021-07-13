@@ -28,8 +28,7 @@ interface PrependInterface
 {
     /**
      * This method is called after all services are registered
-     * and should be used to register missing services, tags or even
-     * extending a service definition.
+     * and should be used to register missing services, tags or even extending a service definition.
      */
     public function before(ContainerBuilder $builder): void;
 }
