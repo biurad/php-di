@@ -23,7 +23,6 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Scalar\LNumber;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
-use Rade\DI\AbstractContainer;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\Builder\Reference;
 use Rade\DI\Builder\Statement;
@@ -45,12 +44,17 @@ class ContainerBuilderTest extends TestCase
 
         $this->assertInstanceOf(Variable::class, $builder->get(Container::class));
         $this->assertInstanceOf(Variable::class, $builder->get(ContainerInterface::class));
-        $this->assertInstanceOf(Variable::class, $builder->get(AbstractContainer::class));
+        $this->assertInstanceOf(Variable::class, $builder->get('container'));
+    }
 
-        $this->expectExceptionMessage('Identifier "container" is not defined.');
-        $this->expectException(NotFoundServiceException::class);
+    public function testCompileMethod(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->set('foo', Fixtures\Service::class);
 
-        $builder->get('container');
+        $this->assertNotEmpty($builder->compile());
+        $this->assertIsString($builder->compile());
+        $this->assertIsArray($builder->compile(['printToString' => false]));
     }
 
     public function testEmptyContainer(): void
@@ -65,7 +69,7 @@ class ContainerBuilderTest extends TestCase
         includeFile($path);
 
         $container = new \EmptyContainer();
-        $this->assertEquals(['container'], $container->keys());
+        $this->assertEquals([], $container->keys());
     }
 
     public function testRawDefinition(): void
@@ -259,6 +263,7 @@ class ContainerBuilderTest extends TestCase
         $this->assertSame($provider1, $provider2);
 
         $this->assertTrue(isset($builder->parameters['rade_di']['hello']));
+        $this->assertArrayHasKey('other', $builder->parameters);
         $this->assertCount(3, $builder->keys());
         $this->assertEmpty($builder->service('service')->getCalls());
 
@@ -380,6 +385,8 @@ class ContainerBuilderTest extends TestCase
 
         $container = new \AliasContainer();
 
+        $this->assertFalse($container->aliased('service_5'));
+        $this->assertTrue($container->aliased('service_6'));
         $this->assertTrue($container->has('alias_1'));
         $this->assertTrue($container->has('alias_2'));
         $this->assertTrue($container->has('alias_3'));
@@ -387,6 +394,26 @@ class ContainerBuilderTest extends TestCase
         $this->assertFalse($container->has('alias_5'));
         $this->assertTrue($container->has('alias_6'));
 
-        $this->assertEquals(['service_1', 'service_2', 'service_3', 'service_6', 'container'], $container->keys());
+        $this->assertEquals(['service_1', 'service_2', 'service_3', 'service_6'], $container->keys());
+    }
+
+    public function testCallMethod(): void
+    {
+        $this->expectExceptionObject(new ServiceCreationException(\sprintf('Refactor your code to use %s class instead.', Statement::class)));
+
+        $builder = new ContainerBuilder();
+        $builder->call(Fixtures\Service::class);
+    }
+
+    public function testRemovedService(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->set(Fixtures\Service::class, new Definition(Fixtures\Service::class));
+
+        $this->assertTrue($builder->has(Fixtures\Service::class));
+        $this->expectExceptionObject(new NotFoundServiceException('Identifier "Rade\DI\Tests\Fixtures\Service" is not defined.'));
+
+        $builder->remove(Fixtures\Service::class);
+        $builder->get(Fixtures\Service::class);
     }
 }

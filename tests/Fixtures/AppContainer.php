@@ -17,24 +17,22 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
-use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
 use Rade\DI\Definition;
 use Rade\DI\Exceptions\NotFoundServiceException;
 
 class AppContainer extends Container
 {
-    protected array $types = [
-        ContainerInterface::class => ['container'],
-        Container::class => ['container'],
-        Definition::class => ['scoped'],
-    ];
-
     protected array $methodsMap = [
-        'container' => 'getServiceContainer',
         'scoped' => 'getDefinition',
         'broken' => 'getBrokenService',
     ];
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->types += [Definition::class => ['scoped'], self::class => ['container']];
+    }
 
     protected function getDefinition(): Definition
     {

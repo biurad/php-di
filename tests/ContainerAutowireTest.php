@@ -31,8 +31,6 @@ use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\FallbackContainer;
-use Rade\DI\Tests\Fixtures\AppContainer;
 use Symfony\Contracts\Service\ServiceProviderInterface;
 
 class ContainerAutowireTest extends TestCase
@@ -380,38 +378,18 @@ class ContainerAutowireTest extends TestCase
 
         $callable = [$rade->call(Fixtures\ServiceAutowire::class), 'missingService'];
 
-        $rade['factory'] = $factory = $rade->factory($callable);
+        $rade['factory'] = $factory = $rade->definition($callable, Definition::FACTORY);
         $rade['protect'] = $protect = $rade->raw($callable);
 
         $this->assertNotSame($factory, $rade['factory']);
         $this->assertSame($protect(), $rade['protect']);
     }
 
-    public function testThatAFallbackContainerSupportAutowiring(): void
-    {
-        $rade = new FallbackContainer();
-        $rade->fallback($fallback = new AppContainer());
-        $rade['t_call'] = fn (AppContainer $app) => $app['scoped'];
-
-        $this->assertInstanceOf(Definition::class, $one = $rade['scoped']);
-        $this->assertSame($one, $rade['t_call']);
-        $this->assertSame($rade, $rade->get(ContainerInterface::class));
-        $this->assertNotSame($rade[AppContainer::class], $rade->get(ContainerInterface::class));
-
-        $this->assertTrue(isset($rade['scoped']));
-        $this->assertInstanceOf(Definition::class, $def = $rade['scoped']);
-        $this->assertSame($def, $rade->get(Definition::class));
-
-        $this->assertInstanceOf(Definition::class, $rade->call(fn (Definition $def) => $def));
-        $this->assertSame($def, $rade->call(fn (Definition $def) => $def));
-        $this->assertSame($fallback, $rade->call(fn (AppContainer $app) => $app));
-    }
-
     public function testContainerAutowireMethod(): void
     {
         $rade = new Container();
         $rade->set('service', $rade->lazy(Fixtures\Constructor::class));
-        $rade->autowire('service', [Fixtures\Service::class]);
+        $rade->type('service', [Fixtures\Service::class]);
         $service = fn (Fixtures\Service $service) => $service;
 
         $this->assertInstanceOf(Fixtures\Service::class, $one = $rade->get('service'));
@@ -434,7 +412,7 @@ class ContainerAutowireTest extends TestCase
         $this->expectExceptionMessage('Identifier "service" is not defined.');
         $this->expectException(NotFoundServiceException::class);
 
-        $rade->autowire('service', [Fixtures\Service::class]);
+        $rade->autowired(Fixtures\Service::class);
     }
 
     public function testAutowiredSameIdAndService(): void
@@ -469,10 +447,10 @@ class ContainerAutowireTest extends TestCase
             $this->assertEquals('Method call Rade\DI\AbstractContainer->nothing() invalid, "nothing" doesn\'t exist.', $e->getMessage());
         }
 
-        $this->expectExceptionMessage('Method call \'getServiceContainer()\' is either a member of container or a protected service method.');
+        $this->expectExceptionMessage('Method call \'doGet()\' is either a member of container or a protected service method.');
         $this->expectException(\BadMethodCallException::class);
 
-        $rade->getServiceContainer();
+        $rade->doGet();
     }
 
     public function testAutowiringWithUnionType(): void

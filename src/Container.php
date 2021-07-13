@@ -17,8 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\{Callback, Reflection};
-use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
@@ -26,6 +24,7 @@ use Rade\DI\{
     Exceptions\NotFoundServiceException,
     Exceptions\ContainerResolutionException
 };
+use Rade\DI\Resolvers\Resolver;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -37,16 +36,14 @@ class Container extends AbstractContainer implements \ArrayAccess
 {
     public const IGNORE_FROM_FREEZING = 2;
 
-    protected array $types = [
-        ContainerInterface::class => ['container'],
-        Container::class => ['container'],
-    ];
-
     /** @var array<string,string> internal cached services */
-    protected array $methodsMap = ['container' => 'getServiceContainer'];
+    protected array $methodsMap = [];
 
     /** @var array<string,mixed> service name => instance */
     private array $values = [];
+
+    /** @var RawDefinition[] */
+    private array $raw = [];
 
     /** @var array<string,bool> service name => bool */
     private array $frozen = [];
@@ -60,13 +57,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function __construct()
     {
         parent::__construct();
-
-        // Incase this class it extended ...
-        if (__CLASS__ !== static::class) {
-            $this->types += [static::class => ['container']];
-        }
-
-        $this->resolver = new Resolvers\Resolver($this, $this->types);
+        $this->types += [self::class => ['container']];
     }
 
     /**
@@ -117,34 +108,21 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * This is useful when you want to autowire a callable or class string lazily.
+     * A helper method of Statement class for calling a service lazily.
      *
-     * @deprecated Since 1.0, use Statement class instead, will be dropped in v2
-     *
-     * @param callable|string $definition A class string or a callable
+     * @param callable|string         $definition A class string or a callable
+     * @param array<int|string,mixed> $args
      */
-    public function lazy($definition): Statement
+    public function lazy($definition, array $args = []): Statement
     {
-        return new Statement($definition);
-    }
-
-    /**
-     * Marks a definition as being a factory service.
-     *
-     * @deprecated Since 1.0, use definition method instead, will be dropped in v2
-     *
-     * @param callable|object|string $callable A service definition to be used as a factory
-     */
-    public function factory($callable): Definition
-    {
-        return $this->definition($callable, Definition::FACTORY);
+        return new Statement($definition, $args);
     }
 
     /**
      * Create a definition service.
      *
-     * @param Definition|Statement|object|callable|string $service
-     * @param int|null                                    $type    of Definition::FACTORY | Definition::LAZY
+     * @param Definition|object|callable|string $service
+     * @param int|null                          $type    of Definition::FACTORY | Definition::LAZY
      */
     public function definition($service, int $type = null): Definition
     {
@@ -174,14 +152,14 @@ class Container extends AbstractContainer implements \ArrayAccess
             throw new FrozenServiceException($id);
         }
 
-        $extended = $this->values[$id] ?? $this->createNotFound($id, true);
+        $extended = $this->raw[$id] ?? $this->values[$id] ?? $this->createNotFound($id, true);
 
         if ($extended instanceof RawDefinition) {
-            return $this->values[$id] = new RawDefinition($scope($extended(), $this));
+            return $this->raw[$id] = new RawDefinition($scope($extended(), $this));
         }
 
-        if (!$extended instanceof Definition && \is_callable($extended)) {
-            $extended = $this->doCreate($id, $extended);
+        if (\is_callable($extended)) {
+            $extended = $extended instanceof Definition ? $extended : $this->doCreate($id, $extended);
         }
 
         return $this->values[$id] = $scope($extended, $this);
@@ -205,6 +183,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         foreach ($this->values as $id => $service) {
             if (isset(self::$services[$id])) {
                 $service = self::$services[$id];
+                unset(self::$services[$id]);
             }
 
             if ($service instanceof ResetInterface) {
@@ -213,6 +192,8 @@ class Container extends AbstractContainer implements \ArrayAccess
 
             $this->remove($id);
         }
+
+        self::$services['container'] = $this;
     }
 
     /**
@@ -221,7 +202,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function remove(string $id): void
     {
         if (isset($this->keys[$id])) {
-            unset($this->values[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
+            unset($this->values[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id]);
         }
 
         parent::remove($id);
@@ -240,23 +221,11 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        try {
-            return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'getService'}($id, $invalidBehavior);
-        } catch (NotFoundServiceException $serviceError) {
-            if (\class_exists($id)) {
-                try {
-                    return $this->resolver->resolveClass($id);
-                } catch (ContainerResolutionException $e) {
-                    // Only resolves class string and not throw it's error.
-                }
-            }
-
-            if (isset($this->aliases[$id])) {
-                return $this->get($this->aliases[$id]);
-            }
-
-            throw $serviceError;
+        if (isset($this->aliases[$id])) {
+            $id = $this->aliases[$id];
         }
+
+        return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'doGet'}($id, $invalidBehavior);
     }
 
     /**
@@ -264,8 +233,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function has(string $id): bool
     {
-        return $this->keys[$id] ?? isset($this->methodsMap[$id]) ||
-            (isset($this->providers[$id]) || isset($this->aliases[$id]));
+        return ($this->keys[$id] ?? isset($this->methodsMap[$id])) || isset($this->aliases[$id]);
     }
 
     /**
@@ -283,35 +251,26 @@ class Container extends AbstractContainer implements \ArrayAccess
             throw new FrozenServiceException($id);
         }
 
-        // Incase new service definition exists in aliases.
-        unset($this->aliases[$id]);
-
-        if ($definition instanceof Definition) {
-            $definition->attach($id, $this->resolver);
-            $definition = $autowire ? $definition->autowire() : $definition;
-        } elseif ($definition instanceof Statement) {
-            if ($autowire) {
-                $this->autowireService($id, $definition->value);
-            }
-
-            $definition = fn () => $this->resolver->resolve($definition->value, $definition->args);
-        } elseif ($autowire && !$definition instanceof RawDefinition) {
-            $this->autowireService($id, $definition);
-        }
-
+        unset($this->aliases[$id]); // Incase new service definition exists in aliases.
         $this->keys[$id] = true;
 
-        return $this->values[$id] = $definition;
-    }
+        if ($definition instanceof RawDefinition) {
+            return $this->raw[$id] = $definition;
+        }
 
-    /**
-     * @internal
-     *
-     * Get the mapped service container instance
-     */
-    protected function getServiceContainer(): self
-    {
-        return self::$services['container'] = $this;
+        if ($definition instanceof Definition) {
+            $typed = $definition->get('entity');
+            $definition->withContainer($id, $this);
+        } elseif ($definition instanceof Statement) {
+            $typed = $definition->value;
+            $definition = fn () => $this->resolver->resolve($typed, $definition->args);
+        }
+
+        if ($autowire) {
+            $this->type($id, Resolver::autowireService($typed ?? $definition));
+        }
+
+        return $this->values[$id] = $definition;
     }
 
     /**
@@ -321,14 +280,29 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @return mixed
      */
-    protected function getService(string $id, int $invalidBehavior)
+    protected function doGet(string $id, int $invalidBehavior)
     {
-        if (!isset($this->keys[$id]) && $this->resolver->has($id)) {
-            return $this->resolver->get($id, self::IGNORE_MULTIPLE_SERVICE !== $invalidBehavior);
+        if (isset($this->raw[$id])) {
+            $rawService = $this->raw[$id];
+            unset($this->raw[$id]);
+
+            return self::$services[$id] = $rawService();
         }
 
-        if (!\is_callable($definition = $this->values[$id] ?? $this->createNotFound($id, true))) {
-            if (self::IGNORE_FROM_FREEZING !== $invalidBehavior) {
+        if (isset($this->values[$id])) {
+            if (\is_callable($definition = $this->values[$id])) {
+                if ($definition instanceof Definition) {
+                    if (!$definition->isPublic()) {
+                        throw new ContainerResolutionException(\sprintf('Using service definition for "%s" as private is not supported.', $id));
+                    }
+
+                    if ($definition->isFactory()) {
+                        return $this->doCreate($id, $definition);
+                    }
+                }
+
+                $definition = $this->doCreate($id, $definition, self::IGNORE_FROM_FREEZING !== $invalidBehavior);
+            } elseif (self::IGNORE_FROM_FREEZING !== $invalidBehavior) {
                 $this->frozen[$id] = true;
 
                 return self::$services[$id] = $definition; // If definition is frozen, cache it ...
@@ -337,19 +311,19 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $this->values[$id] = $definition;
         }
 
-        if ($definition instanceof Definition) {
-            if (!$definition->isPublic()) {
-                throw new ContainerResolutionException(\sprintf('Using service definition for "%s" as private is not supported.', $id));
-            }
+        if (isset($this->types[$id])) {
+            return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+        }
 
-            if ($definition->isFactory()) {
-                return $this->doCreate($id, $definition);
+        if (\class_exists($id) && !$this instanceof FallbackContainer) {
+            try {
+                return $this->resolver->resolveClass($id);
+            } catch (ContainerResolutionException $e) {
+                // Only resolves class string and not throw it's error.
             }
         }
 
-        $definition = $this->doCreate($id, $definition, self::IGNORE_FROM_FREEZING !== $invalidBehavior);
-
-        return $this->values[$id] = self::IGNORE_FROM_FREEZING !== $invalidBehavior ? self::$services[$id] = $definition : $definition;
+        throw $this->createNotFound($id);
     }
 
     /**
@@ -361,6 +335,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         if (isset($this->loading[$id])) {
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
+
         $this->loading[$id] = true;
 
         try {
@@ -372,24 +347,5 @@ class Container extends AbstractContainer implements \ArrayAccess
                 $this->frozen[$id] = true; // Freeze resolved service ...
             }
         }
-    }
-
-    /**
-     * @param mixed $definition
-     */
-    private function autowireService(string $id, $definition): void
-    {
-        static $types = [];
-
-        if (\is_callable($definition)) {
-            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
-        } elseif (\is_object($definition) && !$definition instanceof \stdClass) {
-            $types = [\get_class($definition)];
-        } elseif (\is_string($definition) && \class_exists($definition)) {
-            $types = [$definition];
-        }
-
-        // Resolving wiring so we could call the service parent classes and interfaces.
-        $this->resolver->autowire($id, $types);
     }
 }

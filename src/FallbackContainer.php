@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\{ContainerExceptionInterface, ContainerInterface};
+use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -29,6 +30,12 @@ class FallbackContainer extends Container
 {
     /** @var ContainerInterface[] A list of fallback PSR-11 containers */
     protected array $fallbacks = [];
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->types += [self::class => ['container']]; // Autowire this container
+    }
 
     /**
      * Register a PSR-11 fallback container.
@@ -45,23 +52,27 @@ class FallbackContainer extends Container
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if (null !== $service = self::$services[$id] ?? $this->fallbacks[$id] ?? null) {
-            return $service;
-        }
+        try {
+            $service = $this->fallbacks[$id] ?? parent::get($id, $invalidBehavior);
+        } catch (NotFoundServiceException $e) {
+            foreach ($this->fallbacks as $container) {
+                try {
+                    return self::$services[$id] = $container->get($id);
+                } catch (ContainerExceptionInterface $e) {
+                    // Fallback services not allowed to throw a PSR-11 exception.
+                }
+            }
 
-        if ('container' === $id || \in_array($id, [Container::class, ContainerInterface::class], true)) {
-            return $this;
-        }
-
-        foreach ($this->fallbacks as $container) {
-            try {
-                return self::$services[$id] = $container->get($id);
-            } catch (ContainerExceptionInterface $e) {
-                // Fallback services not allowed to throw a PSR-11 exception.
+            if (\class_exists($id)) {
+                try {
+                    return $this->resolver->resolveClass($id);
+                } catch (ContainerResolutionException $e) {
+                    // Only resolves class string and not throw it's error.
+                }
             }
         }
 
-        return parent::get($id, $invalidBehavior);
+        return $service ?? $this->createNotFound($id, true);
     }
 
     /**

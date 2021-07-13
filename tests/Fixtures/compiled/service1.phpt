@@ -9,11 +9,9 @@ class CompiledContainer extends Rade\DI\Container
 {
     public array $parameters = [];
 
-    protected static array $privates = [];
+    protected array $methodsMap = ['autowired' => 'getAutowired', 'service_1' => 'getService1', 'statement' => 'getStatement'];
 
-    protected array $methodsMap = ['autowired' => 'getAutowired', 'service_1' => 'getService1', 'statement' => 'getStatement', 'container' => 'getServiceContainer'];
-
-    protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container'], Rade\DI\Tests\Fixtures\Service::class => ['autowired']];
+    protected array $types = [Psr\Container\ContainerInterface::class => ['container'], Rade\DI\AbstractContainer::class => ['container'], Rade\DI\Container::class => ['container'], Rade\DI\Tests\Fixtures\Service::class => ['autowired']];
 
     protected array $aliases = [];
 

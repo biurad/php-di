@@ -7,15 +7,21 @@ declare (strict_types=1);
  */
 class LazyContainer extends Rade\DI\Container
 {
+    protected static array $privates;
+
     public array $parameters = [];
 
-    protected static array $privates = [];
+    protected array $methodsMap = ['service_1' => 'getService1', 'service_2' => 'getService2', 'service_test' => 'getServiceTest'];
 
-    protected array $methodsMap = ['service_1' => 'getService1', 'service_2' => 'getService2', 'service_test' => 'getServiceTest', 'container' => 'getServiceContainer'];
-
-    protected array $types = [Rade\DI\AbstractContainer::class => ['container'], Psr\Container\ContainerInterface::class => ['container'], Rade\DI\Container::class => ['container']];
+    protected array $types = [Psr\Container\ContainerInterface::class => ['container'], Rade\DI\AbstractContainer::class => ['container'], Rade\DI\Container::class => ['container']];
 
     protected array $aliases = [];
+
+    public function __construct()
+    {
+        parent::__construct();
+        self::$privates = [];
+    }
 
     protected function getService1(): Rade\DI\Tests\Fixtures\Service
     {

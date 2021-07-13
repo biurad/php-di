@@ -20,6 +20,7 @@ namespace Rade\DI;
 use Nette\Utils\Helpers;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
+use Rade\DI\Resolvers\Resolver;
 use Rade\DI\Services\ServiceProviderInterface;
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
 use Symfony\Contracts\Service\ResetInterface;
@@ -27,11 +28,8 @@ use Symfony\Contracts\Service\ResetInterface;
 /**
  * Internal shared container.
  *
- * @method call($callback, array $args = [])
- *      Resolve a service definition, class string, invocable object or callable using autowiring.
+ * @method call($callback, array $args = [])             Resolve a service definition, class string, invocable object or callable using autowiring.
  * @method resolveClass(string $class, array $args = []) Resolves a class string.
- * @method autowire(string $id, array $types) Resolve wiring classes + interfaces to service id.
- * @method exclude(string $type) Exclude an interface or class type from being autowired.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -61,9 +59,35 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array[] tag name => service name => tag value */
     private array $tags = [];
 
+    /** @var array<string,string[]> type => services */
+    protected array $types = [ContainerInterface::class => ['container'], AbstractContainer::class => ['container']];
+
+    /** @var array<string,bool> of classes excluded from autowiring */
+    private array $excluded = [
+        \ArrayAccess::class => true,
+        \Countable::class => true,
+        \IteratorAggregate::class => true,
+        \SplDoublyLinkedList::class => true,
+        \stdClass::class => true,
+        \SplStack::class => true,
+        \Stringable::class => true,
+        \Iterator::class => true,
+        \Traversable::class => true,
+        \Serializable::class => true,
+        \JsonSerializable::class => true,
+        ServiceProviderInterface::class => true,
+        ResetInterface::class => true,
+        Services\ServiceLocator::class => true,
+        Builder\Reference::class => true,
+        Builder\Statement::class => true,
+        RawDefinition::class => true,
+        Definition::class => true,
+    ];
+
     public function __construct()
     {
-        self::$services = [];
+        self::$services = ['container' => $this];
+        $this->resolver = new Resolver($this);
     }
 
     /**
@@ -88,20 +112,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             case 'call':
                 return $this->resolver->resolve($args[0], $args[1] ?? []);
 
-            case 'autowire':
-                if (!$this->has($args[0])) {
-                    throw $this->createNotFound($args[0]);
-                }
-
-                $this->resolver->autowire($args[0], $args[1] ?? []);
-
-                break;
-
-            case 'exclude':
-                $this->resolver->exclude($args[0]);
-
-                break;
-
             default:
                 if (\method_exists($this, $name)) {
                     $message = \sprintf('Method call \'%s()\' is either a member of container or a protected service method.', $name);
@@ -111,8 +121,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
                     $message ?? \sprintf('Method call %s->%s() invalid, "%2$s" doesn\'t exist.', __CLASS__, $name)
                 );
         }
-
-        return $this;
     }
 
     /**
@@ -209,7 +217,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function remove(string $id): void
     {
-        unset($this->aliases[$id], $this->tags[$id]);
+        unset(self::$services[$id], $this->aliases[$id], $this->types[$id], $this->tags[$id]);
     }
 
     /**
@@ -217,9 +225,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function reset(): void
     {
-        $this->resolver->reset();
-
-        $this->tags = $this->aliases = [];
+        $this->tags = $this->aliases = $this->types = [];
     }
 
     /**
@@ -260,6 +266,94 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * Add a aliased type of classes or interfaces for a service definition.
+     *
+     * @param string          $id    The registered service id
+     * @param string|string[] $types The types associated with service definition
+     */
+    public function type(string $id, $types): void
+    {
+        foreach ((array) $types as $typed) {
+            if ($this->excluded[$typed] ?? \in_array($id, $this->types[$typed] ?? [], true)) {
+                continue;
+            }
+
+            $this->types[$typed][] = $id;
+        }
+    }
+
+    /**
+     * Set types for multiple services.
+     *
+     * @see type method
+     *
+     * @param array<string,string[]> $types The types associated with service definition
+     */
+    public function types(array $types): void
+    {
+        foreach ($types as $id => $wiring) {
+            if (\is_int($id)) {
+                throw new ContainerResolutionException('Service identifier is not defined, integer found.');
+            }
+
+            $this->type($id, (array) $wiring);
+        }
+    }
+
+    /**
+     * If class or interface is a autowired typed value.
+     *
+     * @param string $id of class or interface
+     *
+     * @return bool|string[] If $ids is true, returns found ids else bool
+     */
+    public function typed(string $id, bool $ids = false)
+    {
+        return $ids ? $this->types[$id] ?? [] : isset($this->types[$id]);
+    }
+
+    /**
+     * If id is a registered service id, return bool else if types is set on id,
+     * resolve value and return it.
+     *
+     * @param string $id A class or an interface name
+     *
+     * @throws ContainerResolutionException|NotFoundServiceException
+     *
+     * @return mixed
+     */
+    public function autowired(string $id, bool $single = false)
+    {
+        if (isset($this->types[$id])) {
+            if (1 === \count($autowired = $this->types[$id])) {
+                return $single ? $this->get($autowired[0]) : [$this->get($autowired[0])];
+            }
+
+            if ($single) {
+                \natsort($autowired);
+
+                throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, \implode(', ', $autowired)));
+            }
+
+            return \array_map([$this, 'get'], $autowired);
+        }
+
+        throw new NotFoundServiceException("Service of type '$id' not found. Check class name because it cannot be found.");
+    }
+
+    /**
+     * Add a class or interface that should be excluded from autowiring.
+     *
+     * @param string|string[] $types
+     */
+    public function exclude($types): void
+    {
+        foreach ((array) $types as $type) {
+            $this->excluded[$type] = true;
+        }
+    }
+
+    /**
      * Assign a set of tags to service(s).
      *
      * @param string[]|string         $serviceIds
@@ -296,6 +390,14 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         }
 
         return $tags;
+    }
+
+    /**
+     * The resolver associated with the container.
+     */
+    public function getResolver(): Resolver
+    {
+        return $this->resolver;
     }
 
     /**

@@ -413,11 +413,8 @@ class YamlFileLoaderTest extends LoaderTestCase
 
         $ids = $container->keys();
         $expectIds = [Fixtures\Prototype\Foo::class, Fixtures\Prototype\Sub\Bar::class];
-
-        if ($container instanceof Container) {
-            $expectIds[] = 'container';
-        }
         \sort($ids);
+
         $this->assertSame($expectIds, $ids);
 
         if ($container instanceof ContainerBuilder) {
@@ -457,11 +454,8 @@ class YamlFileLoaderTest extends LoaderTestCase
             Fixtures\Prototype\OtherDir\Component2\Dir1\Service4::class,
             Fixtures\Prototype\OtherDir\Component2\Dir2\Service5::class,
         ];
-
-        if ($container instanceof Container) {
-            $expectIds[] = 'container';
-        }
         \sort($ids);
+
         $this->assertSame($expectIds, $ids);
 
         $this->assertEquals(
@@ -490,6 +484,40 @@ class YamlFileLoaderTest extends LoaderTestCase
 
         $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
         $loader->load('services_prototype_namespace_without_resource.yml');
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testPrototypeWithInvalidResource(AbstractContainer $container): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/A "resource" attribute must be of type string for service "invalid" in ".+services_prototype_with_invalid_resource\.yml"\. Check your YAML syntax\./');
+
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('services_prototype_with_invalid_resource.yml');
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testPrototypeWithDeprecation(AbstractContainer $container): void
+    {
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('services_prototype_with_deprecation.yml');
+
+        $ids = $container->keys();
+        $expectIds = [Fixtures\Prototype\OtherDir\Component1\Dir1\Service1::class, Fixtures\Prototype\OtherDir\Component2\Dir1\Service4::class];
+        \sort($ids);
+
+        $this->assertSame($expectIds, $ids);
+
+        /** @var Definition $definition */
+        $definition = $container->service(Fixtures\Prototype\OtherDir\Component1\Dir1\Service1::class);
+
+        $this->assertInstanceOf(Definition::class, $definition);
+        $this->assertTrue($definition->isDeprecated());
+        $this->assertEquals(['package' => 'vendor/package', 'version' => 1.1, 'message' => 'This Rade\DI\Tests\Fixtures\Prototype\OtherDir\Component1\Dir1\Service1 has been deprecated'], $definition->getDeprecation());
     }
 
     /**
@@ -577,6 +605,29 @@ class YamlFileLoaderTest extends LoaderTestCase
     /**
      * @dataProvider loadContainers
      */
+    public function testEmptyFileThrowsNoException(AbstractContainer $container): void
+    {
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('empty.yml');
+
+        $this->assertEquals([], $container->keys());
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testFileContentIsNotAnArray(AbstractContainer $container): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/The service file ".+bad_file_contents\.yml" is not valid\. It should contain an array\. Check your YAML syntax\./');
+
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('bad_file_contents.yml');
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
     public function testUnsupportedKeywordThrowsException(AbstractContainer $container): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -604,8 +655,8 @@ class YamlFileLoaderTest extends LoaderTestCase
         } else {
             $this->assertSame($container->service('BAR')->getParameters()[0], $container->get('Bar'));
             $this->assertSame($container->service('BAR')->getCalls()['setBar'][0], $container->get('bar'));
+            $this->assertNotSame($container->get('BAR'), $container->get('bar'));
         }
-        $this->assertNotSame($container->get('BAR'), $container->get('bar'));
     }
 
     /**
@@ -649,6 +700,18 @@ class YamlFileLoaderTest extends LoaderTestCase
                 ], ['spacingLevel' => 4])
             );
         }
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testServiceBindingInvalid(AbstractContainer $container): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Parameter "bind" must be an array for service "bar" in ".+bad_binds_not_array\.yml"\. Check your YAML syntax\./');
+
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('bad_binds_not_array.yml');
     }
 
     /**
@@ -722,6 +785,30 @@ class YamlFileLoaderTest extends LoaderTestCase
         ];
 
         $this->assertSame($expected, $container->service('foo')->getCalls());
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testInvalidServiceProvider(AbstractContainer $container): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Invalid service provider key key, only list sequence is supported "service_providers: \.\.\." in ".+services12_invalid_services_providers\.yml"\./');
+
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('services12_invalid_services_providers.yml');
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testServicesWithInvalidTag(AbstractContainer $container): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported tag "!no_tag".');
+
+        $loader = new YamlFileLoader($container, new FileLocator(self::$fixturesPath . '/yaml'));
+        $loader->load('services_with_invalid_tag.yml');
     }
 
     public function testNamedArguments(): void

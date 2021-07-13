@@ -30,7 +30,6 @@ use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\FrozenServiceException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\Exceptions\ServiceCreationException;
-use Rade\DI\FallbackContainer;
 use Rade\DI\RawDefinition;
 use Rade\DI\Services\ServiceProviderInterface;
 use Rade\DI\Tests\Fixtures\AppContainer;
@@ -67,19 +66,13 @@ class ContainerTest extends TestCase
     {
         $rade = new Container();
 
-        $this->assertTrue(isset($rade['container']));
-        $this->assertTrue($rade->has('container'));
-        $this->assertSame($rade, $rade['container']);
-        $this->assertSame($rade, $rade->get('container'));
+        $this->assertTrue($rade->initialized('container'));
         $this->assertSame($rade, $rade->get(Container::class));
         $this->assertSame($rade, $rade->get(ContainerInterface::class));
 
         $rade->reset();
 
-        $this->assertTrue(isset($rade['container']));
-        $this->assertTrue($rade->has('container'));
-        $this->assertSame($rade, $rade['container']);
-        $this->assertSame($rade, $rade->get('container'));
+        $this->assertTrue($rade->initialized('container'));
         $this->assertNotSame($rade, $rade->get(Container::class));
 
         $this->expectExceptionObject(new NotFoundServiceException('Identifier "Psr\Container\ContainerInterface" is not defined.'));
@@ -100,7 +93,7 @@ class ContainerTest extends TestCase
     public function testFactory(): void
     {
         $rade = new Container();
-        $rade['factory'] = $rade->factory($factory = fn () => 6);
+        $rade['factory'] = $rade->definition($factory = fn () => 6, Definition::FACTORY);
 
         $this->assertNotSame($factory, $one = $rade['factory']);
         $this->assertSame($one, $rade['factory']);
@@ -151,9 +144,9 @@ class ContainerTest extends TestCase
     public function testServicesShouldBeDifferent(): void
     {
         $rade = new Container();
-        $rade['service'] = $rade->factory(function () {
+        $rade['service'] = $rade->definition(function () {
             return new Fixtures\Service();
-        });
+        }, Definition::FACTORY);
 
         $serviceOne = $rade['service'];
         $serviceTwo = $rade['service'];
@@ -165,6 +158,7 @@ class ContainerTest extends TestCase
     public function testGettingServiceResolution(): void
     {
         $rade = new Container();
+        $rade['container'] = $this;
         $this->assertInstanceOf(Fixtures\Service::class, $rade->get(Fixtures\Service::class));
 
         try {
@@ -381,7 +375,7 @@ class ContainerTest extends TestCase
 
         $this->assertTrue(isset($rade->parameters['rade_di']['hello']));
         $this->assertEquals(['great'], $rade->parameters['other']);
-        $this->assertCount(5, $rade->keys());
+        $this->assertCount(4, $rade->keys());
 
         $this->assertInstanceOf(Fixtures\Service::class, $service = $rade['service']);
         $this->assertSame($rade, $service->value);
@@ -393,9 +387,9 @@ class ContainerTest extends TestCase
         $rade['shared_service'] = function () use ($rade) {
             return $rade['factory_service'];
         };
-        $rade['factory_service'] = $rade->factory(function () {
+        $rade['factory_service'] = $rade->definition(function () {
             return new Fixtures\Service();
-        });
+        }, Definition::FACTORY);
 
         $service = function ($service, $container) {
             if ($service instanceof Fixtures\Service) {
@@ -469,7 +463,7 @@ class ContainerTest extends TestCase
         $rade['foo'] = $rade->raw(123);
         $rade['bar'] = $rade->raw(123);
 
-        $this->assertEquals(['foo', 'bar', 'container'], $rade->keys());
+        $this->assertEquals(['foo', 'bar'], $rade->keys());
     }
 
     /** @test */
@@ -719,7 +713,7 @@ class ContainerTest extends TestCase
             ->bind('autowireTypesArray', [[$rade->raw('none'), $rade['default.value'], new Reference('Rade\DI\Tests\Fixtures\Service[]')]])
             ->bind('missingService', new Statement(Fixtures\Service::class))
             ->bind('multipleAutowireTypesNotFound', $nVal);
-        $rade['factory'] = $rade->factory(new Fixtures\Invokable());
+        $rade['factory'] = $rade->definition(new Fixtures\Invokable(), Definition::FACTORY);
 
         $count = 0;
         $rade['service'] = $rade->definition(Fixtures\Constructor::class)
@@ -740,7 +734,7 @@ class ContainerTest extends TestCase
         $def = $rade->service('lazy');
         $this->assertNotTrue($def->isFactory());
         $this->assertTrue($def->isLazy());
-        $this->assertTrue($def->isAutowired());
+        $this->assertFalse($def->isAutowired());
         $this->assertTrue($def->isPublic());
         $this->assertEquals(Fixtures\ServiceAutowire::class, $def->getEntity());
 
@@ -781,70 +775,5 @@ class ContainerTest extends TestCase
         $this->expectException(ContainerResolutionException::class);
 
         $rade->get('protected');
-    }
-
-    public function testFallbackContainerNameConflict(): void
-    {
-        $rade = new FallbackContainer();
-
-        // Service before fallback
-        $rade[AppContainer::class] = $rade->raw('something');
-        $rade->fallback($fallback = new AppContainer());
-
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
-        $this->assertSame($fallback, $rade[AppContainer::class]);
-
-        // Unset to check if fallback will still exist.
-        unset($rade[AppContainer::class]);
-
-        $this->assertSame($fallback, $rade[AppContainer::class]);
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
-
-        $rade->reset();
-
-        // Fallback before service
-        $rade->fallback($fallback = new AppContainer());
-        $rade[AppContainer::class] = $rade->raw('something');
-
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
-        unset($rade[AppContainer::class]);
-
-        $this->assertSame($fallback, $rade[AppContainer::class]);
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
-    }
-
-    public function testFallbackContainerErrors(): void
-    {
-        $rade = new FallbackContainer();
-        $rade->fallback(new AppContainer());
-
-        try {
-            $rade->get('broken');
-        } catch (NotFoundServiceException $e) {
-            $this->assertEquals('Identifier "broken" is not defined.', $e->getMessage());
-        }
-
-        $this->expectExceptionObject(new ContainerResolutionException('Service id \'nothing\' is not found in container'));
-        $rade->alias('oops', 'nothing');
-
-        $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "nothing" is not defined.');
-
-        $rade->has('nothing');
-    }
-
-    public function testFallbackContainer(): void
-    {
-        $rade = new FallbackContainer();
-        $rade->fallback($fallback = new AppContainer());
-
-        $this->assertTrue(isset($rade[AppContainer::class]));
-        $this->assertSame($fallback, $rade[AppContainer::class]);
-        $this->assertSame($fallback, $rade->get(AppContainer::class));
-        $this->assertSame($rade, $rade->get(Container::class));
-        $this->assertSame($rade, $rade->get(ContainerInterface::class));
-
-        $rade->alias('aliased', 'scoped');
-        $this->assertSame($fallback->get('scoped'), $rade->get('aliased'));
     }
 }

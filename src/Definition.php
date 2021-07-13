@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\{Callback, Reflection};
 use PhpParser\Node\{
     Expr\ArrayDimFetch,
     Expr\Assign,
@@ -28,24 +27,24 @@ use PhpParser\Node\{
     Stmt\Return_,
     UnionType
 };
-use PhpParser\BuilderFactory;
 use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
+use Rade\DI\Resolvers\Resolver;
 
 /**
  * Represents definition of standard service.
  *
- * @method string getId() Get the definition's id.
- * @method mixed getEntity() Get the definition's entity.
- * @method array<string,mixed> getParameters() Get the definition's parameters.
- * @method string|string[] getType() Get the return types for definition.
- * @method array<string,mixed> getCalls() Get the bind calls to definition.
- * @method array<int,mixed> getExtras() Get the list of extras binds.
- * @method string[] getDeprecation() Return a non-empty array if definition is deprecated.
- * @method bool isDeprecated() Whether this definition is deprecated, that means it should not be used anymore.
- * @method bool isLazy() Whether this service is lazy.
- * @method bool isFactory() Whether this service is not a shared service.
- * @method bool isPublic() Whether this service is a public type.
- * @method bool isAutowired() Whether this service is autowired.
+ * @method string              getId()          Get the definition's id.
+ * @method mixed               getEntity()      Get the definition's entity.
+ * @method array<string,mixed> getParameters()  Get the definition's parameters.
+ * @method string|string[]     getType()        Get the return types for definition.
+ * @method array<string,mixed> getCalls()       Get the bind calls to definition.
+ * @method array<int,mixed>    getExtras()      Get the list of extras binds.
+ * @method string[]            getDeprecation() Return a non-empty array if definition is deprecated.
+ * @method bool                isDeprecated()   Whether this definition is deprecated, that means it should not be used anymore.
+ * @method bool                isLazy()         Whether this service is lazy.
+ * @method bool                isFactory()      Whether this service is not a shared service.
+ * @method bool                isPublic()       Whether this service is a public type.
+ * @method bool                isAutowired()    Whether this service is autowired.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -67,7 +66,7 @@ class Definition
 
     /** supported call in get() method. */
     private const SUPPORTED_GET = [
-        'id'  => 'id',
+        'id' => 'id',
         'entity' => 'entity',
         'parameters' => 'parameters',
         'type' => 'type',
@@ -76,10 +75,11 @@ class Definition
     ];
 
     private const IS_TYPE_OF = [
-        'lazy' => 'lazy',
-        'factory' => 'factory',
-        'public' => 'public',
-        'deprecated' => 'deprecated',
+        'isLazy' => 'lazy',
+        'isFactory' => 'factory',
+        'isPublic' => 'public',
+        'isAutowired' => 'autowired',
+        'isDeprecated' => 'deprecated',
     ];
 
     private string $id;
@@ -105,7 +105,7 @@ class Definition
     }
 
     /**
-     * @param string   $method
+     * @param string  $method
      * @param mixed[] $arguments
      *
      * @throws \BadMethodCallException
@@ -114,19 +114,11 @@ class Definition
      */
     public function __call($method, $arguments)
     {
-        // Fix autowired conflict
-        if ('isAutowired' === $method) {
-            return $this->autowired;
-        }
-
-        $method = (string) \preg_replace('/^get|is([A-Z]{1}[a-z]+)$/', '\1', $method, 1);
-        $method = \strtolower($method);
-
         if (isset(self::IS_TYPE_OF[$method])) {
-            return (bool) $this->{$method};
+            return (bool) $this->{self::IS_TYPE_OF[$method]};
         }
 
-        return $this->get($method);
+        return $this->get(\strtolower((string) \preg_replace('/^get([A-Z]{1}[a-z]+)$/', '\1', $method, 1)));
     }
 
     /**
@@ -143,10 +135,14 @@ class Definition
      *
      * @internal
      */
-    final public function attach(string $id, Resolvers\Resolver $resolver): void
+    final public function withContainer(string $id, AbstractContainer $container): void
     {
         $this->id = $id;
-        $this->resolver = $resolver;
+        $this->container = $container;
+
+        if ($container instanceof ContainerBuilder) {
+            $this->builder = $container->getBuilder();
+        }
     }
 
     /**
@@ -265,15 +261,11 @@ class Definition
             $service = $service->value;
         }
 
-        if ([] === $types) {
-            if (\is_string($service) && \class_exists($service)) {
-                $types = [$service];
-            } elseif (\is_callable($service)) {
-                $types = Reflection::getReturnTypes(Callback::toReflection($service));
-            }
+        if ([] === $types && null !== $service) {
+            $types = Resolver::autowireService($service);
         }
 
-        $this->resolver->autowire($this->id, $types);
+        $this->container->type($this->id, $types);
 
         return $this->typeOf($types);
     }
@@ -320,6 +312,18 @@ class Definition
         $this->deprecated['package'] = $args[0] ?? '';
         $this->deprecated['version'] = $args[1] ?? '';
         $this->deprecated['message'] = $message;
+
+        return $this;
+    }
+
+    /**
+     * Assign a set of tags to the definition.
+     *
+     * @param array<int|string,mixed> $tags
+     */
+    public function tag(array $tags): self
+    {
+        $this->container->tag($this->id, $tags);
 
         return $this;
     }
@@ -380,9 +384,9 @@ class Definition
     /**
      * Resolves the Definition when in use in ContainerBuilder.
      */
-    public function resolve(BuilderFactory $builder): \PhpParser\Node\Expr
+    public function resolve(): \PhpParser\Node\Expr
     {
-        $resolved = $builder->methodCall($builder->var('this'), self::createMethod($this->id));
+        $resolved = $this->builder->methodCall($this->builder->var('this'), self::createMethod($this->id));
 
         if ($this->factory) {
             return $resolved;
@@ -402,10 +406,9 @@ class Definition
      *
      * @throws \ReflectionException
      */
-    public function build(BuilderFactory $builder): \PhpParser\Builder\Method
+    public function build(): \PhpParser\Builder\Method
     {
-        $this->builder = $builder;
-        $node = $builder->method(self::createMethod($this->id))->makeProtected();
+        $node = $this->builder->method(self::createMethod($this->id))->makeProtected();
         $factory = $this->resolveEntity($this->entity, $this->parameters);
 
         if ([] !== $deprecation = $this->deprecated) {
@@ -414,7 +417,7 @@ class Definition
         }
 
         if (!empty($this->calls + $this->extras)) {
-            $node->addStmt(new Assign($resolved = $builder->var($this->public ? 'service' : 'private'), $factory));
+            $node->addStmt(new Assign($resolved = $this->builder->var($this->public ? 'service' : 'private'), $factory));
             $node = $this->resolveCalls($resolved, $factory, $node);
         }
 

@@ -18,88 +18,68 @@ declare(strict_types=1);
 namespace Rade\DI\Resolvers;
 
 use Nette\Utils\Callback;
+use Nette\Utils\Reflection;
 use PhpParser\Node;
-use Psr\Container\ContainerInterface;
 use Rade\DI\{
+    AbstractContainer,
     Builder\Reference,
-    Builder\Statement,
     ContainerBuilder,
-    Definition,
     Exceptions\ContainerResolutionException,
     Exceptions\NotFoundServiceException,
     FallbackContainer,
-    RawDefinition,
     Services\ServiceLocator
 };
-use Symfony\Contracts\Service\{
-    ResetInterface, ServiceProviderInterface, ServiceSubscriberInterface
-};
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 /**
  * Class Resolver.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Resolver implements ContainerInterface, ResetInterface
+class Resolver
 {
-    private ContainerInterface $container;
+    private AbstractContainer $container;
 
     private AutowireValueResolver $resolver;
 
-    /** @var array type => services */
-    private array $wiring;
-
-    /** @var array<string,bool> of classes excluded from autowiring */
-    private array $excluded = [
-        \ArrayAccess::class => true,
-        \Countable::class => true,
-        \IteratorAggregate::class => true,
-        \SplDoublyLinkedList::class => true,
-        \stdClass::class => true,
-        \SplStack::class => true,
-        \Stringable::class => true,
-        \Iterator::class => true,
-        \Traversable::class => true,
-        \Serializable::class => true,
-        \JsonSerializable::class => true,
-        ServiceProviderInterface::class => true,
-        ResetInterface::class => true,
-        ServiceLocator::class => true,
-        RawDefinition::class => true,
-        Reference::class => true,
-        Definition::class => true,
-        Statement::class => true,
-    ];
-
-    public function __construct(ContainerInterface $container, array $wiring = [])
+    public function __construct(AbstractContainer $container)
     {
-        $this->wiring = $wiring;
         $this->container = $container;
         $this->resolver = new AutowireValueResolver();
     }
 
     /**
-     * Resolve wiring classes + interfaces.
-     *
-     * @param string[] $types
+     * @param mixed $definition
      */
-    public function autowire(string $id, array $types): void
+    public static function autowireService($definition): array
     {
+        $types = $autowired = [];
+
+        try {
+            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
+        } catch (\ReflectionException $e) {
+            if ($definition instanceof \stdClass) {
+                return $types;
+            }
+
+            if (\is_string($definition) && \class_exists($definition)) {
+                $types[] = $definition;
+            } elseif (\is_object($definition)) {
+                $types[] = \get_class($definition);
+            }
+        }
+
         foreach ($types as $type) {
+            $autowired[] = $type;
+
             if (false === $parents = @\class_parents($type)) {
                 continue;
             }
 
-            $parents = \array_merge($parents, (\class_implements($type, false) ?: []), [$type]);
-
-            foreach ($parents as $resolved) {
-                if ($this->excluded[$resolved] ?? \in_array($id, $this->find($resolved), true)) {
-                    continue;
-                }
-
-                $this->wiring[$resolved][] = $id;
-            }
+            $autowired = \array_merge($autowired, $parents, (\class_implements($type, false) ?: []));
         }
+
+        return $autowired;
     }
 
     /**
@@ -124,20 +104,13 @@ class Resolver implements ContainerInterface, ResetInterface
             }
 
             if ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
-                if ($this->isBuilder()) {
-                    $resolved = [new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, true)];
-                }
-
                 $resolvedParameters = \array_merge($resolvedParameters, $resolved);
 
                 continue;
             }
 
-            if ($nullValuesFound > 0 && $this->isBuilder()) {
-                $resolved = new Node\Arg(\PhpParser\BuilderHelpers::normalizeValue($resolved), false, false, [], new Node\Identifier($parameter->getName()));
-            }
-
-            $resolvedParameters[$parameter->getPosition()] = $resolved;
+            $position = \PHP_VERSION_ID >= 80000 && $nullValuesFound > 0 ? $parameter->getName() : $parameter->getPosition();
+            $resolvedParameters[$position] = $resolved;
         }
 
         return $resolvedParameters;
@@ -184,9 +157,7 @@ class Resolver implements ContainerInterface, ResetInterface
             return $this->resolve($callback, $args);
         }
 
-        throw new ContainerResolutionException(
-            \sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback))
-        );
+        throw new ContainerResolutionException(\sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback)));
     }
 
     /**
@@ -227,29 +198,14 @@ class Resolver implements ContainerInterface, ResetInterface
             static $services = [];
 
             foreach ($id::getSubscribedServices() as $name => $service) {
-                $services += $this->resolveServiceSubscriber(\is_int($name) ? $service : $name, $service);
+                $services += $this->resolveServiceSubscriber(!\is_numeric($name) ? $name : $service, $service);
             }
 
             return !$this->isBuilder() ? new ServiceLocator($services) : new Node\Expr\New_(ServiceLocator::class, $services);
         }
 
-        if (!empty($autowired = $this->wiring[$id] ?? '')) {
-            if (1 === \count($autowired)) {
-                if ('container' === $id = \reset($autowired)) {
-                    $value = !$this->isBuilder() ? $this->container : new Node\Expr\Variable('this');
-                }
-
-                return $single ? $value ?? $this->container->get($id) : [$value ?? $this->container->get($id)];
-            }
-
-            if (!$single) {
-                return \array_map([$this->container, 'get'], $autowired);
-            }
-            \natsort($autowired);
-
-            throw new ContainerResolutionException(
-                \sprintf('Multiple services of type %s found: %s.', $id, \implode(', ', $autowired))
-            );
+        if ($this->container->typed($id)) {
+            return $this->container->autowired($id, $single);
         }
 
         if ($this->container instanceof FallbackContainer) {
@@ -257,60 +213,6 @@ class Resolver implements ContainerInterface, ResetInterface
         }
 
         throw new NotFoundServiceException("Service of type '$id' not found. Check class name because it cannot be found.");
-    }
-
-    /**
-     * Check if service type exist.
-     *
-     * @param string $id A class or an interface name
-     */
-    public function has(string $id): bool
-    {
-        return isset($this->wiring[$id]);
-    }
-
-    /**
-     * Clears all available autowired types.
-     */
-    public function reset(): void
-    {
-        $this->wiring = [];
-    }
-
-    /**
-     * Return the list of service ids registered to a type.
-     *
-     * @param string $id A class or an interface name
-     *
-     * @return string[]
-     */
-    public function find(string $id): array
-    {
-        return $this->wiring[$id] ?? [];
-    }
-
-    /**
-     * Add a class or interface that should be excluded from autowiring.
-     */
-    public function exclude(string $type): void
-    {
-        $this->excluded[$type] = true;
-    }
-
-    /**
-     * Export the array containing services parent classes and interfaces.
-     */
-    public function export(): array
-    {
-        return $this->wiring;
-    }
-
-    /**
-     * Return the PS11 container aiding autowiring.
-     */
-    public function getContainer(): ContainerInterface
-    {
-        return $this->container;
     }
 
     /**
@@ -331,12 +233,12 @@ class Resolver implements ContainerInterface, ResetInterface
                 $arrayLike = $resolved;
                 $resolved = \substr($resolved, 0, -2);
 
-                if ($this->container->has($resolved) || $this->has($resolved)) {
+                if ($this->container->has($resolved) || $this->container->typed($resolved)) {
                     return $this->resolveServiceSubscriber($id, $arrayLike);
                 }
             }
 
-            $service = fn () => ($this->container->has($resolved) || $this->has($resolved)) ? $this->container->get($resolved) : null;
+            $service = fn () => ($this->container->has($resolved) || $this->container->typed($resolved)) ? $this->container->get($resolved) : null;
 
             return [$id => !$this->isBuilder() ? $service : $service()];
         }
@@ -344,7 +246,7 @@ class Resolver implements ContainerInterface, ResetInterface
         if ('[]' === \substr($value, -2)) {
             $resolved = \substr($value, 0, -2);
             $service = function () use ($resolved) {
-                if ($this->has($resolved)) {
+                if ($this->container->typed($resolved)) {
                     return $this->get($resolved);
                 }
 

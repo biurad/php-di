@@ -42,6 +42,28 @@ class FileLoaderTest extends LoaderTestCase
     /**
      * @dataProvider loadContainers
      */
+    public function testRegisterClassesWithInvalidNamespaceEnd(AbstractContainer $container): void
+    {
+        $this->expectExceptionObject(new \InvalidArgumentException('Namespace prefix must end with a "\\": "Rade\DI\Tests\Fixtures\Prototype\Sub".'));
+
+        $loader = new TestFileLoader($container, new FileLocator(self::$fixturesPath . '/Fixtures'));
+        $loader->registerClasses(new Definition(null), 'Rade\DI\Tests\Fixtures\Prototype\Sub', 'Prototype/*');
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
+    public function testRegisterClassesWithInvalidNamespaceType(AbstractContainer $container): void
+    {
+        $this->expectExceptionObject(new \InvalidArgumentException('Namespace is not a valid PSR-4 prefix: "0Rade_DI_Tests_Fixtures_Prototype_Sub\\".'));
+
+        $loader = new TestFileLoader($container, new FileLocator(self::$fixturesPath . '/Fixtures'));
+        $loader->registerClasses(new Definition(null), '0Rade_DI_Tests_Fixtures_Prototype_Sub\\', 'Prototype/*');
+    }
+
+    /**
+     * @dataProvider loadContainers
+     */
     public function testRegisterClassWithNotFoundParameter(AbstractContainer $container): void
     {
         $this->expectExceptionMessage('You have requested a non-existent parameter "sub_dir".');
@@ -78,8 +100,10 @@ class FileLoaderTest extends LoaderTestCase
         $expectedKeys = [Bar::class];
 
         if ($container instanceof Container) {
-            $expectedKeys[] = 'container';
+            $this->assertTrue($container->initialized('container'));
+            $this->assertTrue($container->typed(ContainerInterface::class));
         } else {
+            $this->assertTrue($container->initialized('container'));
             $this->assertTrue($container->has(ContainerInterface::class));
         }
 

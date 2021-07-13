@@ -28,11 +28,11 @@ use PhpParser\Node\{
 };
 use PhpParser\ParserFactory;
 use Rade\DI\{
+    AbstractContainer,
     Builder\Statement,
     Exceptions\ServiceCreationException,
     RawDefinition,
     Builder\Reference,
-    Resolvers\Resolver
 };
 use Rade\DI\Exceptions\ContainerResolutionException;
 
@@ -43,7 +43,7 @@ use Rade\DI\Exceptions\ContainerResolutionException;
  */
 trait ResolveTrait
 {
-    private Resolver $resolver;
+    private AbstractContainer $container;
 
     private BuilderFactory $builder;
 
@@ -81,10 +81,9 @@ trait ResolveTrait
 
         try {
             $arguments = $this->resolveArguments($this->parameters, null, false);
-
-            $resolved = \is_string($resolved) && $this->resolver->has($resolved)
-                ? $this->resolver->resolveClass($resolved, $arguments)
-                : $this->resolver->resolve($resolved, $arguments);
+            $resolved = \is_string($resolved) && $this->container->typed($resolved)
+                ? $this->container->getResolver()->resolveClass($resolved, $arguments)
+                : $this->container->getResolver()->resolve($resolved, $arguments);
         } catch (ContainerResolutionException $e) {
             if (!\str_starts_with($e->getMessage(), 'Unable to resolve value provided')) {
                 throw $e;
@@ -99,7 +98,7 @@ trait ResolveTrait
                 if (\property_exists($resolved, $bind)) {
                     $resolved->{$bind} = !\is_array($value) ? \current($arguments) : $arguments;
                 } elseif (\method_exists($resolved, $bind)) {
-                    $this->resolver->resolve([$resolved, $bind], $arguments);
+                    $this->container->getResolver()->resolve([$resolved, $bind], $arguments);
                 }
             }
         }
@@ -110,7 +109,7 @@ trait ResolveTrait
                 $code = $code->value;
             }
 
-            $this->resolver->resolve($code, $args ?? []);
+            $this->container->getResolver()->resolve($code, $args ?? []);
         }
 
         return $resolved;
@@ -156,7 +155,7 @@ trait ResolveTrait
 
                     return ($type && $this->lazy)
                         ? $this->resolveLazyEntity($entity, $arguments)
-                        : $this->resolver->getContainer()->resolveClass($entity, $this->resolveArguments($arguments));
+                        : $this->container->resolveClass($entity, $this->resolveArguments($arguments));
             }
         } elseif (\is_callable($entity)) {
             if ($entity instanceof \Closure || \is_object($entity[0])) {
@@ -222,14 +221,14 @@ trait ResolveTrait
                 );
             }
 
-            if ($this->resolver->has($referenced)) {
-                return $this->resolver->get($referenced);
+            if ($this->container->typed($referenced)) {
+                return $this->container->autowired($referenced);
             }
 
-            return [$this->resolver->getContainer()->get($referenced)];
+            return [$this->container->get($referenced)];
         }
 
-        return $this->resolver->getContainer()->get($referenced);
+        return $this->container->get($referenced);
     }
 
     /**
@@ -241,24 +240,21 @@ trait ResolveTrait
     {
         static $bind;
 
-        /** @var \Rade\DI\ContainerBuilder $container */
-        $container = $this->resolver->getContainer();
-
-        if ('' !== $class && $container->has($class)) {
+        if ('' !== $class && $this->container->has($class)) {
             if (!$service[0] instanceof Expr) {
                 if ($this->id === $class) {
-                    $def = $container->service($class);
+                    $def = $this->container->service($class);
                     $def = $def instanceof RawDefinition ? $this->builder->val($def()) : $def->resolve($this->builder);
                 }
 
                 $service[0] = $def ?? $this->resolveReference(new Reference($class));
             }
 
-            if (\count($found = $this->resolver->find($class)) > 1) {
+            if (\count($found = $this->container->typed($class, true)) > 1) {
                 throw new ServiceCreationException(\sprintf('Multiple services found for %s.', $class));
             }
 
-            $class = $container->service(\current($found) ?: $class)->entity;
+            $class = $this->container->service($found[0] ?? $class)->entity;
 
             if ($class instanceof Statement && $service[0] instanceof Expr) {
                 $class = $class->value;
@@ -277,7 +273,7 @@ trait ResolveTrait
             $this->typeOf($types = Reflection::getReturnTypes($bind));
 
             if ($this->autowired) {
-                $this->resolver->autowire($this->id, $types);
+                $this->container->type($this->id, $types);
             }
         }
 
@@ -347,7 +343,7 @@ trait ResolveTrait
         return $node;
     }
 
-    protected function resolveArguments(array $arguments = [], ?\ReflectionFunctionAbstract $bind = null, bool $compile = true): array
+    protected function resolveArguments(array $arguments = [], \ReflectionFunctionAbstract $bind = null, bool $compile = true): array
     {
         foreach ($arguments as $key => $value) {
             if (\is_array($value)) {
@@ -357,7 +353,7 @@ trait ResolveTrait
             }
 
             if ($value instanceof self) {
-                $arguments[$key] = $this->resolver->getContainer()->get($value->id);
+                $arguments[$key] = $this->container->get($value->id);
 
                 continue;
             }
@@ -369,7 +365,7 @@ trait ResolveTrait
             }
 
             if ($value instanceof Statement) {
-                $resolve = !$compile ? [$this->resolver, 'resolve'] : [$this, 'resolveEntity'];
+                $resolve = !$compile ? [$this->container->getResolver(), 'resolve'] : [$this, 'resolveEntity'];
                 $arguments[$key] = $resolve($value->value, $value->args, false);
 
                 continue;
@@ -386,7 +382,7 @@ trait ResolveTrait
             $arguments[$key] = !$compile ? $value : $this->builder->val($value);
         }
 
-        return null === $bind ? $arguments : $this->resolver->autowireArguments($bind, $arguments);
+        return null === $bind ? $arguments : $this->container->getResolver()->autowireArguments($bind, $arguments);
     }
 
     /**

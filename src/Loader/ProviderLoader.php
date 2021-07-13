@@ -22,6 +22,7 @@ use Rade\DI\Services\ServiceProviderInterface;
 
 /**
  * This class delegates container service providers.
+ * Setting service provider's config, keys should always begin with service provider's class name.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -45,16 +46,11 @@ class ProviderLoader
      * Loads service providers will one configuration.
      *
      * @param Container|ContainerBuilder $container
-     *
-     * @return Container|ContainerBuilder
      */
-    public function load(AbstractContainer $container): AbstractContainer
+    public function load(AbstractContainer $container): void
     {
         foreach ($this->providers as $provider) {
-            $id = \method_exists($provider, 'getId') ? $provider::getId() : \get_class($provider);
-            $container->register($provider, $this->config[$id] ?? []);
+            $container->register($provider, $this->config[\get_class($provider)] ?? []);
         }
-
-        return $container;
     }
 }

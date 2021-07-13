@@ -17,7 +17,9 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr\ArrayItem, Stmt\Declare_, Stmt\DeclareDeclare};
+use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\Variable, Expr\StaticPropertyFetch};
+use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
+use Psr\Container\ContainerInterface;
 use Rade\DI\{
     Builder\Statement,
     Exceptions\CircularReferenceException,
@@ -27,13 +29,15 @@ use Rade\DI\{
 use Symfony\Component\Config\{
     Resource\ClassExistenceResource,
     Resource\FileResource,
+    Resource\FileExistenceResource,
     Resource\ResourceInterface
 };
-use Symfony\Component\Config\Resource\FileExistenceResource;
 
 class ContainerBuilder extends AbstractContainer
 {
     private bool $trackResources;
+
+    private int $hasPrivateServices = 0;
 
     /** @var ResourceInterface[] */
     private array $resources = [];
@@ -53,15 +57,14 @@ class ContainerBuilder extends AbstractContainer
      */
     public function __construct(string $containerParentClass = Container::class)
     {
-        parent::__construct();
-
         $this->containerParentClass = $containerParentClass;
         $this->trackResources = \interface_exists(ResourceInterface::class);
 
         $this->builder = new \PhpParser\BuilderFactory();
         $this->resolver = new Resolvers\Resolver($this);
 
-        $this->resolver->autowire('container', [$containerParentClass]);
+        self::$services = ['container' => new Variable('this')];
+        $this->type('container', [ContainerInterface::class, $containerParentClass]);
     }
 
     /**
@@ -100,7 +103,7 @@ class ContainerBuilder extends AbstractContainer
      * @param string $id The unique identifier for the definition
      *
      * @throws NotFoundServiceException If the identifier is not defined
-     * @throws ServiceCreationException If the definition is a raw type.
+     * @throws ServiceCreationException if the definition is a raw type
      */
     public function extend(string $id): Definition
     {
@@ -158,7 +161,7 @@ class ContainerBuilder extends AbstractContainer
                 $definition = new Definition($definition);
             }
 
-            $definition->attach($id, $this->resolver);
+            $definition->withContainer($id, $this);
         }
 
         return $this->definitions[$id] = $definition;
@@ -176,8 +179,8 @@ class ContainerBuilder extends AbstractContainer
             case isset($this->definitions[$id]):
                 return self::$services[$id] = $this->doCreate($id, $this->definitions[$id]);
 
-            case $this->resolver->has($id):
-                return $this->resolver->get($id, (bool) $invalidBehavior);
+            case $this->typed($id):
+                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
 
             case isset($this->aliases[$id]):
                 return $this->get($this->aliases[$id]);
@@ -192,7 +195,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function has(string $id): bool
     {
-        return isset($this->definitions[$id]) || ($this->resolver->has($id) || isset($this->aliases[$id]));
+        return isset($this->definitions[$id]) || ($this->typed($id) || isset($this->aliases[$id]));
     }
 
     /**
@@ -201,7 +204,7 @@ class ContainerBuilder extends AbstractContainer
     public function remove(string $id): void
     {
         if (isset($this->definitions[$id])) {
-            unset($this->definitions[$id], self::$services[$id]);
+            unset($this->definitions[$id]);
         }
 
         parent::remove($id);
@@ -232,11 +235,9 @@ class ContainerBuilder extends AbstractContainer
      */
     public function addResource(ResourceInterface $resource): self
     {
-        if (!$this->trackResources) {
-            return $this;
+        if ($this->trackResources) {
+            $this->resources[(string) $resource] = $resource;
         }
-
-        $this->resources[(string) $resource] = $resource;
 
         return $this;
     }
@@ -314,13 +315,9 @@ class ContainerBuilder extends AbstractContainer
             }
 
             // Strict circular reference check ...
-            $compiled = $service->build($this->builder);
+            $compiled = $service->build();
 
-            if (!$build) {
-                return $service->resolve($this->builder);
-            }
-
-            return $compiled;
+            return $build ? $compiled : $service->resolve();
         } finally {
             unset($this->loading[$id]);
         }
@@ -332,16 +329,23 @@ class ContainerBuilder extends AbstractContainer
     protected function doCompile(array $definitions, array $parameters, string $containerClass): \PhpParser\Builder\Class_
     {
         [$methodsMap, $serviceMethods, $wiredTypes] = $this->doAnalyse($definitions);
+        $compiledContainerNode = $this->builder->class($containerClass)->extend($this->containerParentClass);
 
-        return $this->builder->class($containerClass)->extend($this->containerParentClass)
+        if ($this->hasPrivateServices > 0) {
+            $compiledContainerNode
+                ->addStmt($this->builder->property('privates')->makeProtected()->setType('array')->makeStatic())
+                ->addStmt($this->builder->method('__construct')->makePublic()
+                    ->addStmt($this->builder->staticCall($this->builder->constFetch('parent'), '__construct'))
+                    ->addStmt(new Assign(new StaticPropertyFetch(new Name('self'), 'privates'), $this->builder->val([]))))
+            ;
+        }
+
+        return $compiledContainerNode
             ->setDocComment(Builder\CodePrinter::COMMENT)
             ->addStmts($serviceMethods)
             ->addStmt($this->builder->property('parameters')
                 ->makePublic()->setType('array')
                 ->setDefault($parameters))
-            ->addStmt($this->builder->property('privates')
-                ->makeProtected()->setType('array')
-                ->makeStatic()->setDefault([]))
             ->addStmt($this->builder->property('methodsMap')
                 ->makeProtected()->setType('array')
                 ->setDefault($methodsMap))
@@ -368,14 +372,13 @@ class ContainerBuilder extends AbstractContainer
             $serviceMethods[] = $this->doCreate($id, $definition, true);
 
             if ($this->ignoredDefinition($definition)) {
+                ++$this->hasPrivateServices;
+
                 continue;
             }
 
             $methodsMap[$id] = Definition::createMethod($id);
         }
-
-        // Use Default Container method ...
-        $methodsMap['container'] = 'getServiceContainer';
 
         // Remove private aliases
         foreach ($this->aliases as $aliased => $service) {
@@ -385,15 +388,13 @@ class ContainerBuilder extends AbstractContainer
         }
 
         // Prevent autowired private services from be exported.
-        foreach ($this->resolver->export() as $type => $ids) {
+        foreach ($this->types as $type => $ids) {
             if (1 === \count($ids) && $this->ignoredDefinition($definitions[\reset($ids)] ?? null)) {
                 continue;
             }
 
             $ids = \array_filter($ids, fn (string $id): bool => !$this->ignoredDefinition($definitions[$id] ?? null));
-
-            // If $ids are filtered, keys should not be preserved.
-            $ids = \array_values($ids);
+            $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
 
             $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
         }
