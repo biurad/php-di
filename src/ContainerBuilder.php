@@ -235,11 +235,9 @@ class ContainerBuilder extends AbstractContainer
      */
     public function addResource(ResourceInterface $resource): self
     {
-        if (!$this->trackResources) {
-            return $this;
+        if ($this->trackResources) {
+            $this->resources[(string) $resource] = $resource;
         }
-
-        $this->resources[(string) $resource] = $resource;
 
         return $this;
     }

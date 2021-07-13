@@ -58,7 +58,7 @@ abstract class FileLoader extends BaseFileLoader
      */
     public function registerClasses(Definition $prototype, string $namespace, string $resource, $exclude = null): void
     {
-        if ('\\' !== \substr($namespace, -1)) {
+        if ('\\' !== @$namespace[-1]) {
             throw new \InvalidArgumentException(\sprintf('Namespace prefix must end with a "\\": "%s".', $namespace));
         }
 
@@ -153,11 +153,7 @@ abstract class FileLoader extends BaseFileLoader
                 }
             }
 
-            if (isset($excludePaths[\str_replace('\\', '/', $path)])) {
-                continue;
-            }
-
-            if (!\preg_match('/\\.php$/', $path, $m) || !$info->isReadable()) {
+            if (isset($excludePaths[\str_replace('\\', '/', $path)]) || !\preg_match('/\\.php$/', $path, $m) || !$info->isReadable()) {
                 continue;
             }
 
@@ -193,10 +189,10 @@ abstract class FileLoader extends BaseFileLoader
         }
 
         // track only for new & removed files
-        if ($resource instanceof GlobResource && $this->container instanceof ContainerBuilder) {
-            $this->container->addResource($resource);
-        } else {
-            if ($this->container instanceof ContainerBuilder) {
+        if ($this->container instanceof ContainerBuilder) {
+            if ($resource instanceof GlobResource) {
+                $this->container->addResource($resource);
+            } else {
                 foreach ($resource as $path) {
                     $this->container->addResource(new FileExistenceResource($path));
                 }

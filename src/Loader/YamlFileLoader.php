@@ -130,12 +130,8 @@ class YamlFileLoader extends FileLoader
             throw new \RuntimeException('Unable to load YAML config files as the Symfony Yaml Component is not installed.');
         }
 
-        if (!\stream_is_local($file)) {
-            throw new \InvalidArgumentException(\sprintf('This is not a local file "%s".', $file));
-        }
-
         if (!\is_file($file)) {
-            throw new \InvalidArgumentException(\sprintf('The file "%s" does not exist.', $file));
+            throw new \InvalidArgumentException(\sprintf(\stream_is_local($file) ? 'The file "%s" does not exist.' : 'This is not a local file "%s".', $file));
         }
 
         if (null === $this->yamlParser) {
