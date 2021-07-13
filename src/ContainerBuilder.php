@@ -243,6 +243,16 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * Return all service definitions.
+     *
+     * @return Definition[]|RawDefinition[]
+     */
+    public function getDefinitions(): array
+    {
+        return $this->definitions;
+    }
+
+    /**
      * Get the builder use to compiler container.
      */
     public function getBuilder(): \PhpParser\BuilderFactory
