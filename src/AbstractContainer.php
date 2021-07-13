@@ -217,7 +217,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function remove(string $id): void
     {
-        unset($this->aliases[$id], $this->tags[$id]);
+        unset(self::$services[$id], $this->aliases[$id], $this->types[$id], $this->tags[$id]);
     }
 
     /**

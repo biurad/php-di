@@ -204,7 +204,7 @@ class ContainerBuilder extends AbstractContainer
     public function remove(string $id): void
     {
         if (isset($this->definitions[$id])) {
-            unset($this->definitions[$id], self::$services[$id]);
+            unset($this->definitions[$id]);
         }
 
         parent::remove($id);

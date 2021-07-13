@@ -202,7 +202,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function remove(string $id): void
     {
         if (isset($this->keys[$id])) {
-            unset($this->values[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id], self::$services[$id]);
+            unset($this->values[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id]);
         }
 
         parent::remove($id);
