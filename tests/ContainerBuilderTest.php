@@ -61,11 +61,7 @@ class ContainerBuilderTest extends TestCase
     {
         $builder = new ContainerBuilder();
 
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service2.phpt'),
-            $builder->compile(['containerClass' => 'EmptyContainer'])
-        );
-
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service2.phpt', $builder->compile(['containerClass' => 'EmptyContainer']));
         includeFile($path);
 
         $container = new \EmptyContainer();
@@ -91,10 +87,7 @@ class ContainerBuilderTest extends TestCase
         }
 
         $this->assertInstanceOf(LNumber::class, $builder->get('raw'));
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service7.phpt'),
-            $builder->compile(['containerClass' => 'RawContainer'])
-        );
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service7.phpt', $builder->compile(['containerClass' => 'RawContainer']));
 
         includeFile($path);
         $container = new \RawContainer();
@@ -113,10 +106,7 @@ class ContainerBuilderTest extends TestCase
         $this->assertSame($message, $deprecation['message']);
 
         $this->assertTrue($def->isDeprecated());
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service8.phpt'),
-            $builder->compile(['containerClass' => 'DeprecatedContainer'])
-        );
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service8.phpt', $builder->compile(['containerClass' => 'DeprecatedContainer']));
 
         includeFile($path);
 
@@ -136,10 +126,7 @@ class ContainerBuilderTest extends TestCase
 
         $builder->set('bar', Fixtures\Bar::class)->args(['NonExistent' => new Statement('NonExistent'), 'value', 'foo' => [1, 2, 3]]);
 
-        $this->assertEquals(
-            \file_get_contents(\sprintf(self::COMPILED . '/service10_%s.phpt', PHP_VERSION_ID >= 80000 ? 1 : 2)),
-            $builder->compile()
-        );
+        $this->assertStringEqualsFile(\sprintf(self::COMPILED . '/service10_%s.phpt', PHP_VERSION_ID >= 80000 ? 1 : 2), $builder->compile());
     }
 
     public function testDefinition(): void
@@ -155,8 +142,7 @@ class ContainerBuilderTest extends TestCase
         $this->assertInstanceOf(Coalesce::class, $builder->get(Fixtures\Service::class));
         $this->assertInstanceOf(Coalesce::class, $builder->get('statement'));
 
-        $this->assertEquals(\file_get_contents($path = self::COMPILED . '/service1.phpt'), $builder->compile());
-
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service1.phpt', $builder->compile());
         includeFile($path);
 
         $container = new \CompiledContainer();
@@ -176,11 +162,7 @@ class ContainerBuilderTest extends TestCase
         $builder->set('service_1', Fixtures\Service::class)->should();
         $builder->set('service_2', Fixtures\Service::class)->should(Definition::FACTORY | Definition::LAZY);
 
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service4.phpt'),
-            $builder->compile(['containerClass' => 'FactoryContainer'])
-        );
-
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service4.phpt', $builder->compile(['containerClass' => 'FactoryContainer']));
         includeFile($path);
 
         $container = new \FactoryContainer();
@@ -201,11 +183,7 @@ class ContainerBuilderTest extends TestCase
         $this->assertInstanceOf(Coalesce::class, $builder->get('service_2'));
         $this->assertInstanceOf(MethodCall::class, $builder->get('service_3'));
 
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service5.phpt'),
-            $builder->compile(['containerClass' => 'PrivateContainer'])
-        );
-
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service5.phpt', $builder->compile(['containerClass' => 'PrivateContainer']));
         includeFile($path);
 
         $container = new \PrivateContainer();
@@ -235,11 +213,7 @@ class ContainerBuilderTest extends TestCase
         $this->assertInstanceOf(MethodCall::class, $service1 = $builder->get('service_4'));
         $this->assertSame($service1, $builder->get(Fixtures\Service::class));
 
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service3.phpt'),
-            $builder->compile(['containerClass' => 'LazyContainer'])
-        );
-
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service3.phpt', $builder->compile(['containerClass' => 'LazyContainer']));
         includeFile($path);
 
         $container = new \LazyContainer();
@@ -375,11 +349,7 @@ class ContainerBuilderTest extends TestCase
         $builder->alias('alias_6', 'service_6');
 
         $this->assertEquals(['service_1', 'service_2', 'service_3', 'service_4', 'service_5', 'service_6'], $builder->keys());
-
-        $this->assertEquals(
-            \file_get_contents($path = self::COMPILED . '/service6.phpt'),
-            $builder->compile(['containerClass' => 'AliasContainer'])
-        );
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service6.phpt', $builder->compile(['containerClass' => 'AliasContainer']));
 
         includeFile($path);
 

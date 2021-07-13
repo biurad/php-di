@@ -17,6 +17,6 @@ class CompiledContainer extends Rade\DI\Container
 
     protected function getBar(): Rade\DI\Tests\Fixtures\Bar
     {
-        return self::$services['bar'] = new Rade\DI\Tests\Fixtures\Bar('value', new NonExistent(), null, [1, 2, 3], []);
+        return self::$services['bar'] = new Rade\DI\Tests\Fixtures\Bar('value', new Rade\DI\Tests\Fixtures\Service(), null, [1, 2, 3], []);
     }
 }
