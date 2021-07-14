@@ -27,10 +27,10 @@ parameters:
             message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.|PHPDoc tag @param references unknown parameter: (\\$message|\\$package|\\$version)|Variable property access on \\$this\\(Rade\\\\DI\\\\Definition\\).$#"
             path: src/Definition.php
         -
-            message: "#^Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"
+            message: "#^Variable property access on object|Short ternary operator is not allowed. Use null coalesce operator if applicable or consider using long ternary.$#"
             path: src/Resolvers/Resolver.php
         -
-            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Access to an undefined property PhpParser\\\\Node\\\\Expr\\:\\:\\$dim|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\).$#"
+            message: "#^Variable property|method access|call on object|PhpParser\\\\BuilderFactory|Unreachable statement - code above always terminates|Access to an undefined property PhpParser\\\\Node\\\\Expr\\:\\:\\$dim|Call to an undefined method Psr\\\\Container\\\\ContainerInterface\\:\\:resolveClass\\(\\)|Method Rade\\\\DI\\\\AbstractContainer\\:\\:resolveClass\\(\\) invoked with 3 parameters, 1-2 required.$#"
             path: src/Traits/ResolveTrait.php
         -
             message: "#^Call to an undefined static method Rade\\\\DI\\\\Services\\\\ServiceProviderInterface\\:\\:getId\\(\\).$#"

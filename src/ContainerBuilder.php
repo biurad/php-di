@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\Variable, Expr\StaticPropertyFetch};
+use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\New_, Expr\Variable, Expr\StaticPropertyFetch};
 use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
 use Psr\Container\ContainerInterface;
 use Rade\DI\{
@@ -83,15 +83,7 @@ class ContainerBuilder extends AbstractContainer
                 throw new ServiceCreationException(\sprintf('Class entity %s is an abstract type or instantiable.', $service));
             }
 
-            if ((null !== $constructor = $class->getConstructor()) && $constructor->isPublic()) {
-                return $this->builder->new($service, $this->resolver->autowireArguments($constructor, $args[1] ?? []));
-            }
-
-            if (!empty($args[1] ?? [])) {
-                throw new ServiceCreationException("Unable to pass arguments, class $service has no constructor or constructor is not public.");
-            }
-
-            return $this->builder->new($service);
+            return $this->doResolveClass($class, $class->getConstructor(), $args);
         }
 
         return parent::__call($name, $args);
@@ -418,5 +410,35 @@ class ContainerBuilder extends AbstractContainer
     private function ignoredDefinition($def): bool
     {
         return $def instanceof Definition && !$def->isPublic();
+    }
+
+    /**
+     * @param array<int,mixed> $args
+     */
+    private function doResolveClass(\ReflectionClass $class, ?\ReflectionMethod $constructor, array $args): New_
+    {
+        if (null !== $constructor && $constructor->isPublic()) {
+            $service = $this->builder->new($class->name, $this->resolver->autowireArguments($constructor, $args[1] ?? []));
+        } else {
+            if (!empty($args[1] ?? [])) {
+                throw new ServiceCreationException("Unable to pass arguments, class {$class->name} has no constructor or constructor is not public.");
+            }
+
+            $service = $this->builder->new($class->name);
+        }
+
+        foreach (Resolvers\Resolver::getInjectProperties($this, $class->getProperties(\ReflectionProperty::IS_PUBLIC)) as $property => $value) {
+            if (isset($args[2])) {
+                $this->definitions[$args[2]]->bind($property, $value);
+            }
+        }
+
+        foreach ($class->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            if (\PHP_VERSION_ID >= 80000 && (!empty($method->getAttributes(Attribute\Inject::class)) && isset($args[2]))) {
+                $this->definitions[$args[2]]->bind($method->name, []);
+            }
+        }
+
+        return $service;
     }
 }

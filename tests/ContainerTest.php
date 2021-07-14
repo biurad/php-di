@@ -776,4 +776,15 @@ class ContainerTest extends TestCase
 
         $rade->get('protected');
     }
+
+    public function testInjectableService(): void
+    {
+        $rade = new Container();
+        $rade['bar'] = $bar = new Fixtures\Constructor($rade);
+        $rade['foo'] = $foo = new Fixtures\FooClass(['inject' => true]);
+
+        $this->assertInstanceOf(Fixtures\InjectableClass::class, $inject = $rade->resolveClass(Fixtures\InjectableClass::class));
+        $this->assertSame($bar, $inject->getService());
+        $this->assertSame($foo, $inject->getFooClass());
+    }
 }

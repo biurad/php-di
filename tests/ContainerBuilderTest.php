@@ -228,6 +228,23 @@ class ContainerBuilderTest extends TestCase
         $container->get('service_3');
     }
 
+    public function testInjectableServices(): void
+    {
+        $builder = new ContainerBuilder();
+        $builder->set('bar', Fixtures\Constructor::class);
+        $builder->type('bar', Fixtures\Constructor::class);
+        $builder->autowire('foo', Fixtures\FooClass::class)->arg('inject', true);
+        $builder->set('inject', Fixtures\InjectableClass::class);
+
+        $this->assertStringEqualsFile($path = self::COMPILED . '/service10.phpt', $builder->compile(['containerClass' => 'InjectableContainer']));
+        includeFile($path);
+
+        $container = new \InjectableContainer();
+        $this->assertInstanceOf(Fixtures\InjectableClass::class, $inject = $container->resolveClass(Fixtures\InjectableClass::class));
+        $this->assertInstanceOf(Fixtures\Service::class, $inject->getService());
+        $this->assertInstanceOf(Fixtures\FooClass::class, $inject->getFooClass());
+    }
+
     public function testFluentRegister(): void
     {
         $builder = new ContainerBuilder();

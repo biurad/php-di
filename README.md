@@ -154,6 +154,37 @@ foreach ($container->tagged('process') as [$process, $enabled]) {
 }
 ```
 
+Container support services injection using a PHP 8 `#[Inject]` attribute for class object properties and methods. In order to use property injection, you have to attribute your public properties with `#[Inject]` and provide their type declaration, while with methods injection, you also have to attribute your injectable methods with `#[Inject]`. Container takes care of autowiring.
+
+This injection directive is enabled by default on all services using Definition class or calling a service with either `resolveClass`, `call` or resolver's class `resolve` method.
+
+Eg: Dependency `Service1` will be passed by calling the `injectService1` method, dependency `Service2` will be assigned to the `$service2` property:
+
+```php
+use Rade\DI\Attribute\Inject;
+
+class FooClass
+{
+    #[Inject]
+	public Service2 $service2;
+
+    private Service1 $service1;
+
+    #[Inject]
+	public function injectService1(Service1 $service)
+	{
+		$this->service1 = $service1;
+	}
+
+    public function getService1(): Service1
+    {
+        return $this->service1;
+    }
+}
+```
+
+> **NB:** Property injection uses the declared typed name, while methods uses same, this types declared must be found in container else exception is thrown. I prefer this type of injection in my controllers, but nowhere else.
+
 Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so much. Using service providers in your project, saves you alot.
 
 ```php

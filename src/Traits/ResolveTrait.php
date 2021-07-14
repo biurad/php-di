@@ -153,7 +153,7 @@ trait ResolveTrait
 
                     return ($type && $this->lazy)
                         ? $this->resolveLazyEntity($entity, $arguments)
-                        : $this->container->resolveClass($entity, $this->resolveArguments($arguments));
+                        : $this->container->resolveClass($entity, $this->resolveArguments($arguments), $this->id);
             }
         } elseif (\is_callable($entity)) {
             if ($entity instanceof \Closure || \is_object($entity[0])) {
