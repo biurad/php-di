@@ -237,12 +237,15 @@ class ContainerBuilderTest extends TestCase
         $builder->set('inject', Fixtures\InjectableClass::class);
 
         $this->assertStringEqualsFile($path = self::COMPILED . \sprintf('/service1%s.phpt', PHP_VERSION_ID >= 80000 ? 0 : 1), $builder->compile(['containerClass' => 'InjectableContainer']));
-        includeFile($path);
 
-        $container = new \InjectableContainer();
-        $this->assertInstanceOf(Fixtures\InjectableClass::class, $inject = $container->resolveClass(Fixtures\InjectableClass::class));
-        $this->assertInstanceOf(Fixtures\Service::class, $inject->getService());
-        $this->assertInstanceOf(Fixtures\FooClass::class, $inject->getFooClass());
+        if (\PHP_VERSION_ID >= 80000) {
+            includeFile($path);
+            $container = new \InjectableContainer();
+
+            $this->assertInstanceOf(Fixtures\InjectableClass::class, $inject = $container->resolveClass(Fixtures\InjectableClass::class));
+            $this->assertInstanceOf(Fixtures\Service::class, $inject->getService());
+            $this->assertInstanceOf(Fixtures\FooClass::class, $inject->getFooClass());
+        }
     }
 
     public function testFluentRegister(): void
