@@ -78,8 +78,7 @@ class YamlFileLoader extends FileLoader
         'calls' => 'bind',
     ];
 
-    /** @var YamlParser */
-    private $yamlParser;
+    private ?YamlParser $yamlParser = null;
 
     /**
      * {@inheritdoc}
@@ -118,13 +117,11 @@ class YamlFileLoader extends FileLoader
     /**
      * Loads a YAML file.
      *
-     * @param string $file
-     *
      * @throws \InvalidArgumentException when the given file is not a local file or when it does not exist
      *
-     * @return array The file content
+     * @return array<int|string,mixed> The file content
      */
-    protected function loadFile($file)
+    protected function loadFile(string $file): array
     {
         if (!\class_exists(\Symfony\Component\Yaml\Parser::class)) {
             throw new \RuntimeException('Unable to load YAML config files as the Symfony Yaml Component is not installed.');
@@ -155,6 +152,9 @@ class YamlFileLoader extends FileLoader
         return $configuration;
     }
 
+    /**
+     * @param array<string,mixed> $content
+     */
     private function parseImports(array $content, string $file): void
     {
         if (!isset($content['imports'])) {
@@ -194,7 +194,10 @@ class YamlFileLoader extends FileLoader
         unset($content['imports']);
     }
 
-    private function loadContent($content, $path): void
+    /**
+     * @param array<string,mixed> $content
+     */
+    private function loadContent(array $content, string $path): void
     {
         // imports
         $this->parseImports($content, $path);
@@ -223,6 +226,8 @@ class YamlFileLoader extends FileLoader
 
     /**
      * Loads Service Providers.
+     *
+     * @param array<string,mixed> $content
      */
     private function loadServiceProviders(array $content, string $path): void
     {
@@ -260,6 +265,8 @@ class YamlFileLoader extends FileLoader
 
     /**
      * Resolves services.
+     *
+     * @param TaggedValue|array|string|null $value
      *
      * @return array|string|Reference|Statement|object|null
      */
@@ -352,6 +359,9 @@ class YamlFileLoader extends FileLoader
         return $this->resolveParameters($value);
     }
 
+    /**
+     * @param array<string,mixed> $content
+     */
     private function parseDefinitions(array $content, string $file): void
     {
         if (!isset($content['services'])) {
@@ -460,6 +470,9 @@ class YamlFileLoader extends FileLoader
     /**
      * Parses a definition.
      *
+     * @param array<string,mixed> $service
+     * @param array<string,mixed> $defaults
+     *
      * @throws \InvalidArgumentException
      */
     private function parseDefinition(string $id, array $service, string $file, array $defaults, Definition $definition = null): void
@@ -561,7 +574,7 @@ class YamlFileLoader extends FileLoader
     /**
      * @param array<int,string[]> $bindings
      *
-     * @return array<int,string[]>
+     * @return array<int,mixed>
      */
     private function parseDefinitionBinds(string $id, array $bindings, string $file, Definition $definition = null): array
     {
@@ -604,6 +617,11 @@ class YamlFileLoader extends FileLoader
         return $bindings;
     }
 
+    /**
+     * @param array<int|string,mixed> $tags
+     *
+     * @return mixed[]
+     */
     private function parseDefinitionTags(string $id, array $tags, string $file): array
     {
         if ('in "_defaults"' !== $id) {
@@ -637,6 +655,8 @@ class YamlFileLoader extends FileLoader
 
     /**
      * Checks the keywords used to define a service.
+     *
+     * @param array<string,mixed> $definition
      */
     private function checkDefinition(string $id, array $definition, string $file): void
     {

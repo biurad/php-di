@@ -29,6 +29,7 @@ use Rade\DI\{
     FallbackContainer,
     Services\ServiceLocator
 };
+use Rade\DI\Attribute\Inject;
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 /**
@@ -83,6 +84,36 @@ class Resolver
     }
 
     /**
+     * Generates list of properties with #[Inject] attributes.
+     *
+     * @param \ReflectionProperty[] $properties
+     *
+     * @internal
+     */
+    public static function getInjectProperties(AbstractContainer $container, $properties): array
+    {
+        $res = [];
+
+        foreach ($properties as $reflection) {
+            if (\PHP_VERSION_ID >= 80000 && !empty($reflection->getAttributes(Inject::class))) {
+                foreach (Reflection::getPropertyTypes($reflection) as $type) {
+                    if ('null' === $type) {
+                        // @codeCoverageIgnoreStart
+                        continue;
+                        // @codeCoverageIgnoreEnd
+                    }
+
+                    if ($container->has($type) || $container->typed($type)) {
+                        $res[$reflection->getName()] = $container->get($type);
+                    }
+                }
+            }
+        }
+
+        return $res;
+    }
+
+    /**
      * Resolves arguments for callable.
      *
      * @param array<int|string,mixed> $args
@@ -132,19 +163,11 @@ class Resolver
         if (\is_callable($callback)) {
             $args = $this->autowireArguments($ref = Callback::toReflection($callback), $args);
 
-            if ($ref instanceof \ReflectionFunction) {
-                return $ref->invokeArgs($args);
-            }
-
-            return !$ref->isStatic() ? $callback(...$args) : $ref->invokeArgs(null, $args);
+            return $ref instanceof \ReflectionFunction ? $ref->invokeArgs($args) : (!$ref->isStatic() ? $callback(...$args) : $ref->invokeArgs(null, $args));
         }
 
         if (\is_string($callback)) {
-            if ($this->container->has($callback)) {
-                return $this->resolve($this->container->get($callback), $args);
-            }
-
-            return $this->resolveClass($callback, $args);
+            return $this->container->has($callback) ? $this->resolve($this->container->get($callback), $args) : $this->resolveClass($callback, $args);
         }
 
         if ((\is_array($callback) && \array_keys($callback) === [0, 1]) && $callback[0] instanceof Reference) {
@@ -175,14 +198,28 @@ class Resolver
         }
 
         if ((null !== $constructor = $reflection->getConstructor()) && $constructor->isPublic()) {
-            return $reflection->newInstanceArgs($this->autowireArguments($constructor, $args));
+            $service = $reflection->newInstanceArgs($this->autowireArguments($constructor, $args));
+        } else {
+            if (!empty($args)) {
+                throw new ContainerResolutionException("Unable to pass arguments, class $class has no constructor or constructor is not public.");
+            }
+
+            $service = $reflection->newInstance();
         }
 
-        if (!empty($args)) {
-            throw new ContainerResolutionException("Unable to pass arguments, class $class has no constructor or constructor is not public.");
+        if (!$this->isBuilder()) {
+            foreach (self::getInjectProperties($this->container, $reflection->getProperties(\ReflectionProperty::IS_PUBLIC)) as $property => $value) {
+                $service->{$property} = $value;
+            }
+
+            foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+                if (\PHP_VERSION_ID >= 80000 && !empty($method->getAttributes(Inject::class))) {
+                    \call_user_func_array([$service, $method->name], $this->autowireArguments($method));
+                }
+            }
         }
 
-        return $reflection->newInstance();
+        return $service;
     }
 
     /**

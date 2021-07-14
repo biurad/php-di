@@ -39,5 +39,28 @@
                 <referencedClass name="Psr\Container\ContainerExceptionInterface"/>
             </errorLevel>
         </InvalidCatch>
+
+        <UndefinedMethod>
+            <errorLevel type="suppress">
+                <referencedMethod name="Rade\DI\Services\ServiceProviderInterface::getid"/>
+                <referencedMethod name="ReflectionMethod::getAttributes"/>
+                <referencedMethod name="ReflectionProperty::getAttributes"/>
+                <file name="src/Loader/YamlFileLoader.php"/>
+            </errorLevel>
+        </UndefinedMethod>
+
+        <PropertyNotSetInConstructor>
+            <errorLevel type="suppress">
+                <file name="src/Builder/CodePrinter.php"/>
+                <file name="src/Definition.php"/>
+                <referencedProperty name="Rade\DI\Loader\YamlFileLoader::$yamlParser" />
+            </errorLevel>
+        </PropertyNotSetInConstructor>
+
+        <PossiblyUndefinedStringArrayOffset>
+            <errorLevel type="suppress">
+                <file name="src/ContainerBuilder.php"/>
+            </errorLevel>
+        </PossiblyUndefinedStringArrayOffset>
     </issueHandlers>
 </psalm>
