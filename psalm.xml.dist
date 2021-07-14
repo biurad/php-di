@@ -43,6 +43,8 @@
         <UndefinedMethod>
             <errorLevel type="suppress">
                 <referencedMethod name="Rade\DI\Services\ServiceProviderInterface::getid"/>
+                <referencedMethod name="ReflectionMethod::getAttributes"/>
+                <referencedMethod name="ReflectionProperty::getAttributes"/>
                 <file name="src/Loader/YamlFileLoader.php"/>
             </errorLevel>
         </UndefinedMethod>
