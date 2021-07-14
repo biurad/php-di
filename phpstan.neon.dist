@@ -9,7 +9,7 @@ parameters:
     treatPhpDocTypesAsCertain: false
 
     ignoreErrors:
-        - "#^Construct empty\\(\\) is not allowed. Use more strict comparison.$#"
+        - "#^Construct empty\\(\\) is not allowed. Use more strict comparison|Call to an undefined method ReflectionMethod|ReflectionProperty\\:\\:getAttributes\\(\\).$#"
         - "#^Property Rade\\\\DI\\\\Loader\\\\FileLoader|ClosureLoader\\:\\:\\$container \\(Rade\\\\DI\\\\Container\\|Rade\\\\DI\\\\ContainerBuilder\\) does not accept Rade\\\\DI\\\\AbstractContainer.$#"
         -
             message: "#^Parameter \\#2 \\$service \\(Rade\\\\DI\\\\Definition\\|Rade\\\\DI\\\\RawDefinition\\) of method Rade\\\\DI\\\\ContainerBuilder\\:\\:doCreate\\(\\) should be contravariant with parameter \\$service \\(callable\\(\\): mixed\\) of method Rade\\\\DI\\\\AbstractContainer\\:\\:doCreate\\(\\)$#"
