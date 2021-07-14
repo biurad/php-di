@@ -779,6 +779,10 @@ class ContainerTest extends TestCase
 
     public function testInjectableService(): void
     {
+        if (\PHP_VERSION_ID < 80000) {
+            $this->markTestSkipped('Skip test because PHP version is lower than 8');
+        }
+
         $rade = new Container();
         $rade['bar'] = $bar = new Fixtures\Constructor($rade);
         $rade['foo'] = $foo = new Fixtures\FooClass(['inject' => true]);

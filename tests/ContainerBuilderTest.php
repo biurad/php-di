@@ -236,7 +236,7 @@ class ContainerBuilderTest extends TestCase
         $builder->autowire('foo', Fixtures\FooClass::class)->arg('inject', true);
         $builder->set('inject', Fixtures\InjectableClass::class);
 
-        $this->assertStringEqualsFile($path = self::COMPILED . '/service10.phpt', $builder->compile(['containerClass' => 'InjectableContainer']));
+        $this->assertStringEqualsFile($path = self::COMPILED . \sprintf('/service1%s.phpt', PHP_VERSION_ID >= 80000 ? 0 : 1), $builder->compile(['containerClass' => 'InjectableContainer']));
         includeFile($path);
 
         $container = new \InjectableContainer();
