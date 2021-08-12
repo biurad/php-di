@@ -1,4 +1,6 @@
-name: Tests
+# GitHub Actions Documentation: https://docs.github.com/en/actions
+
+name: build
 on: [push, pull_request]
 
 env:
@@ -30,7 +32,7 @@ jobs:
           php-version: ${{ matrix.php-versions }}
           extensions: mbstring, xml, ctype, iconv, curl
           coverage: xdebug
-          tools: composer:v2
+          tools: composer
 
       - name: Get Composer Cache Directory
         id: composer-cache
@@ -58,21 +60,26 @@ jobs:
           chmod +x ./cc-test-reporter
           ./cc-test-reporter before-build
 
-      - name: Check Coding Standard
+      - name: Check coding standards (PHP_CodeSniffer)
         run: vendor/bin/phpcs
 
-      - name: Test with Phpunit
+      - name: Run unit tests (PHPUnit)
         continue-on-error: ${{ matrix.php-versions == 8.1 }}
         run: vendor/bin/phpunit --coverage-text --coverage-clover=clover.xml
 
-      - name: Upload Test Coverage
+      - name: Publish coverage report to Codecov
         if: matrix.operating-system == 'ubuntu-latest'
         run: |
           bash <(curl -s https://codecov.io/bash) -f clover.xml
           if [ ${{ matrix.php-versions }} == 8.0 ]; then ./cc-test-reporter after-build --coverage-input-type clover; fi;
 
-      - name: Test with Phpstan
+      - name: "Statically analyze code (PHPStan)"
         run: vendor/bin/phpstan analyse
 
-      - name: Test with Psalm
-        run: vendor/bin/psalm --output-format=github
+      - name: Statically analyze code (Psalm)
+        run: vendor/bin/psalm --output-format=github --taint-analysis --shepherd --report=build/logs/psalm.sarif
+
+      - name: "Upload security analysis results to GitHub"
+        uses: "github/codeql-action/upload-sarif@v1"
+        with:
+          sarif_file: "build/logs/psalm.sarif"
