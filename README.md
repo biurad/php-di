@@ -2,7 +2,6 @@
 
 [![PHP Version](https://img.shields.io/packagist/php-v/divineniiquaye/rade-di.svg?style=flat-square&colorB=%238892BF)](http://php.net)
 [![Latest Version](https://img.shields.io/packagist/v/divineniiquaye/rade-di.svg?style=flat-square)](https://packagist.org/packages/divineniiquaye/rade-di)
-[![Software License](https://img.shields.io/badge/License-BSD--3-brightgreen.svg?style=flat-square)](LICENSE)
 [![Workflow Status](https://img.shields.io/github/workflow/status/divineniiquaye/rade-di/build?style=flat-square)](https://github.com/divineniiquaye/rade-di/actions?query=workflow%3Abuild)
 [![Code Maintainability](https://img.shields.io/codeclimate/maintainability/divineniiquaye/rade-di?style=flat-square)](https://codeclimate.com/github/divineniiquaye/rade-di)
 [![Coverage Status](https://img.shields.io/codecov/c/github/divineniiquaye/rade-di?style=flat-square)](https://codecov.io/gh/divineniiquaye/rade-di)
@@ -327,7 +326,7 @@ Are you interested in sponsoring development of this project? Reach out and supp
 
 ## 📄 License
 
-The **biurad/php-starter** library is copyright © [Divine Niiquaye Ibok](https://divinenii.com) and licensed for use under the BSD-3 license. Please see [LICENSE](LICENSE) for more information.
+The **biurad/php-starter** library is copyright © [Divine Niiquaye Ibok](https://divinenii.com) and licensed for use under the [![Software License](https://img.shields.io/badge/License-BSD--3-brightgreen.svg?style=flat-square)](LICENSE).
 
 [PHP]: https://php.net
 [Composer]: https://getcomposer.org
