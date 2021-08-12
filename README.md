@@ -330,7 +330,7 @@ Are you interested in sponsoring development of this project? Reach out and supp
 
 ## 📄 License
 
-The **biurad/php-starter** library is copyright © [Divine Niiquaye Ibok](https://divinenii.com) and licensed for use under the [![Software License](https://img.shields.io/badge/License-BSD--3-brightgreen.svg?style=flat-square)](LICENSE).
+The **divineniiquaye/rade-di** library is copyright © [Divine Niiquaye Ibok](https://divinenii.com) and licensed for use under the [![Software License](https://img.shields.io/badge/License-BSD--3-brightgreen.svg?style=flat-square)](LICENSE).
 
 [PHP]: https://php.net
 [Composer]: https://getcomposer.org
