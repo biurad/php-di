@@ -99,6 +99,8 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * @param array<int,mixed> $args
+     *
      * @throws \ReflectionException
      *
      * @return mixed
@@ -168,7 +170,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      * Registers a service provider.
      *
      * @param ServiceProviderInterface $provider A ServiceProviderInterface instance
-     * @param array                    $config   An array of config that customizes the provider
+     * @param array<string,mixed>      $config   An array of config that customizes the provider
      */
     final public function register(ServiceProviderInterface $provider, array $config = []): self
     {
@@ -287,7 +289,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      *
      * @see type method
      *
-     * @param array<string,string[]> $types The types associated with service definition
+     * @param string[] $types The types associated with service definition
      */
     public function types(array $types): void
     {
@@ -377,7 +379,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * Resolve all of the bindings for a given tag.
      *
-     * @return array of [service, attributes]
+     * @return object[]|string[]|mixed[]
      */
     public function tagged(string $tag, bool $resolve = true): array
     {

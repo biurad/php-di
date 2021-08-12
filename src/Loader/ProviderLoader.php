@@ -31,10 +31,12 @@ class ProviderLoader
     /** @var ServiceProviderInterface[] */
     private array $providers;
 
+    /** @var array<string,mixed> */
     private array $config;
 
     /**
      * @param ServiceProviderInterface[] $providers
+     * @param array<string,mixed>        $config
      */
     public function __construct(array $providers, array $config = [])
     {

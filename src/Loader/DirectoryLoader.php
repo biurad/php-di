@@ -41,7 +41,7 @@ class DirectoryLoader extends FileLoader
             $this->container->addResource(new GlobResource($path, '/*', false));
         }
 
-        foreach (\scandir($path) as $dir) {
+        foreach (\scandir($path) ?: [] as $dir) {
             if ('.' !== $dir[0]) {
                 if (\is_dir($path . '/' . $dir)) {
                     $dir .= '/'; // append / to allow recursion

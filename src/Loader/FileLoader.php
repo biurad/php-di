@@ -30,7 +30,7 @@ use Symfony\Component\Config\Resource\GlobResource;
 
 abstract class FileLoader extends BaseFileLoader
 {
-    /** @var Container|ContainerBuilder */
+    /** @var AbstractContainer|Container|ContainerBuilder */
     protected AbstractContainer $container;
 
     /** @var array<string,bool|string|string[]> */
@@ -98,7 +98,7 @@ abstract class FileLoader extends BaseFileLoader
     protected function resolveParameters(string $value): string
     {
         $res = '';
-        $parts = \preg_split('#(%[^%\s]+%)#i', $value, -1, \PREG_SPLIT_DELIM_CAPTURE);
+        $parts = (array) \preg_split('#(%[^%\s]+%)#i', $value, -1, \PREG_SPLIT_DELIM_CAPTURE) ?: [$value];
 
         if (1 == \count($parts) && $value === $parts[0]) {
             return $value;

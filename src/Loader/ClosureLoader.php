@@ -18,8 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI\Loader;
 
 use Rade\DI\AbstractContainer;
-use Rade\DI\Container;
-use Rade\DI\ContainerBuilder;
 use Symfony\Component\Config\Loader\Loader;
 
 /**
@@ -31,7 +29,6 @@ use Symfony\Component\Config\Loader\Loader;
  */
 class ClosureLoader extends Loader
 {
-    /** @var Container|ContainerBuilder */
     private AbstractContainer $container;
 
     public function __construct(AbstractContainer $container)

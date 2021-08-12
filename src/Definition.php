@@ -90,6 +90,7 @@ class Definition
 
     private bool $public = true;
 
+    /** @var array<string,string> */
     private array $deprecated = [];
 
     /**
@@ -198,6 +199,8 @@ class Definition
     /**
      * Sets the arguments to pass to the service constructor/factory method.
      *
+     * @param array<int|string,mixed> $arguments
+     *
      * @return $this
      */
     final public function args(array $arguments): self
@@ -249,6 +252,8 @@ class Definition
     /**
      * Enables autowiring.
      *
+     * @param array<int,string> $types
+     *
      * @return $this
      */
     final public function autowire(array $types = []): self
@@ -296,21 +301,17 @@ class Definition
     /**
      * Whether this definition is deprecated, that means it should not be used anymore.
      *
-     * @param string $package The name of the composer package that is triggering the deprecation
-     * @param string $version The version of the package that introduced the deprecation
-     * @param string $message The deprecation message to use
+     * @param string      $package The name of the composer package that is triggering the deprecation
+     * @param float|null  $version The version of the package that introduced the deprecation
+     * @param string|null $message The deprecation message to use
      *
      * @return $this
      */
-    final public function deprecate(/* string $package, string $version, string $message */): self
+    final public function deprecate(string $package = '', float $version = null, string $message = null): self
     {
-        $args = \func_get_args();
-
-        $message = $args[2] ?? 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.';
-
-        $this->deprecated['package'] = $args[0] ?? '';
-        $this->deprecated['version'] = $args[1] ?? '';
-        $this->deprecated['message'] = $message;
+        $this->deprecated['package'] = $package;
+        $this->deprecated['version'] = $version ?? '';
+        $this->deprecated['message'] = $message ?? 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.';
 
         return $this;
     }

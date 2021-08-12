@@ -39,6 +39,7 @@ class FacadeProxy
 {
     private ContainerInterface $container;
 
+    /** @var array<string,string> */
     private array $proxies = [];
 
     public function __construct(ContainerInterface $container)
@@ -98,7 +99,7 @@ class FacadeProxy
      *
      * @return \PhpParser\Builder\Method[]
      */
-    protected function resolveProxies(ContainerBuilder $container, BuilderFactory $builder, array $proxiedServices)
+    protected function resolveProxies(ContainerBuilder $container, BuilderFactory $builder, array $proxiedServices): array
     {
         $builtProxies = [];
 

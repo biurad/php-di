@@ -32,12 +32,12 @@ class Statement
     /**
      * Statement constructor.
      *
-     * @param mixed $value
+     * @param mixed                   $value
+     * @param array<int|string,mixed> $args
      */
     public function __construct($value, array $args = [])
     {
-
         $this->value = $value;
-        $this->args  = $args;
+        $this->args = $args;
     }
 }

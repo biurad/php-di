@@ -119,7 +119,7 @@ class YamlFileLoader extends FileLoader
      *
      * @throws \InvalidArgumentException when the given file is not a local file or when it does not exist
      *
-     * @return array<int|string,mixed> The file content
+     * @return array<string,mixed> The file content
      */
     protected function loadFile(string $file): array
     {
@@ -268,7 +268,7 @@ class YamlFileLoader extends FileLoader
      *
      * @param TaggedValue|array|string|null $value
      *
-     * @return array|string|Reference|Statement|object|null
+     * @return array<string,mixed>|string|Reference|Statement|object|null
      */
     private function resolveServices($value, string $file, bool $isParameter = false)
     {
@@ -312,17 +312,17 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException(\sprintf('"!statement" tag only accepts sequences in "%s".', $file));
                 }
 
-                if (\array_keys($argument) !== ['value', 'args']) {
+                if (!\array_key_exists('value', $argument)) {
                     throw new \InvalidArgumentException('"!statement" tag only accepts array keys of "value" and "args"');
                 }
 
                 $argument = $this->resolveServices($argument, $file, $isParameter);
 
                 if ($this->container instanceof Container) {
-                    return $this->container->call($argument['value'], $argument['args']);
+                    return $this->container->call($argument['value'], $argument['args'] ?? []);
                 }
 
-                return new Statement($argument['value'], $argument['args']);
+                return new Statement($argument['value'], $argument['args'] ?? []);
             }
 
             throw new \InvalidArgumentException(\sprintf('Unsupported tag "!%s".', $value->getTag()));
@@ -572,7 +572,7 @@ class YamlFileLoader extends FileLoader
     }
 
     /**
-     * @param array<int,string[]> $bindings
+     * @param array<int,string[]|TaggedValue[]> $bindings
      *
      * @return array<int,mixed>
      */
@@ -583,16 +583,12 @@ class YamlFileLoader extends FileLoader
         }
 
         foreach ($bindings as $k => $call) {
-            if (!\is_array($call) && (!\is_string($k) || !$call instanceof TaggedValue)) {
+            if (!($call instanceof TaggedValue || \is_array($call))) {
                 throw new \InvalidArgumentException(\sprintf('Invalid bind call %s: expected map or array, "%s" given in "%s".', $id, $call instanceof TaggedValue ? '!' . $call->getTag() : \get_debug_type($call), $file));
             }
 
             if (\is_string($k)) {
                 throw new \InvalidArgumentException(\sprintf('Invalid bind call %s, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
-            }
-
-            if (empty($call)) {
-                throw new \InvalidArgumentException(\sprintf('Invalid call %s: the bind must be defined as the first index of an array or as the only key of a map in "%s".', $id, $file));
             }
 
             if (1 === \count($call) && \is_string(\key($call))) {

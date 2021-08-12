@@ -60,9 +60,10 @@ class ContainerTypesTest extends TestCase
     {
         $rade = new Container();
         $rade->set('foo', new Fixtures\Constructor($rade));
+        $rade->set('bar', $bar = new Fixtures\Service());
         $rade->type('foo', Fixtures\Service::class);
 
-        $rade->autowired(Fixtures\Service::class);
+        $this->assertNotSame($bar, $rade->autowired(Fixtures\Service::class));
     }
 
     public function testAutowiringSingleWithError(): void

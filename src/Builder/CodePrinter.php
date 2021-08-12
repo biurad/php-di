@@ -36,6 +36,7 @@ COMMENT;
      * Pretty print nodes.
      *
      * @param \PhpParser\Node[] $stmts
+     * @param array<string,mixed> $options
      */
     public static function print(array $stmts, array $options = []): string
     {

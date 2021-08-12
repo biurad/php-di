@@ -23,8 +23,12 @@ class CircularReferenceException extends \InvalidArgumentException implements Co
 {
     private string $serviceId;
 
+    /** @var array<int,string> */
     private array $path;
 
+    /**
+     * @param array<int,string> $path
+     */
     public function __construct(string $serviceId, array $path, \Throwable $previous = null)
     {
         parent::__construct(\sprintf('Circular reference detected for service "%s", path: "%s".', $serviceId, \implode(' -> ', $path)), 0, $previous);
@@ -38,6 +42,9 @@ class CircularReferenceException extends \InvalidArgumentException implements Co
         return $this->serviceId;
     }
 
+    /**
+     * @return array<int,string>
+     */
     public function getPath(): array
     {
         return $this->path;

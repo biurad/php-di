@@ -50,13 +50,16 @@ trait ResolveTrait
     /** @var mixed */
     private $entity;
 
+    /** @var array<int|string,mixed> */
     private array $parameters;
 
     /** @var string[]|string|null */
     private $type = null;
 
+    /** @var array<string,mixed> */
     private array $calls = [];
 
+    /** @var array<int,Statement|string> */
     private array $extras = [];
 
     private bool $autowired = false;
@@ -122,7 +125,7 @@ trait ResolveTrait
      *
      * @throws \ReflectionException
      */
-    protected function resolveEntity($entity, array $arguments = [], bool $type = true)
+    protected function resolveEntity($entity, array $arguments = [], bool $type = true): Expr
     {
         if ($entity instanceof Reference) {
             throw new ServiceCreationException(\sprintf('Referenced definition entity for "%s" is not supported. Alias %1$s to %s instead.', $this->id, (string) $entity));
@@ -208,6 +211,9 @@ trait ResolveTrait
         throw new ServiceCreationException(\sprintf('Definition entity for %s provided is not valid or supported.', $this->id));
     }
 
+    /**
+     * @return mixed
+     */
     protected function resolveReference(Reference $reference, bool $callback = false)
     {
         if ('[]' === \substr($referenced = (string) $reference, -2)) {

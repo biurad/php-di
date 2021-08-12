@@ -27,8 +27,12 @@ use Rade\DI\{Container, Exceptions\ContainerResolutionException};
  */
 class Facade
 {
-    /** @internal Do not use this property directly. */
-    public static $proxies = [];
+    /**
+     * @var array<string,string>
+     *
+     * @internal Do not use this property directly.
+     */
+    public static array $proxies = [];
 
     protected static ContainerInterface $container;
 
@@ -42,15 +46,19 @@ class Facade
 
     /**
      * Performs the proxying of the statically called method from the container.
+     *
+     * @param array<int|string,mixed> $arguments
+     *
+     * @return mixed
      */
     public static function __callStatic(string $name, array $arguments = [])
     {
-        if (null === $proxied = self::$proxies[$name] ?? null) {
+        if (!\array_key_exists($name, self::$proxies)) {
             throw new ContainerResolutionException(\sprintf('Subject "%s" is not a supported proxy service.', $name));
         }
         $di = self::$container;
 
-        if (\is_callable($service = $di->get($proxied))) {
+        if (\is_callable($service = $di->get(self::$proxies[$name]))) {
             return $di instanceof Container ? $di->call($service, $arguments) : \call_user_func_array($service, $arguments);
         }
 

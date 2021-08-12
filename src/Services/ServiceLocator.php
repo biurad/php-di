@@ -81,6 +81,9 @@ class ServiceLocator implements ServiceProviderContext
         return $this->providedTypes;
     }
 
+    /**
+     * @param array<int,string> $path
+     */
     private function createCircularReferenceException(string $id, array $path): ContainerExceptionInterface
     {
         return new CircularReferenceException($id, $path);
