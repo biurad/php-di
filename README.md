@@ -16,6 +16,8 @@
 
 **divineniiquaye/rade-di** is a HIGH performance smart tool for performing simple to complex dependency injection in your application for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenced to [Nette DI][nette-di] and [Pimple]. This library provides an advance way of resolving services for best performance to your application.
 
+This project adheres to a [code of conduct](CODE_OF_CONDUCT.md). By participating in this project and its community, you are expected to uphold this code.
+
 ## 📦 Installation & Basic Usage
 
 This project requires [PHP] 7.4 or higher. The recommended way to install, is via [Composer]. Simply run:
@@ -291,19 +293,6 @@ Any classes or methods marked `@internal` are not intended for use outside of th
 When a **major** version is released, the number of minor versions is limited to five per branch (X.0, X.1, X.2, X.3 and X.4). The last minor version of a branch (e.g. 1.4, 2.4) is considered a **long-term support (LTS) version** with lasts for more that 2 years and the other ones cam last up to 8 months:
 
 **Get a professional support from [Biurad Lap][] after the active maintenance of a released version has ended**.
-
-## 👷‍♀️ Contributing
-
-To report a security vulnerability, please use the [Biurad Security](https://security.biurad.com). We will coordinate the fix and eventually commit the solution in this project.
-
-Contributions to this library are **welcome**, especially ones that:
-
-- Improve usability or flexibility without compromising our ability to adhere to [PSR-12] coding standard.
-- Optimize performance and add new features
-- Fix issues with adhering to [PSR-11] support and backward compatibility.
--
-
-Please see [CONTRIBUTING] for additional details.
 
 ## 🧪 Testing
 
