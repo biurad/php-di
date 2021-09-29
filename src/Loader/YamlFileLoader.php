@@ -17,11 +17,9 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
-use Rade\DI\Builder\Reference;
-use Rade\DI\Builder\Statement;
-use Rade\DI\Container;
-use Rade\DI\ContainerBuilder;
-use Rade\DI\Definition;
+use Rade\DI\Definitions\{Reference, Statement};
+use Rade\DI\{Container, ContainerBuilder, Definition};
+use Rade\DI\Builder\PhpLiteral;
 use Symfony\Component\Config\Exception\LoaderLoadException;
 use Symfony\Component\Config\Resource\FileExistenceResource;
 use Symfony\Component\Config\Resource\FileResource;
@@ -53,14 +51,15 @@ class YamlFileLoader extends FileLoader
         'class' => 'entity', // backward compatibility for symfony devs, will be dropped in 2.0
         'arguments' => 'arguments',
         'lazy' => 'lazy',
-        'private' => 'private',
+        'public' => 'public',
         'deprecated' => 'deprecated',
-        'factory' => 'factory',
+        'shared' => 'shared',
         'tags' => 'tags',
         'decorates' => 'decorates',
         'autowire' => 'autowire',
         'bind' => 'bind',
         'calls' => 'bind',
+        'instanceOf' => 'instanceOf',
     ];
 
     private const PROTOTYPE_KEYWORDS = [
@@ -68,14 +67,15 @@ class YamlFileLoader extends FileLoader
         'namespace' => 'namespace',
         'exclude' => 'exclude',
         'lazy' => 'lazy',
-        'private' => 'private',
+        'public' => 'public',
         'deprecated' => 'deprecated',
-        'factory' => 'factory',
+        'shared' => 'shared',
         'tags' => 'tags',
         'autowire' => 'autowire',
         'arguments' => 'arguments',
         'bind' => 'bind',
         'calls' => 'bind',
+        'instanceOf' => 'instanceOf',
     ];
 
     private ?YamlParser $yamlParser = null;
@@ -252,7 +252,7 @@ class YamlFileLoader extends FileLoader
             }
 
             if ($this->container instanceof Container) {
-                $extension = $this->container->resolveClass($provider, $args ?? []);
+                $extension = $this->container->call($provider, $args ?? []);
             } else {
                 $extension = (new \ReflectionClass($provider))->newInstanceArgs($args ?? []);
             }
@@ -288,7 +288,7 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException(\sprintf('Creating an alias using the tag "!reference" is not allowed in "%s".', $file));
                 }
 
-                return $this->container instanceof Container ? $this->container->get($argument) : new Reference($argument);
+                return new Reference($argument);
             }
 
             if ('tagged' === $value->getTag()) {
@@ -297,7 +297,19 @@ class YamlFileLoader extends FileLoader
                 }
 
                 if (\is_array($argument) && (isset($argument['tag']) && '' !== $argument['tag'])) {
-                    return $this->container->tagged($argument['tag'], $argument['resolve'] ?? true);
+                    $taggedIds = $this->container->tagged($argument['tag'], $argument['id'] ?? null);
+
+                    if (true === $argument['resolve'] ?? false) {
+                        $tagged = [];
+
+                        foreach ($taggedIds as $serviceId => $value) {
+                            $tagged[] = [new Reference($serviceId), $value];
+                        }
+
+                        return $tagged;
+                    }
+
+                    return $taggedIds;
                 }
 
                 throw new \InvalidArgumentException(\sprintf('"!%s" tags only accept a non empty string or an array with a key "tag" in "%s".', $value->getTag(), $file));
@@ -305,7 +317,7 @@ class YamlFileLoader extends FileLoader
 
             if ('statement' === $value->getTag()) {
                 if (\is_string($argument)) {
-                    return $this->container instanceof Container ? $this->container->call($argument) : new Statement($argument);
+                    return new Statement($argument);
                 }
 
                 if (!\is_array($argument)) {
@@ -316,13 +328,23 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException('"!statement" tag only accepts array keys of "value" and "args"');
                 }
 
-                $argument = $this->resolveServices($argument, $file, $isParameter);
+                return new Statement($argument['value'], $this->resolveServices($argument['args'] ?? [], $file, $isParameter));
+            }
 
-                if ($this->container instanceof Container) {
-                    return $this->container->call($argument['value'], $argument['args'] ?? []);
+            if ('php_literal' === $value->getTag()) {
+                if (\is_string($argument)) {
+                   return new PhpLiteral($argument);
                 }
 
-                return new Statement($argument['value'], $argument['args'] ?? []);
+                if (!\is_array($argument)) {
+                    throw new \InvalidArgumentException(\sprintf('"!php_literal" tag only accepts list sequences in "%s".', $file));
+                }
+
+                if (2 !== \count($argument, \COUNT_RECURSIVE)) {
+                    throw new \InvalidArgumentException(\sprintf('"!%s" tag only accepts a one count map array, key as the string, and value as array.', $value->getTag(), $file));
+                }
+
+                return new PhpLiteral(\key($argument), $this->resolveServices(\current($argument), $file, $isParameter));
             }
 
             throw new \InvalidArgumentException(\sprintf('Unsupported tag "!%s".', $value->getTag()));
@@ -344,19 +366,19 @@ class YamlFileLoader extends FileLoader
             if ('?' === $value[0]) {
                 $value = \substr($value, 1);
 
-                if (!$this->container->has($value)) {
+                if (!($this->container->has($value) || $this->container->typed($value))) {
                     return null;
                 }
             }
 
-            return $this->container instanceof Container ? $this->container->get($value) : new Reference($value);
+            return new Reference($value);
         }
 
         if (!\is_string($value)) {
             return $value;
         }
 
-        return $this->resolveParameters($value);
+        return $this->container->parameter($value);
     }
 
     /**
@@ -388,15 +410,7 @@ class YamlFileLoader extends FileLoader
             }
 
             if ($service instanceof Statement) {
-                $this->container->autowire($id, $service);
-
-                continue;
-            }
-
-            if (\is_object($service)) {
-                $this->container->set($id, $service, true);
-
-                continue;
+                $service = ['entity' => $service->getValue(), 'arguments' => $service->getArguments()];
             }
 
             if (empty($service)) {
@@ -409,16 +423,6 @@ class YamlFileLoader extends FileLoader
 
             if (!\is_array($service)) {
                 throw new \InvalidArgumentException(\sprintf('A service definition must be an array, a tagged "!statement" or a string starting with "@", but "%s" found for service "%s" in "%s". Check your YAML syntax.', \get_debug_type($service), $id, $file));
-            }
-
-            if ($this->container->has($id) && $this->container instanceof Container) {
-                $this->container->extend($id, function (Definition $definition) use ($id, $service, $file, $defaults): Definition {
-                    $this->parseDefinition($id, $service, $file, $defaults, $definition);
-
-                    return $definition;
-                });
-
-                continue;
             }
 
             $this->parseDefinition($id, $service, $file, $defaults);
@@ -475,36 +479,23 @@ class YamlFileLoader extends FileLoader
      *
      * @throws \InvalidArgumentException
      */
-    private function parseDefinition(string $id, array $service, string $file, array $defaults, Definition $definition = null): void
+    private function parseDefinition(string $id, array $service, string $file, array $defaults): void
     {
         $this->checkDefinition($id, $service, $file);
 
-        if ($this->container->has($id) && $this->container instanceof ContainerBuilder) {
-            $definition = \array_key_exists($id, $this->container->keys()) ? $this->container->extend($id) : null;
-        }
-
         // Non existing entity
-        if (!isset($service['entity'])) {
-            $service['entity'] = $service['class'] ?? (\class_exists($id) ? $id : null);
-        }
-
+        $service['entity'] ??= $service['class'] ?? $id;
         $arguments = $this->resolveServices($service['arguments'] ?? [], $file);
 
-        if ($definition instanceof Definition) {
-            $hasDefinition = true;
-
-            $definition->replace($service['entity'], null !== $service['entity'])
-                ->args(\array_merge($definition->get('parameters'), $arguments));
+        if ($this->container->has($id)) {
+            $definition = $this->container->extend($id)->replace($service['entity'], true)->args($arguments);
         } else {
-            $definition = new Definition($service['entity'], $arguments);
+            $definition = $this->container->set($id, new Definition($service['entity'], $arguments));
         }
 
-        if ($this->container instanceof ContainerBuilder) {
-            $definition->should(Definition::PRIVATE, $service['private'] ?? $defaults['private'] ?? false);
-        }
-
-        $definition->should(Definition::LAZY, $service['lazy'] ?? false);
-        $definition->should(Definition::FACTORY, $service['factory'] ?? false);
+        $definition->public($service['public'] ?? $defaults['public'] ?? true);
+        $definition->lazy($service['lazy'] ?? false);
+        $definition->shared($service['shared'] ?? true);
         $this->autowired[$id] = $autowired = $service['autowire'] ?? $defaults['autowire'] ?? false;
 
         if (isset($service['deprecated'])) {
@@ -533,6 +524,10 @@ class YamlFileLoader extends FileLoader
             throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be set when the "namespace" attribute is set for service "%s" in "%s". Check your YAML syntax.', $id, $file));
         }
 
+        if (null !== $instanceOf = $defaults['instanceOf'] ?? $service['instanceOf'] ?? null) {
+            $definition->configure($instanceOf);
+        }
+
         if (\array_key_exists('resource', $service)) {
             if (!\is_string($service['resource'])) {
                 throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be of type string for service "%s" in "%s". Check your YAML syntax.', $id, $file));
@@ -552,10 +547,6 @@ class YamlFileLoader extends FileLoader
             return;
         }
 
-        if (!isset($hasDefinition)) {
-            $definition = $this->container->set($id, $definition);
-        }
-
         if (false !== $autowired) {
             $definition->autowire(\is_array($autowired) ? $autowired : []);
         }
@@ -563,11 +554,11 @@ class YamlFileLoader extends FileLoader
         if (isset($deprecation)) {
             [$package, $version, $message] = $deprecation;
 
-            $definition->deprecate($package, $version, $message);
+            $definition->deprecate($package, '' === $version ? null : (float) $version, $message);
         }
 
         if ([] !== $tags) {
-            $this->container->tag($id, $this->parseDefinitionTags($id, $tags, $file));
+            $definition->tags($this->parseDefinitionTags($id, $tags, $file));
         }
     }
 
@@ -627,7 +618,7 @@ class YamlFileLoader extends FileLoader
         $serviceTags = [];
 
         foreach ($tags as $k => $tag) {
-            if (\is_string($k)) {
+            if (\is_int($k) && \is_array($tag)) {
                 throw new \InvalidArgumentException(\sprintf('The "tags" entry %s is invalid, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
             }
 

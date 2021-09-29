@@ -22,12 +22,12 @@ namespace Rade\DI\Services;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface DependedInterface
+interface DependenciesInterface
 {
     /**
      * Return class names of service providers current provider depends on.
      *
-     * @return string[]
+     * @return ServiceProviderInterface[]|string[]
      */
     public function dependencies(): array;
 }

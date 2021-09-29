@@ -15,34 +15,29 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Fixtures;
+namespace Rade\DI\Definitions;
 
-use Rade\DI\Attribute\Inject;
-use Rade\DI\InjectableInterface;
+use PhpParser\Builder\Method;
+use Rade\DI\Resolvers\Resolver;
 
 /**
+ * Definition represents a service definition.
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class InjectableClass implements InjectableInterface
+interface DefinitionInterface
 {
-    #[Inject]
-    public Constructor $service;
+    /**
+     * Get the definition's entity.
+     *
+     * @return mixed
+     */
+    public function getEntity();
 
-    private FooClass $foo;
-
-    #[Inject]
-    public function injectFooClass(FooClass $foo): void
-    {
-        $this->foo = $foo;
-    }
-
-    public function getService(): Service
-    {
-        return $this->service;
-    }
-
-    public function getFooClass(): FooClass
-    {
-        return $this->foo;
-    }
+    /**
+     * Build the service definition.
+     *
+     * @return Method|mixed
+     */
+    public function build(string $id, Resolver $resolver);
 }

@@ -15,20 +15,17 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Fixtures;
+namespace Rade\DI;
 
-use Psr\Container\ContainerInterface;
-use Rade\DI\AbstractContainer;
-use Rade\DI\Services\ServiceProviderInterface;
-
-class OtherServiceProvider implements ServiceProviderInterface
+/**
+ * ContainerAwareInterface should be implemented by classes that depends on a Container.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
+interface ContainerAwareInterface
 {
     /**
-     * {@inheritdoc}
+     * Sets the container.
      */
-    public function register(AbstractContainer $container, array $configs = []): void
-    {
-        $container->parameters['other'] = $configs;
-        $container->alias('other', ContainerInterface::class);
-    }
+    public function setContainer(ContainerInterface $container);
 }

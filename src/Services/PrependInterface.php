@@ -15,29 +15,20 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Builder;
+namespace Rade\DI\Services;
+
+use Rade\DI\ContainerBuilder;
 
 /**
- * Statement represents a service assigned call.
+ * The interface implemented to adjust DI container before is compiled to PHP class.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Statement
+interface PrependInterface
 {
-    /** @var mixed */
-    public $value;
-
-    public array $args;
-
     /**
-     * Statement constructor.
-     *
-     * @param mixed                   $value
-     * @param array<int|string,mixed> $args
+     * This method is called after all services are registered
+     * and should be used to register missing services, tags or even extending a service definition.
      */
-    public function __construct($value, array $args = [])
-    {
-        $this->value = $value;
-        $this->args = $args;
-    }
+    public function before(ContainerBuilder $builder): void;
 }

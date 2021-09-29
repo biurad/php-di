@@ -15,27 +15,21 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Builder;
+namespace Rade\DI\Traits;
+
+use Rade\DI\ContainerInterface;
 
 /**
- * Reference represents a service reference.
+ * ContainerAware trait.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Reference implements \Stringable
+trait ContainerAwareTrait
 {
-    private string $id;
+    protected ContainerInterface $container;
 
-    public function __construct(string $id)
+    public function setContainer(ContainerInterface $container): void
     {
-        $this->id = $id;
-    }
-
-    /**
-     * @return string The service identifier
-     */
-    public function __toString()
-    {
-        return $this->id;
+        $this->container = $container;
     }
 }

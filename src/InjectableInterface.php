@@ -15,34 +15,14 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Fixtures;
-
-use Rade\DI\Attribute\Inject;
-use Rade\DI\InjectableInterface;
+namespace Rade\DI;
 
 /**
+ * Without this interface implemented, inject attributes on classes
+ * will not be found to avoid overload.
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class InjectableClass implements InjectableInterface
+interface InjectableInterface
 {
-    #[Inject]
-    public Constructor $service;
-
-    private FooClass $foo;
-
-    #[Inject]
-    public function injectFooClass(FooClass $foo): void
-    {
-        $this->foo = $foo;
-    }
-
-    public function getService(): Service
-    {
-        return $this->service;
-    }
-
-    public function getFooClass(): FooClass
-    {
-        return $this->foo;
-    }
 }

@@ -15,20 +15,17 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Fixtures;
+namespace Rade\DI\Services;
 
-use Psr\Container\ContainerInterface;
-use Rade\DI\AbstractContainer;
-use Rade\DI\Services\ServiceProviderInterface;
-
-class OtherServiceProvider implements ServiceProviderInterface
+/**
+ * Set an aliased name for service provider.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
+interface AliasedInterface
 {
     /**
-     * {@inheritdoc}
+     * The provider's aliased name.
      */
-    public function register(AbstractContainer $container, array $configs = []): void
-    {
-        $container->parameters['other'] = $configs;
-        $container->alias('other', ContainerInterface::class);
-    }
+    public function getAlias(): string;
 }

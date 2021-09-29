@@ -17,15 +17,10 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\New_, Expr\Variable, Expr\StaticPropertyFetch};
+use PhpParser\Node\{Expr, Scalar\String_};
+use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
-use Psr\Container\ContainerInterface;
-use Rade\DI\{
-    Builder\Statement,
-    Exceptions\CircularReferenceException,
-    Exceptions\NotFoundServiceException,
-    Exceptions\ServiceCreationException
-};
+use Rade\DI\Definitions\DefinitionInterface;
 use Symfony\Component\Config\{
     Resource\ClassExistenceResource,
     Resource\FileResource,
@@ -35,15 +30,12 @@ use Symfony\Component\Config\{
 
 class ContainerBuilder extends AbstractContainer
 {
-    private bool $trackResources;
+    private const BUILD_SERVICE_DEFINITION = 4;
 
-    private int $hasPrivateServices = 0;
+    private bool $trackResources;
 
     /** @var ResourceInterface[] */
     private array $resources = [];
-
-    /** @var Definition[]|RawDefinition[] */
-    private array $definitions = [];
 
     /** Name of the compiled container parent class. */
     private string $containerParentClass;
@@ -57,106 +49,13 @@ class ContainerBuilder extends AbstractContainer
      */
     public function __construct(string $containerParentClass = Container::class)
     {
+        parent::__construct();
+
         $this->containerParentClass = $containerParentClass;
         $this->trackResources = \interface_exists(ResourceInterface::class);
 
-        $this->builder = new \PhpParser\BuilderFactory();
-        $this->resolver = new Resolvers\Resolver($this);
-
-        self::$services = ['container' => new Variable('this')];
-        $this->type('container', [ContainerInterface::class, $containerParentClass]);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function __call(string $name, array $args)
-    {
-        if ('call' === $name) {
-            throw new ServiceCreationException(\sprintf('Refactor your code to use %s class instead.', Statement::class));
-        }
-
-        if ('resolveClass' === $name) {
-            $class = new \ReflectionClass($service = $args[0]);
-
-            if ($class->isAbstract() || !$class->isInstantiable()) {
-                throw new ServiceCreationException(\sprintf('Class entity %s is an abstract type or instantiable.', $service));
-            }
-
-            return $this->doResolveClass($class, $class->getConstructor(), $args);
-        }
-
-        return parent::__call($name, $args);
-    }
-
-    /**
-     * Extends an object definition.
-     *
-     * @param string $id The unique identifier for the definition
-     *
-     * @throws NotFoundServiceException If the identifier is not defined
-     * @throws ServiceCreationException if the definition is a raw type
-     */
-    public function extend(string $id): Definition
-    {
-        $extended = $this->definitions[$id] ?? $this->createNotFound($id, true);
-
-        if ($extended instanceof RawDefinition) {
-            throw new ServiceCreationException(\sprintf('Extending a raw definition for "%s" is not supported.', $id));
-        }
-
-        // Incase service has been cached, remove it.
-        unset(self::$services[$id]);
-
-        return $this->definitions[$id] = $extended;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function service(string $id)
-    {
-        return $this->definitions[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
-    }
-
-    /**
-     * Sets a autowired service definition.
-     *
-     * @param string|array|Definition|Statement $definition
-     *
-     * @throws ServiceCreationException If $definition instanceof RawDefinition
-     */
-    public function autowire(string $id, $definition): Definition
-    {
-        if ($definition instanceof RawDefinition) {
-            throw new ServiceCreationException(
-                \sprintf('Service "%s" using "%s" instance is not supported for autowiring.', $id, RawDefinition::class)
-            );
-        }
-
-        return $this->set($id, $definition)->autowire();
-    }
-
-    /**
-     * Sets a service definition.
-     *
-     * @param string|array|Definition|Statement|RawDefinition $definition
-     *
-     * @return Definition|RawDefinition the service definition
-     */
-    public function set(string $id, $definition)
-    {
-        unset($this->aliases[$id]);
-
-        if (!$definition instanceof RawDefinition) {
-            if (!$definition instanceof Definition) {
-                $definition = new Definition($definition);
-            }
-
-            $definition->withContainer($id, $this);
-        }
-
-        return $this->definitions[$id] = $definition;
+        $this->builder = $this->resolver->getBuilder();
+        $this->services[self::SERVICE_CONTAINER] = $this->builder->var('this');
     }
 
     /**
@@ -164,50 +63,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        switch (true) {
-            case isset(self::$services[$id]):
-                return self::$services[$id];
-
-            case isset($this->definitions[$id]):
-                return self::$services[$id] = $this->doCreate($id, $this->definitions[$id]);
-
-            case $this->typed($id):
-                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-
-            case isset($this->aliases[$id]):
-                return $this->get($this->aliases[$id]);
-
-            default:
-                throw $this->createNotFound($id);
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function has(string $id): bool
-    {
-        return isset($this->definitions[$id]) || ($this->typed($id) || isset($this->aliases[$id]));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function remove(string $id): void
-    {
-        if (isset($this->definitions[$id])) {
-            unset($this->definitions[$id]);
-        }
-
-        parent::remove($id);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function keys(): array
-    {
-        return \array_keys($this->definitions);
+        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->doGet($id, $invalidBehavior);
     }
 
     /**
@@ -232,24 +88,6 @@ class ContainerBuilder extends AbstractContainer
         }
 
         return $this;
-    }
-
-    /**
-     * Return all service definitions.
-     *
-     * @return Definition[]|RawDefinition[]
-     */
-    public function getDefinitions(): array
-    {
-        return $this->definitions;
-    }
-
-    /**
-     * Get the builder use to compiler container.
-     */
-    public function getBuilder(): \PhpParser\BuilderFactory
-    {
-        return $this->builder;
     }
 
     /**
@@ -279,7 +117,7 @@ class ContainerBuilder extends AbstractContainer
                 $this->addResource(new FileResource($rPath));
             }
 
-            if ($builder instanceof Builder\PrependInterface) {
+            if ($builder instanceof Services\PrependInterface) {
                 $builder->before($this);
             }
         }
@@ -300,47 +138,78 @@ class ContainerBuilder extends AbstractContainer
 
     /**
      * {@inheritdoc}
-     *
-     * @param Definition|RawDefinition $service
      */
-    protected function doCreate(string $id, $service, bool $build = false)
+    protected function createDefinition(string $id, $definition)
     {
-        if (isset($this->loading[$id])) {
-            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+        $definition = parent::createDefinition($id, $definition);
+
+        if (!$definition instanceof DefinitionInterface) {
+            return $this->createDefinition($id, new Definition($definition));
         }
 
-        try {
-            $this->loading[$id] = true;
-
-            if ($service instanceof RawDefinition) {
-                return $build ? $service->build($id, $this->builder) : $this->builder->val($service());
-            }
-
-            // Strict circular reference check ...
-            $compiled = $service->build();
-
-            return $build ? $compiled : $service->resolve();
-        } finally {
-            unset($this->loading[$id]);
-        }
+        return $definition;
     }
 
     /**
-     * @param Definition[]|RawDefinition[] $definitions
+     * {@inheritdoc}
+     */
+    protected function doGet(string $id, int $invalidBehavior)
+    {
+        $createdService = parent::doGet($id, $invalidBehavior);
+
+        if (null === $createdService) {
+            $anotherService = $this->resolver->resolve($id);
+
+            if (!$anotherService instanceof String_) {
+                return $anotherService;
+            }
+
+            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
+                throw $this->createNotFound($id);
+            }
+        }
+
+        return $createdService;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function doCreate(string $id, $definition, int $invalidBehavior)
+    {
+        /** @var DefinitionInterface $definition */
+        $compiledDefinition = $definition->build($id, $this->resolver);
+
+        if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
+            $resolved = $this->builder->methodCall($this->builder->var('this'), $this->resolver->createMethod($id));
+            $serviceType = 'services';
+
+            if ($definition instanceof Definition) {
+                if (!$definition->isShared()) {
+                    return $this->services[$id] = $resolved;
+                }
+
+                if (!$definition->isPublic()) {
+                    $serviceType = 'privates';
+                }
+            }
+
+            $service = $this->builder->propertyFetch($this->builder->var('this'), $serviceType);
+            $createdService = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($service, new String_($id)), $resolved);
+
+            return $this->services[$id] = $createdService;
+        }
+
+        return $compiledDefinition;
+    }
+
+    /**
+     * @param DefinitionInterfaces[] $definitions
      */
     protected function doCompile(array $definitions, array $parameters, string $containerClass): \PhpParser\Builder\Class_
     {
         [$methodsMap, $serviceMethods, $wiredTypes] = $this->doAnalyse($definitions);
         $compiledContainerNode = $this->builder->class($containerClass)->extend($this->containerParentClass);
-
-        if ($this->hasPrivateServices > 0) {
-            $compiledContainerNode
-                ->addStmt($this->builder->property('privates')->makeProtected()->setType('array')->makeStatic())
-                ->addStmt($this->builder->method('__construct')->makePublic()
-                    ->addStmt($this->builder->staticCall($this->builder->constFetch('parent'), '__construct'))
-                    ->addStmt(new Assign(new StaticPropertyFetch(new Name('self'), 'privates'), $this->builder->val([]))))
-            ;
-        }
 
         return $compiledContainerNode
             ->setDocComment(Builder\CodePrinter::COMMENT)
@@ -363,7 +232,7 @@ class ContainerBuilder extends AbstractContainer
     /**
      * Analyse all definitions, build definitions and return results.
      *
-     * @param Definition[]|RawDefinition[] $definitions
+     * @param DefinitionInterface[] $definitions
      */
     protected function doAnalyse(array $definitions): array
     {
@@ -371,15 +240,13 @@ class ContainerBuilder extends AbstractContainer
         \ksort($definitions);
 
         foreach ($definitions as $id => $definition) {
-            $serviceMethods[] = $this->doCreate($id, $definition, true);
+            $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
 
             if ($this->ignoredDefinition($definition)) {
-                ++$this->hasPrivateServices;
-
                 continue;
             }
 
-            $methodsMap[$id] = Definition::createMethod($id);
+            $methodsMap[$id] = $this->resolver->createMethod($id);
         }
 
         // Remove private aliases
@@ -391,7 +258,7 @@ class ContainerBuilder extends AbstractContainer
 
         // Prevent autowired private services from be exported.
         foreach ($this->types as $type => $ids) {
-            if (1 === \count($ids) && $this->ignoredDefinition($definitions[\reset($ids)] ?? null)) {
+            if (1 === \count($ids) && $this->ignoredDefinition($definitions[$ids[0]] ?? null)) {
                 continue;
             }
 
@@ -405,40 +272,10 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * @param RawDefinition|Definition|null $def
+     * @param DefinitionInterface|null $def
      */
     private function ignoredDefinition($def): bool
     {
         return $def instanceof Definition && !$def->isPublic();
-    }
-
-    /**
-     * @param array<int,mixed> $args
-     */
-    private function doResolveClass(\ReflectionClass $class, ?\ReflectionMethod $constructor, array $args): New_
-    {
-        if (null !== $constructor && $constructor->isPublic()) {
-            $service = $this->builder->new($class->name, $this->resolver->autowireArguments($constructor, $args[1] ?? []));
-        } else {
-            if (!empty($args[1] ?? [])) {
-                throw new ServiceCreationException("Unable to pass arguments, class {$class->name} has no constructor or constructor is not public.");
-            }
-
-            $service = $this->builder->new($class->name);
-        }
-
-        foreach (Resolvers\Resolver::getInjectProperties($this, $class->getProperties(\ReflectionProperty::IS_PUBLIC)) as $property => $value) {
-            if (isset($args[2])) {
-                $this->definitions[$args[2]]->bind($property, $value);
-            }
-        }
-
-        foreach ($class->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (\PHP_VERSION_ID >= 80000 && (!empty($method->getAttributes(Attribute\Inject::class)) && isset($args[2]))) {
-                $this->definitions[$args[2]]->bind($method->name, []);
-            }
-        }
-
-        return $service;
     }
 }

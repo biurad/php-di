@@ -17,81 +17,42 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{
-    Expr\ArrayDimFetch,
-    Expr\Assign,
-    Expr\BinaryOp,
-    Expr\StaticPropertyFetch,
-    Name,
-    Scalar\String_,
-    Stmt\Return_,
-    UnionType
-};
-use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
+use Nette\Utils\Callback;
+use PhpParser\Builder\Method;
+use PhpParser\BuilderFactory;
+use PhpParser\Node\Scalar\String_;
+use PhpParser\Node\Expr\{ArrayDimFetch, Assign, BooleanNot, Instanceof_, Throw_, Variable};
+use PhpParser\Node\{Expr, Name};
+use PhpParser\Node\Stmt\{If_, Return_};
+use Rade\DI\Exceptions\ServiceCreationException;
+use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Definitions\Traits as Defined;
 
 /**
  * Represents definition of standard service.
  *
- * @method string              getId()          Get the definition's id.
- * @method mixed               getEntity()      Get the definition's entity.
- * @method array<string,mixed> getParameters()  Get the definition's parameters.
- * @method string|string[]     getType()        Get the return types for definition.
- * @method array<string,mixed> getCalls()       Get the bind calls to definition.
- * @method array<int,mixed>    getExtras()      Get the list of extras binds.
- * @method string[]            getDeprecation() Return a non-empty array if definition is deprecated.
- * @method bool                isDeprecated()   Whether this definition is deprecated, that means it should not be used anymore.
- * @method bool                isLazy()         Whether this service is lazy.
- * @method bool                isFactory()      Whether this service is not a shared service.
- * @method bool                isPublic()       Whether this service is a public type.
- * @method bool                isAutowired()    Whether this service is autowired.
- *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Definition
+class Definition implements DefinitionInterface, TypedDefinitionInterface, DefinitionAwareInterface
 {
-    use Traits\ResolveTrait;
+    use Defined\DeprecationTrait;
 
-    /** Marks a definition as being a factory service. */
-    public const FACTORY = 1;
+    use Defined\ParameterTrait;
 
-    /** This is useful when you want to autowire a callable or class string lazily. */
-    public const LAZY = 2;
+    use Defined\BindingTrait;
 
-    /** Marks a definition as a private service. */
-    public const PRIVATE = 4;
+    use Defined\ConfigureTrait;
+
+    use Defined\AutowireTrait;
+
+    use Defined\DefinitionAwareTrait;
 
     /** Use in second parameter of bind method. */
     public const EXTRA_BIND = '@code@';
 
-    /** supported call in get() method. */
-    private const SUPPORTED_GET = [
-        'id' => 'id',
-        'entity' => 'entity',
-        'parameters' => 'parameters',
-        'type' => 'type',
-        'calls' => 'calls',
-        'extras' => 'extras',
-    ];
-
-    private const IS_TYPE_OF = [
-        'isLazy' => 'lazy',
-        'isFactory' => 'factory',
-        'isPublic' => 'public',
-        'isAutowired' => 'autowired',
-        'isDeprecated' => 'deprecated',
-    ];
-
-    private string $id;
-
-    private bool $factory = false;
-
-    private bool $lazy = false;
-
-    private bool $public = true;
-
-    /** @var array<string,string> */
-    private array $deprecated = [];
+    /** @var mixed The service entity */
+    private $entity;
 
     /**
      * Definition constructor.
@@ -102,91 +63,28 @@ class Definition
     public function __construct($entity, array $arguments = [])
     {
         $this->replace($entity, true);
-        $this->parameters = $arguments;
+        $this->arguments = $arguments;
     }
 
     /**
-     * @param string  $method
-     * @param mixed[] $arguments
-     *
-     * @throws \BadMethodCallException
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function __call($method, $arguments)
+    public function getEntity()
     {
-        if (isset(self::IS_TYPE_OF[$method])) {
-            return (bool) $this->{self::IS_TYPE_OF[$method]};
-        }
-
-        return $this->get(\strtolower((string) \preg_replace('/^get([A-Z]{1}[a-z]+)$/', '\1', $method, 1)));
-    }
-
-    /**
-     * The method name generated for a service definition.
-     */
-    final public static function createMethod(string $id): string
-    {
-        return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
-    }
-
-    /**
-     * Attach the missing id and resolver to this definition.
-     * NB: This method is used internally and should not be used directly.
-     *
-     * @internal
-     */
-    final public function withContainer(string $id, AbstractContainer $container): void
-    {
-        $this->id = $id;
-        $this->container = $container;
-
-        if ($container instanceof ContainerBuilder) {
-            $this->builder = $container->getBuilder();
-        }
-    }
-
-    /**
-     * Get any of (id, entity, parameters, type, calls, extras, deprecation).
-     *
-     * @throws \BadMethodCallException if $name does not exist as property
-     *
-     * @return mixed
-     */
-    final public function get(string $name)
-    {
-        if ('deprecation' === $name) {
-            $deprecation = $this->deprecated;
-
-            if (isset($deprecation['message'])) {
-                $deprecation['message'] = \sprintf($deprecation['message'], $this->id);
-            }
-
-            return $deprecation;
-        }
-
-        if (!isset(self::SUPPORTED_GET[$name])) {
-            throw new \BadMethodCallException(\sprintf('Property call for %s invalid, %s::get(\'%1$s\') not supported.', $name, __CLASS__));
-        }
-
-        return $this->{$name};
+        return $this->entity;
     }
 
     /**
      * Replace existing entity to a new entity.
      *
-     * NB: Using this method must be done before autowiring
-     * else autowire manually.
-     *
      * @param mixed $entity
-     * @param bool  $if     rule matched
      *
      * @return $this
      */
     final public function replace($entity, bool $if): self
     {
-        if ($entity instanceof RawDefinition) {
-            throw new ServiceCreationException(\sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class));
+        if ($entity instanceof DefinitionInterface) {
+            throw new ServiceCreationException(\sprintf('A definition entity must be be an instance of "%s".', DefinitionInterface::class));
         }
 
         if ($if /* Replace if matches a rule */) {
@@ -197,239 +95,125 @@ class Definition
     }
 
     /**
-     * Sets the arguments to pass to the service constructor/factory method.
-     *
-     * @param array<int|string,mixed> $arguments
-     *
-     * @return $this
+     * {@inheritdoc}
      */
-    final public function args(array $arguments): self
+    public function build(string $id, Resolver $resolver)
     {
-        $this->parameters = $arguments;
-
-        return $this;
-    }
-
-    /**
-     * Sets/Replace one argument to pass to the service constructor/factory method.
-     *
-     * @param int|string $key
-     * @param mixed      $value
-     *
-     * @return $this
-     */
-    final public function arg($key, $value): self
-    {
-        $this->parameters[$key] = $value;
-
-        return $this;
-    }
-
-    /**
-     * Sets method, property, Class|@Ref::Method or php code bindings.
-     *
-     * Binding map method name, property name, mixed type or php code that should be
-     * injected in the definition's entity as assigned property, method or extra code added in running that entity.
-     *
-     * @param string $nameOrMethod A parameter name, a method name, or self::EXTRA_BIND
-     * @param mixed  $valueOrRef   The value, reference or statement to bind
-     *
-     * @return $this
-     */
-    final public function bind(string $nameOrMethod, $valueOrRef): self
-    {
-        if (self::EXTRA_BIND === $nameOrMethod) {
-            $this->extras[] = $valueOrRef;
-
-            return $this;
+        if (null === $builder = $resolver->getBuilder()) {
+            return $this->resolve($id, $resolver);
         }
 
-        $this->calls[$nameOrMethod] = $valueOrRef;
+        $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
+        $createdDef = $this->createServiceEntity($id, $resolver, $defNode, $builder);
 
-        return $this;
-    }
+        if (null !== $this->instanceOf) {
+            $createdDef = $this->createAssignedService($defNode, $createdDef);
 
-    /**
-     * Enables autowiring.
-     *
-     * @param array<int,string> $types
-     *
-     * @return $this
-     */
-    final public function autowire(array $types = []): self
-    {
-        $this->autowired = true;
-        $service = $this->entity;
-
-        if ($service instanceof Statement) {
-            $service = $service->value;
+            $errorInstance = new Throw_($builder->new(ServiceCreationException::class, ["Constructing service definition for \"{$id}\" failed because entity not instance of {$this->instanceOf}."]));
+            $defNode->addStmt(new If_(new BooleanNot(new Instanceof_($createdDef->var, new Name($this->instanceOf))), ['stmts' => [$errorInstance]]));
         }
 
-        if ([] === $types && null !== $service) {
-            $types = Resolver::autowireService($service);
+        if ($this->shared) {
+            $serviceVar = new ArrayDimFetch($builder->propertyFetch($builder->var('this'), $this->public ? 'services' : 'privates'), new String_($id));
+            $createdDef = new Assign($serviceVar, $createdDef instanceof Assign ? $createdDef->var : $createdDef);
         }
 
-        $this->container->type($this->id, $types);
-
-        return $this->typeOf($types);
+        return $defNode->addStmt(new Return_($createdDef));
     }
 
-    /**
-     * Represents a PHP type-hinted for this definition.
-     *
-     * @param string[]|string $types
-     *
-     * @return $this
-     */
-    final public function typeOf($types): self
+    protected function resolve(string $id, Resolver $resolver)
     {
-        if (\is_array($types) && (1 === \count($types) || \PHP_VERSION_ID < 80000)) {
-            foreach ($types as $type) {
-                if (\class_exists($type)) {
-                    $types = $type;
+        $resolved = $resolver->resolve($this->entity, $this->arguments);
 
-                    break;
+        if (null !== $this->instanceOf && !\is_subclass_of($resolved, $this->instanceOf)) {
+            throw new ServiceCreationException(\sprintf('Constructing service definition for "%s" failed because entity not instance of %s.', $id, $this->instanceOf));
+        }
+
+        if ($this->isDeprecated()) {
+            $this->triggerDeprecation($id);
+        }
+
+        foreach ($this->parameters as $property => $propertyValue) {
+            $resolved->{$property} = $propertyValue;
+        }
+
+        foreach ($this->calls as $method => $methodValue) {
+            $resolver->resolve([$resolved, $method], (array) $methodValue);
+        }
+
+        foreach ($this->extras as $code) {
+            $resolver->resolve($code);
+        }
+
+        return $resolved;
+    }
+
+    protected function resolveBinding(Method $defNode, Assign $createdDef, Resolver $resolver, BuilderFactory $builder): void
+    {
+        foreach ($this->parameters as $parameter => $pValue) {
+            $defNode->addStmt(new Assign($builder->propertyFetch($createdDef->var, $parameter), $resolver->resolve($pValue)));
+        }
+
+        foreach ($this->calls as $method => $mCall) {
+            if (!\is_array($mCall)) {
+                $mCall = [$mCall];
+            }
+
+            if (\is_string($this->entity) && \method_exists($this->entity, $method)) {
+                $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $method]), $mCall);
+            } else {
+                $mCall = $resolver->resolveArguments($mCall);
+            }
+
+            $defNode->addStmt($builder->methodCall($createdDef->var, $method, $mCall));
+        }
+
+        if ([] !== $this->extras) {
+            foreach ($this->extras as $code) {
+                if ($code instanceof Builder\PhpLiteral) {
+                    $defNode->addStmts($code->resolve($resolver));
+
+                    continue;
                 }
+
+                $defNode->addStmt($resolver->resolve($code));
             }
         }
-
-        $this->type = $types;
-
-        return $this;
     }
 
-    /**
-     * Whether this definition is deprecated, that means it should not be used anymore.
-     *
-     * @param string      $package The name of the composer package that is triggering the deprecation
-     * @param float|null  $version The version of the package that introduced the deprecation
-     * @param string|null $message The deprecation message to use
-     *
-     * @return $this
-     */
-    final public function deprecate(string $package = '', float $version = null, string $message = null): self
+    protected function createServiceEntity(string $id, Resolver $resolver, Method $defNode, BuilderFactory $builder): Expr
     {
-        $this->deprecated['package'] = $package;
-        $this->deprecated['version'] = $version ?? '';
-        $this->deprecated['message'] = $message ?? 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.';
+        if ($this->isTyped()) {
+            $this->triggerReturnType($defNode);
+        }
 
-        return $this;
+        if ($this->isDeprecated()) {
+            $defNode->addStmt($this->triggerDeprecation($id, $builder));
+        }
+
+        if ($this->lazy) {
+            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$this->entity, $this->arguments]);
+        } else {
+            $createdDef = $resolver->resolve($this->entity, $this->arguments);
+        }
+
+        if ($createdDef instanceof Injectable) {
+            $createdDef = $createdDef->build($defNode, $builder->var('service'), $builder);
+        }
+
+        if ($this->hasBinding()) {
+            $this->resolveBinding($defNode, $createdDef = $this->createAssignedService($defNode, $createdDef), $resolver, $builder);
+        }
+
+        return $createdDef;
     }
 
-    /**
-     * Assign a set of tags to the definition.
-     *
-     * @param array<int|string,mixed> $tags
-     */
-    public function tag(array $tags): self
+    protected function createAssignedService(Method $defNode, Expr $createdDef): Assign
     {
-        $this->container->tag($this->id, $tags);
-
-        return $this;
-    }
-
-    /**
-     * Should the this definition be a type of
-     * self::FACTORY|self::PRIVATE|self::LAZY, then set enabled or not.
-     *
-     * @return $this
-     */
-    public function should(int $be = self::FACTORY, bool $enabled = true): self
-    {
-        switch ($be) {
-            case self::FACTORY:
-                $this->factory = $enabled;
-
-                break;
-
-            case self::LAZY:
-                $this->lazy = $enabled;
-
-                break;
-
-            case self::PRIVATE:
-                $this->public = !$enabled;
-
-                break;
-
-            case self::PRIVATE | self::FACTORY:
-                $this->public = !$enabled;
-                $this->factory = $enabled;
-
-                break;
-
-            case self::PRIVATE | self::LAZY:
-                $this->public = !$enabled;
-                $this->lazy = $enabled;
-
-                break;
-
-            case self::FACTORY | self::LAZY:
-                $this->factory = $enabled;
-                $this->lazy = $enabled;
-
-                break;
-
-            case self::FACTORY | self::LAZY | self::PRIVATE:
-                $this->public = !$enabled;
-                $this->factory = $enabled;
-                $this->lazy = $enabled;
-
-                break;
+        if (!$createdDef instanceof Assign) {
+            $defNode->addStmt($createdDef = new Assign(new Variable('service'), $createdDef));
         }
 
-        return $this;
-    }
-
-    /**
-     * Resolves the Definition when in use in ContainerBuilder.
-     */
-    public function resolve(): \PhpParser\Node\Expr
-    {
-        $resolved = $this->builder->methodCall($this->builder->var('this'), self::createMethod($this->id));
-
-        if ($this->factory) {
-            return $resolved;
-        }
-
-        return new BinaryOp\Coalesce(
-            new ArrayDimFetch(
-                new StaticPropertyFetch(new Name('self'), $this->public ? 'services' : 'privates'),
-                new String_($this->id)
-            ),
-            $resolved
-        );
-    }
-
-    /**
-     * Build the definition service.
-     *
-     * @throws \ReflectionException
-     */
-    public function build(): \PhpParser\Builder\Method
-    {
-        $node = $this->builder->method(self::createMethod($this->id))->makeProtected();
-        $factory = $this->resolveEntity($this->entity, $this->parameters);
-
-        if ([] !== $deprecation = $this->deprecated) {
-            $deprecation[] = $this->id;
-            $node->addStmt($this->builder->funcCall('\trigger_deprecation', \array_values($deprecation)));
-        }
-
-        if (!empty($this->calls + $this->extras)) {
-            $node->addStmt(new Assign($resolved = $this->builder->var($this->public ? 'service' : 'private'), $factory));
-            $node = $this->resolveCalls($resolved, $factory, $node);
-        }
-
-        if (!empty($types = $this->type)) {
-            $node->setReturnType(\is_array($types) ? new UnionType(\array_map(fn ($type) => new Name($type), $types)) : $types);
-        }
-
-        if (!$this->factory) {
-            $cached = new StaticPropertyFetch(new Name('self'), $this->public ? 'services' : 'privates');
-            $resolved = new Assign(new ArrayDimFetch($cached, new String_($this->id)), $resolved ?? $factory);
-        }
-
-        return $node->addStmt(new Return_($resolved ?? $factory));
+        return $createdDef;
     }
 }

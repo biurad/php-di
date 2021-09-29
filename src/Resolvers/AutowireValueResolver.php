@@ -17,20 +17,19 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use Nette\Utils\Reflection;
+use Nette\Utils\{Reflection, Validators};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
 /**
  * An advanced autowiring used for PSR-11 implementation.
  *
+ * @internal use not be use externally
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 class AutowireValueResolver
 {
-    /** a unique identifier for not found parameter value */
-    private const NONE = '\/\/:oxo:\/\/';
-
     /**
      * Resolve parameters for service definition.
      *
@@ -38,7 +37,7 @@ class AutowireValueResolver
      *
      * @return mixed
      */
-    public function resolve(callable $resolver, \ReflectionParameter $parameter, array $providedParameters)
+    public static function resolve(callable $resolver, \ReflectionParameter $parameter, array $providedParameters)
     {
         $paramName = $parameter->name;
         $position = $parameter->getPosition();
@@ -46,7 +45,7 @@ class AutowireValueResolver
         try {
             return $providedParameters[$position]
                 ?? $providedParameters[$paramName]
-                ?? $this->autowireArgument($parameter, $resolver, $providedParameters);
+                ?? self::autowireArgument($parameter, $resolver, $providedParameters);
         } finally {
             unset($providedParameters[$position], $providedParameters[$paramName]);
         }
@@ -61,10 +60,10 @@ class AutowireValueResolver
      *
      * @return mixed
      */
-    private function autowireArgument(\ReflectionParameter $parameter, callable $getter, array $providedParameters)
+    private static function autowireArgument(\ReflectionParameter $parameter, callable $getter, array $providedParameters)
     {
         $types = Reflection::getParameterTypes($parameter);
-        $invalid = [];
+        $method = $parameter->getDeclaringFunction();
 
         foreach ($types as $typeName) {
             if ('null' === $typeName) {
@@ -74,92 +73,48 @@ class AutowireValueResolver
             try {
                 return $providedParameters[$typeName] ?? $getter($typeName, !$parameter->isVariadic());
             } catch (NotFoundServiceException $e) {
-                $res = null;
-
-                if (\in_array($typeName, ['array', 'iterable'], true)) {
-                    $res = $this->findByMethod($parameter, $getter);
-                }
+                // Ignore this exception ...
             } catch (ContainerResolutionException $e) {
-                $res = $this->findByMethod($parameter, $getter);
+                $errorException = new ContainerResolutionException(\sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter)));
+            }
 
-                if (self::NONE !== $res && 1 === \count($res)) {
-                    return \current($res);
+            if (
+                ServiceProviderInterface::class === $typeName &&
+                null !== $class = $parameter->getDeclaringClass()
+            ) {
+                if (!$class->implementsInterface(ServiceSubscriberInterface::class)) {
+                    throw new ContainerResolutionException(\sprintf(
+                        'Service of type %s needs parent class %s to implement %s.',
+                        $typeName,
+                        $class->getName(),
+                        ServiceSubscriberInterface::class
+                    ));
                 }
 
-                throw new ContainerResolutionException(\sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter)));
+                return $getter($class->getName());
             }
 
-            $res = $res ?? $this->resolveNotFoundService($parameter, $getter, $typeName);
+            if (
+                $method instanceof \ReflectionMethod
+                && \preg_match('#@param[ \t]+([\w\\\\]+)\[\][ \t]+\$' . $parameter->name . '#', (string) $method->getDocComment(), $m)
+                && ($itemType = Reflection::expandClassName($m[1], $method->getDeclaringClass()))
+                && (\class_exists($itemType) || \interface_exists($itemType))
+            ) {
+                if (\in_array($typeName, ['array', 'iterable'], true)) {
+                    return $getter($itemType, false);
+                }
 
-            if (self::NONE !== $res) {
-                return $res;
+                if ('object' === $typeName || \is_subclass_of($itemType, $typeName)) {
+                    return $getter($itemType, true);
+                }
             }
 
-            $invalid[] = $typeName;
-        }
-
-        return $this->getDefaultValue($parameter, $invalid);
-    }
-
-    /**
-     * Parses a methods doc comments or return default value.
-     *
-     * @return string|object[]
-     */
-    private function findByMethod(\ReflectionParameter $parameter, callable $getter)
-    {
-        $method = $parameter->getDeclaringFunction();
-
-        if ($method instanceof \ReflectionMethod && null != $class = $method->getDeclaringClass()) {
-            \preg_match(
-                "#@param[ \\t]+([\\w\\\\]+?)(\\[])?[ \\t]+\\\${$parameter->name}#",
-                (string) $method->getDocComment(),
-                $matches
-            );
-
-            $itemType = isset($matches[1]) ? Reflection::expandClassName($matches[1], $class) : '';
-
-            if ($this->isValidType($itemType)) {
-                return $getter($itemType, false);
+            if (isset($errorException)) {
+                throw $errorException;
             }
         }
 
-        return self::NONE;
-    }
-
-    /**
-     * Resolve services which may or not exist in container.
-     *
-     * @return mixed
-     */
-    private function resolveNotFoundService(\ReflectionParameter $parameter, callable $getter, string $type)
-    {
-        if (ServiceProviderInterface::class === $type && null !== $class = $parameter->getDeclaringClass()) {
-            if (!$class->isSubclassOf(ServiceSubscriberInterface::class)) {
-                throw new ContainerResolutionException(\sprintf(
-                    'Service of type %s needs parent class %s to implement %s.',
-                    $type,
-                    $class->getName(),
-                    ServiceSubscriberInterface::class
-                ));
-            }
-
-            return $getter($class->getName());
-        }
-
-        // Incase a valid class/interface is found or default value ...
-        if ($this->isValidType($type) || ($parameter->isDefaultValueAvailable() || $parameter->allowsNull())) {
-            return self::NONE;
-        }
-
-        $desc = Reflection::toString($parameter);
-        $message = "Type '$type' needed by $desc not found. Check type hint and 'use' statements.";
-
-        if (Reflection::isBuiltinType($type)) {
-            $message = "Builtin Type '$type' needed by $desc is not supported for autowiring.";
-        }
-
-        throw new ContainerResolutionException($message);
+        return self::getDefaultValue($parameter, \implode('|', $types));
     }
 
     /**
@@ -167,38 +122,30 @@ class AutowireValueResolver
      *
      * @param string[] $invalid
      *
-     * @throws \ReflectionException
+     * @throws \ReflectionException|ContainerResolutionException
      *
      * @return mixed
      */
-    private function getDefaultValue(\ReflectionParameter $parameter, array $invalid)
+    private static function getDefaultValue(\ReflectionParameter $parameter, string $typedHint)
     {
-        // optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
-        if ($parameter->isOptional() && $parameter->isDefaultValueAvailable()) {
-            return \PHP_VERSION_ID < 80000 ? Reflection::getParameterDefaultValue($parameter) : null;
-        }
-
-        // Return null if = i.e. doSomething(?$hello, $value) ...
-        if ($parameter->allowsNull()) {
+        if ($parameter->isOptional() || $parameter->allowsNull()) {
             return null;
         }
 
         $desc = Reflection::toString($parameter);
-        $message = "Parameter $desc has no class type hint or default value, so its value must be specified.";
 
-        if (!empty($invalid)) {
-            $invalid = \implode('|', $invalid);
-            $message = "Parameter $desc typehint(s) '$invalid' not found, and no default value specified.";
+        if (Reflection::isBuiltinType($typedHint)) {
+            throw new ContainerResolutionException(\sprintf('Builtin type "%s" defined in %s is not supported for autowiring. Did you forget to set a value for the parameter?', $typedHint, $desc));
         }
 
-        throw new ContainerResolutionException($message);
-    }
+        if (Validators::isValidType($typedHint)) {
+            throw new ContainerResolutionException(\sprintf('Parameter type hint "%s" needed by %s not found in container. Did you forgot to autowire it?', $typedHint, $desc));
+        }
 
-    /**
-     * @param mixed $type
-     */
-    private function isValidType($type): bool
-    {
-        return \class_exists($type) || \interface_exists($type);
+        if ('' === $typedHint) {
+            $message = 'Parameter %s%s has no type hint or default value, so its value must be specified.';
+        }
+
+        throw new ContainerResolutionException(\sprintf($message ?? 'Parameter type hint "%s" needed by %s not found. Check type hint and \'use\' statements.', $typedHint, $desc));
     }
 }

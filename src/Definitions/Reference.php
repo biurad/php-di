@@ -15,20 +15,27 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Fixtures;
+namespace Rade\DI\Definitions;
 
-use Psr\Container\ContainerInterface;
-use Rade\DI\AbstractContainer;
-use Rade\DI\Services\ServiceProviderInterface;
-
-class OtherServiceProvider implements ServiceProviderInterface
+/**
+ * Reference represents a service reference.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
+class Reference implements \Stringable
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function register(AbstractContainer $container, array $configs = []): void
+    private string $id;
+
+    public function __construct(string $id)
     {
-        $container->parameters['other'] = $configs;
-        $container->alias('other', ContainerInterface::class);
+        $this->id = $id;
+    }
+
+    /**
+     * @return string The service identifier
+     */
+    public function __toString()
+    {
+        return $this->id;
     }
 }

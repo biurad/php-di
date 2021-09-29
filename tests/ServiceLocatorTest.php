@@ -73,7 +73,7 @@ class ServiceLocatorTest extends BaseServiceLocatorTest
             'bat' => function (): ?string {
                 return 'zaz';
             },
-            'baz' => new \ArrayObject(),
+            'baz' => fn(): \ArrayObject => new \ArrayObject(),
             'null' => null,
         ]);
 

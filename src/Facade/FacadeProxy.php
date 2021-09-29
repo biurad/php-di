@@ -24,7 +24,6 @@ use PhpParser\Node\{
     Stmt\Declare_,
     Stmt\DeclareDeclare,
     Stmt\Return_,
-    UnionType
 };
 use Psr\Container\ContainerInterface;
 use Rade\DI\Builder\CodePrinter;
@@ -77,7 +76,7 @@ class FacadeProxy
 
         if ([] !== $proxiedServices = $this->proxies) {
             $astNodes = [];
-            $builder = $container->getBuilder();
+            $builder = $container->getResolver()->getBuilder();
             \ksort($proxiedServices);
 
             $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $builder->val(1))]);
@@ -108,7 +107,7 @@ class FacadeProxy
                 continue;
             }
 
-            $definition = $container->service($proxy);
+            $definition = $container->definition($proxy);
             $proxyNode = $builder->method($method)->makePublic()->makeStatic();
 
             if ($definition instanceof Definition) {
@@ -116,8 +115,12 @@ class FacadeProxy
                     continue;
                 }
 
-                if (!empty($type = $definition->getType())) {
-                    $proxyNode->setReturnType(\is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type);
+                if ($definition->isDeprecated()) {
+                    $proxyNode->addStmt($definition->triggerDeprecation($proxy, $builder));
+                }
+
+                if ($definition->isTyped()) {
+                    $definition->triggerReturnType($proxyNode);
                 }
             }
 

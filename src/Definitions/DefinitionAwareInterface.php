@@ -15,20 +15,23 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Fixtures;
+namespace Rade\DI\Definitions;
 
-use Psr\Container\ContainerInterface;
 use Rade\DI\AbstractContainer;
-use Rade\DI\Services\ServiceProviderInterface;
 
-class OtherServiceProvider implements ServiceProviderInterface
+/**
+ * Attaches container to a definition class, adding features such as tagging.
+ *
+ * This interface is currently under re-thinking process, and can potentially changed to
+ * be (deprecated) for a more stable approach in attaching container to definition class.
+
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
+interface DefinitionAwareInterface
 {
     /**
-     * {@inheritdoc}
+     * Sets the container.
      */
-    public function register(AbstractContainer $container, array $configs = []): void
-    {
-        $container->parameters['other'] = $configs;
-        $container->alias('other', ContainerInterface::class);
-    }
+    public function bindWith(string $id, AbstractContainer $container): void;
 }

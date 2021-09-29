@@ -17,16 +17,10 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
-use Rade\DI\AbstractContainer;
-use Rade\DI\Container;
-use Rade\DI\ContainerBuilder;
-use Rade\DI\Definition;
+use Rade\DI\{AbstractContainer, ContainerBuilder, Definition};
 use Symfony\Component\Config\FileLocatorInterface;
 use Symfony\Component\Config\Loader\FileLoader as BaseFileLoader;
-use Symfony\Component\Config\Resource\ClassExistenceResource;
-use Symfony\Component\Config\Resource\FileExistenceResource;
-use Symfony\Component\Config\Resource\FileResource;
-use Symfony\Component\Config\Resource\GlobResource;
+use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, GlobResource};
 
 abstract class FileLoader extends BaseFileLoader
 {
@@ -66,15 +60,17 @@ abstract class FileLoader extends BaseFileLoader
             throw new \InvalidArgumentException(\sprintf('Namespace is not a valid PSR-4 prefix: "%s".', $namespace));
         }
 
-        $classes = $this->findClasses($namespace, $this->resolveParameters($resource), (array) $exclude);
+        $classes = $this->findClasses($namespace, $this->container->parameter($resource), (array) $exclude);
 
         // prepare for deep cloning
         $serializedPrototype = \serialize($prototype);
 
         foreach ($classes as $class) {
-            $definition = $this->container->set($class, \unserialize($serializedPrototype))->replace($class, true);
+            $definition = \unserialize($serializedPrototype);
 
             if ($definition instanceof Definition) {
+                $definition->replace($class, true);
+
                 if (isset($this->autowired[$namespace])) {
                     $definition->autowire(\is_array($this->autowired[$namespace]) ? $this->autowired[$namespace] : []);
                 }
@@ -82,45 +78,18 @@ abstract class FileLoader extends BaseFileLoader
                 if (isset($this->deprecations[$namespace])) {
                     [$package, $version, $message] = $this->deprecations[$namespace];
 
-                    $definition->deprecate($package, $version, $message);
+                    $definition->deprecate($package, '' === $version ? null : (float) $version, $message);
                 }
 
                 if (null !== $tags = $this->tags[$class] ?? $this->tags[$namespace] ?? null) {
-                    $this->container->tag($class, $this->tags[$class] = $tags);
-                }
-            }
-        }
-    }
-
-    /**
-     * Replaces "%value%" from container's parameters keys.
-     */
-    protected function resolveParameters(string $value): string
-    {
-        $res = '';
-        $parts = \preg_split('#(%[^%\s]+%)#i', $value, -1, \PREG_SPLIT_DELIM_CAPTURE);
-
-        if (false === $parts || (1 == \count($parts) && $value === $parts[0])) {
-            return $value;
-        }
-
-        foreach ($parts as $part) {
-            if ('' !== $part && '%' === $part[0]) {
-                $val = \substr($part, 1, -1);
-
-                if (!isset($this->container->parameters[$val])) {
-                    throw new \RuntimeException(\sprintf('You have requested a non-existent parameter "%s".', $val));
+                    $definition->tags($tags);
                 }
 
-                if (!\is_scalar($part = $this->container->parameters[$val])) {
-                    throw new \InvalidArgumentException(\sprintf('Unable to concatenate non-scalar parameter "%s" into %s.', $val, $value));
-                }
+                $this->container->set($class, $definition);
             }
 
-            $res .= (string) $part;
+            $this->container->removeDefinition($prototype->getEntity());
         }
-
-        return '' !== $res ? $res : $value;
     }
 
     private function findClasses(string $namespace, string $pattern, array $excludePatterns): array
@@ -129,7 +98,7 @@ abstract class FileLoader extends BaseFileLoader
         $excludePrefix = null;
 
         foreach ($excludePatterns as $excludePattern) {
-            $excludePattern = $this->resolveParameters($excludePattern);
+            $excludePattern = $this->container->parameter($excludePattern);
 
             foreach ($this->glob($excludePattern, true, $resource, true, true) as $path => $info) {
                 if (null === $excludePrefix) {

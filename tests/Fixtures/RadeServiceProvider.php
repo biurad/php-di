@@ -17,19 +17,23 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
-use PHPUnit\Framework\Assert;
 use Rade\DI\AbstractContainer;
-use Rade\DI\Builder\PrependInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
-use Rade\DI\Definition;
+use Rade\DI\Services\PrependInterface;
 use Rade\DI\Services\ServiceProviderInterface;
-use Rade\DI\Services\DependedInterface;
+use Rade\DI\Services\DependenciesInterface;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider implements ConfigurationInterface, DependedInterface, ServiceProviderInterface, PrependInterface
+use function Rade\DI\Loader\service;
+use function Rade\DI\Loader\value;
+
+class RadeServiceProvider implements ConfigurationInterface, DependenciesInterface, ServiceProviderInterface, PrependInterface
 {
+    /**
+     * {@inheritdoc}
+     */
     public static function getId(): string
     {
         return 'rade_provider';
@@ -67,8 +71,8 @@ class RadeServiceProvider implements ConfigurationInterface, DependedInterface, 
         $container->parameters['rade_di'] = $configs;
 
         if ($container instanceof Container) {
-            $container['param'] = $container->raw('value');
-            $container['factory'] = $container->definition(Service::class, Definition::FACTORY);
+            $container['param'] = value('value');
+            $container['factory'] = service(Service::class)->shared(false);
             $container['service'] = function () use ($container) {
                 $service = new Service();
                 $service->value = $container['other'];
@@ -76,9 +80,9 @@ class RadeServiceProvider implements ConfigurationInterface, DependedInterface, 
                 return $service;
             };
         } elseif ($container instanceof ContainerBuilder) {
-            $container->set('param', $container->raw('value'));
+            $container->set('param', value('value'));
             $container->autowire('service', Service::class);
-            $container->autowire('factory', Service::class)->should(Definition::FACTORY);
+            $container->autowire('factory', Service::class)->shared(false);
         }
     }
 

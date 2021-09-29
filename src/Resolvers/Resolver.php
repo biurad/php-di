@@ -17,19 +17,13 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use Nette\Utils\Callback;
-use Nette\Utils\Reflection;
-use PhpParser\Node;
-use Rade\DI\{
-    AbstractContainer,
-    Builder\Reference,
-    ContainerBuilder,
-    Exceptions\ContainerResolutionException,
-    Exceptions\NotFoundServiceException,
-    FallbackContainer,
-    Services\ServiceLocator
-};
-use Rade\DI\Attribute\Inject;
+use Nette\Utils\{Callback, Reflection};
+use PhpParser\BuilderFactory;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\ArrowFunction;
+use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
+use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
+use Rade\DI\{AbstractContainer, Injectable, InjectableInterface, Services\ServiceLocator};
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 /**
@@ -41,12 +35,30 @@ class Resolver
 {
     private AbstractContainer $container;
 
-    private AutowireValueResolver $resolver;
+    private ?BuilderFactory $builder;
 
-    public function __construct(AbstractContainer $container)
+    private bool $strict = true;
+
+    public function __construct(AbstractContainer $container, BuilderFactory $builder = null)
     {
+        $this->builder = $builder;
         $this->container = $container;
-        $this->resolver = new AutowireValueResolver();
+    }
+
+    /**
+     * Allowing Strict rules, only resolves service types.
+     */
+    final public function disableStrictRule(): void
+    {
+        $this->strict = false;
+    }
+
+    /**
+     * The method name generated for a service definition.
+     */
+    final public function createMethod(string $id): string
+    {
+        return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
     }
 
     /**
@@ -56,61 +68,31 @@ class Resolver
     {
         $types = $autowired = [];
 
-        try {
-            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
-        } catch (\ReflectionException $e) {
-            if ($definition instanceof \stdClass) {
-                return $types;
-            }
+        if ($definition instanceof \stdClass) {
+            return $types;
+        }
 
-            if (\is_string($definition) && \class_exists($definition)) {
-                $types[] = $definition;
-            } elseif (\is_object($definition)) {
-                $types[] = \get_class($definition);
-            }
+        if (\is_callable($definition)) {
+            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
+        } elseif (\is_string($definition) && \class_exists($definition)) {
+            $types[] = $definition;
+        } elseif (\is_object($definition)) {
+            $types[] = \get_class($definition);
         }
 
         foreach ($types as $type) {
             $autowired[] = $type;
 
-            if (false === $parents = @\class_parents($type)) {
-                continue;
+            foreach (\class_implements($type) ?: [] as $interface) {
+                $autowired[] = $interface;
             }
 
-            $autowired = \array_merge($autowired, $parents, (\class_implements($type, false) ?: []));
+            foreach (\class_parents($type) ?: [] as $parent) {
+                $autowired[] = $parent;
+            }
         }
 
         return $autowired;
-    }
-
-    /**
-     * Generates list of properties with #[Inject] attributes.
-     *
-     * @param \ReflectionProperty[] $properties
-     *
-     * @internal
-     */
-    public static function getInjectProperties(AbstractContainer $container, $properties): array
-    {
-        $res = [];
-
-        foreach ($properties as $reflection) {
-            if (\PHP_VERSION_ID >= 80000 && !empty($reflection->getAttributes(Inject::class))) {
-                foreach (Reflection::getPropertyTypes($reflection) as $type) {
-                    if ('null' === $type) {
-                        // @codeCoverageIgnoreStart
-                        continue;
-                        // @codeCoverageIgnoreEnd
-                    }
-
-                    if ($container->has($type) || $container->typed($type)) {
-                        $res[$reflection->getName()] = $container->get($type);
-                    }
-                }
-            }
-        }
-
-        return $res;
     }
 
     /**
@@ -124,17 +106,18 @@ class Resolver
     {
         $resolvedParameters = [];
         $nullValuesFound = 0;
+        $args = $this->resolveArguments($args); // Resolves provided arguments.
 
         foreach ($function->getParameters() as $parameter) {
-            $resolved = $this->resolver->resolve([$this, 'get'], $parameter, $args);
+            $resolved = AutowireValueResolver::resolve([$this, 'get'], $parameter, $args);
 
-            if (\PHP_VERSION_ID >= 80000 && (null === $resolved && $parameter->isDefaultValueAvailable())) {
+            if (null === $resolved && $parameter->isDefaultValueAvailable()) {
                 ++$nullValuesFound;
 
                 continue;
             }
 
-            if ($parameter->isVariadic() && (\is_array($resolved) && \count($resolved) > 1)) {
+            if ($parameter->isVariadic() && \is_array($resolved)) {
                 $resolvedParameters = \array_merge($resolvedParameters, $resolved);
 
                 continue;
@@ -160,33 +143,86 @@ class Resolver
      */
     public function resolve($callback, array $args = [])
     {
-        if (\is_callable($callback)) {
-            $args = $this->autowireArguments($ref = Callback::toReflection($callback), $args);
+        if ($callback instanceof Statement) {
+            return $this->resolve($callback->getValue(), $callback->getArguments());
+        }
 
-            return $ref instanceof \ReflectionFunction ? $ref->invokeArgs($args) : (!$ref->isStatic() ? $callback(...$args) : $ref->invokeArgs(null, $args));
+        if ($callback instanceof Reference) {
+            $callback = $this->resolveReference((string) $callback);
+
+            if (\is_callable($callback)) {
+                return $this->resolveCallable($callback, $args);
+            }
         }
 
         if (\is_string($callback)) {
-            return $this->container->has($callback) ? $this->resolve($this->container->get($callback), $args) : $this->resolveClass($callback, $args);
-        }
-
-        if ((\is_array($callback) && \array_keys($callback) === [0, 1]) && $callback[0] instanceof Reference) {
-            $callback[0] = $this->container->get((string) $callback[0]);
-
-            if (\is_callable($callback[0])) {
-                $callback[0] = $this->resolve($callback[0]);
+            if (\str_contains($callback, '%')) {
+                $callback = $this->container->parameter($callback);
             }
 
-            return $this->resolve($callback, $args);
+            if (\class_exists($callback)) {
+                return $this->resolveClass($callback, $args);
+            }
+
+            if (\str_contains($callback, '::') && \is_callable($callback)) {
+                $callback = \explode('::', $callback, 2);
+            }
+        } elseif (\is_callable($callback) || \is_array($callback)) {
+            return $this->resolveCallable($callback, $args);
         }
 
-        throw new ContainerResolutionException(\sprintf('Unable to resolve value provided \'%s\' in $callback parameter.', \get_debug_type($callback)));
+        unresolved:
+        return null === $this->builder ? $callback : $this->builder->val($callback);
+    }
+
+    /**
+     * Undocumented function.
+     *
+     * @param callable|array<int,mixed> $callback
+     * @param array<int|string,mixed>   $arguments
+     *
+     * @throws \ReflectionException if $callback is not a real callable
+     *
+     * @return mixed
+     */
+    public function resolveCallable($callback, array $arguments = [])
+    {
+        if (\is_array($callback)) {
+            if (\array_keys($callback) === [0, 1]) {
+                $callback[0] = $this->resolve($callback[0]);
+
+                if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
+                    $type = [$this->container->definition($callback[0]->left->dim->value)->getEntity(), $callback[1]];
+
+                    goto create_callable;
+                }
+
+                if (\is_callable($callback)) {
+                    goto create_callable;
+                }
+            }
+
+            return null === $this->builder ? $callback : $this->builder->val($callback);
+        }
+
+        create_callable:
+        $args = $this->autowireArguments($ref = Callback::toReflection($type ?? $callback), $arguments);
+
+        if ($ref instanceof \ReflectionFunction) {
+            return null === $this->builder ? $ref->invokeArgs($args) : $this->builder->funcCall($callback, $args);
+        }
+
+        if ($ref->isStatic()) {
+            return null === $this->builder ? $ref->invokeArgs(null, $args) : $this->builder->staticCall($callback[0], $ref->getName(), $args);
+        }
+
+        return null === $this->builder ? $callback(...$args) : $this->builder->methodCall($callback[0], $ref->getName(), $args);
     }
 
     /**
      * @param array<int|string,mixed> $args
      *
-     * @throws ContainerResolutionException if class string unresolvable
+     * @throws ContainerResolutionException|\ReflectionException if class string unresolvable
      */
     public function resolveClass(string $class, array $args = []): object
     {
@@ -197,29 +233,52 @@ class Resolver
             throw new ContainerResolutionException(\sprintf('Class %s is an abstract type or instantiable.', $class));
         }
 
-        if ((null !== $constructor = $reflection->getConstructor()) && $constructor->isPublic()) {
-            $service = $reflection->newInstanceArgs($this->autowireArguments($constructor, $args));
-        } else {
+        if (null === $constructor = $reflection->getConstructor()) {
             if (!empty($args)) {
-                throw new ContainerResolutionException("Unable to pass arguments, class $class has no constructor or constructor is not public.");
+                throw new ContainerResolutionException(\sprintf('Unable to pass arguments, class "%s" has no constructor.', $class));
             }
 
-            $service = $reflection->newInstance();
+            $service = null === $this->builder ? $reflection->newInstanceWithoutConstructor() : $this->builder->new($class);
+        } else {
+            $args = $this->autowireArguments($constructor, $args);
+            $service = null === $this->builder ? $reflection->newInstanceArgs($args) : $this->builder->new($class, $args);
         }
 
-        if (!$this->isBuilder()) {
-            foreach (self::getInjectProperties($this->container, $reflection->getProperties(\ReflectionProperty::IS_PUBLIC)) as $property => $value) {
-                $service->{$property} = $value;
-            }
-
-            foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-                if (\PHP_VERSION_ID >= 80000 && !empty($method->getAttributes(Inject::class))) {
-                    \call_user_func_array([$service, $method->name], $this->autowireArguments($method));
-                }
-            }
+        if ($reflection->implementsInterface(InjectableInterface::class)) {
+            return Injectable::getProperties($this, $service, $reflection);
         }
 
         return $service;
+    }
+
+    /**
+     * @param array<int|string,mixed> $args
+     *
+     * @return array<int|string,mixed>
+     */
+    public function resolveArguments(array $arguments = []): array
+    {
+        foreach ($arguments as $key => $value) {
+            if (\is_array($value)) {
+                $arguments[$key] = $this->resolveArguments($value);
+
+                continue;
+            }
+
+            if (\is_numeric($value)) {
+                $arguments[$key] = (int) $value;
+
+                continue;
+            }
+
+            if ($value instanceof ValueDefinition) {
+                $value = $value->getEntity();
+            }
+
+            $arguments[$key] = $this->resolve($value);
+        }
+
+        return $arguments;
     }
 
     /**
@@ -235,71 +294,84 @@ class Resolver
             static $services = [];
 
             foreach ($id::getSubscribedServices() as $name => $service) {
-                $services += $this->resolveServiceSubscriber(!\is_numeric($name) ? $name : $service, $service);
+                $services += $this->resolveServiceSubscriber($name, $service);
             }
 
-            return !$this->isBuilder() ? new ServiceLocator($services) : new Node\Expr\New_(ServiceLocator::class, $services);
+            return null === $this->builder ? new ServiceLocator($services) : $this->builder->new(ServiceLocator::class, $services);
+        }
+
+        if (!$this->strict) {
+            return $this->container->get($id, $single ? $this->container::EXCEPTION_ON_MULTIPLE_SERVICE : $this->container::IGNORE_MULTIPLE_SERVICE);
         }
 
         if ($this->container->typed($id)) {
             return $this->container->autowired($id, $single);
         }
 
-        if ($this->container instanceof FallbackContainer) {
-            return $this->container->get($id);
+        throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
+    }
+
+    /**
+     * Gets the PHP's parser builder.
+     */
+    public function getBuilder(): ?BuilderFactory
+    {
+        return $this->builder;
+    }
+
+    /**
+     * @return mixed
+     */
+    private function resolveReference(string $reference)
+    {
+        if ('?' === $reference[0]) {
+            $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
+            $reference = \substr($reference, 1);
+
+            if ($arrayLike = \str_ends_with('[]', $reference)) {
+                $reference = \substr($reference, 0, -2);
+                $invalidBehavior = $this->container::IGNORE_MULTIPLE_SERVICE;
+            }
+
+            if ($this->container->has($reference) || $this->container->typed($reference)) {
+                return $this->container->get($reference, $invalidBehavior);
+            }
+
+            return $arrayLike ? [] : null;
         }
 
-        throw new NotFoundServiceException("Service of type '$id' not found. Check class name because it cannot be found.");
+        if ('[]' === \substr($reference, -2)) {
+            return $this->container->get(\substr($reference, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
+        }
+
+        return $this->container->get($reference);
     }
 
     /**
      * Resolves services for ServiceLocator.
      *
+     * @param int|string $id
+     *
      * @return (\Closure|array|mixed|null)[]
      */
-    private function resolveServiceSubscriber(string $id, string $value): array
+    private function resolveServiceSubscriber($id, string $value): array
     {
         if ('?' === $value[0]) {
-            $resolved = \substr($value, 1);
+            $arrayLike = \str_ends_with('[]', $value = \substr($value, 1));
 
-            if ($id === $value) {
-                $id = $resolved;
+            if (\is_int($id)) {
+                $id = $arrayLike ? \substr($value, 0, -2) : $value;
             }
 
-            if ('[]' === \substr($resolved, -2)) {
-                $arrayLike = $resolved;
-                $resolved = \substr($resolved, 0, -2);
-
-                if ($this->container->has($resolved) || $this->container->typed($resolved)) {
-                    return $this->resolveServiceSubscriber($id, $arrayLike);
-                }
-            }
-
-            $service = fn () => ($this->container->has($resolved) || $this->container->typed($resolved)) ? $this->container->get($resolved) : null;
-
-            return [$id => !$this->isBuilder() ? $service : $service()];
+            return ($this->container->has($id) || $this->container->typed($id)) ? $this->resolveServiceSubscriber($id, $value) : ($arrayLike ? [] : null);
         }
 
         if ('[]' === \substr($value, -2)) {
-            $resolved = \substr($value, 0, -2);
-            $service = function () use ($resolved) {
-                if ($this->container->typed($resolved)) {
-                    return $this->get($resolved);
-                }
-
-                return [$this->container->get($resolved)];
-            };
-
-            return [$id === $value ? $resolved : $id => !$this->isBuilder() ? $service : $service()];
+            $service = fn (): array => $this->container->get(\substr($value, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
+        } else {
+            $service = fn () => $this->container->get($value);
         }
 
-        $service = fn () => $this->container->get($value);
-
-        return [$id => !$this->isBuilder() ? $service : $service()];
-    }
-
-    private function isBuilder(): bool
-    {
-        return $this->container instanceof ContainerBuilder;
+        return [\is_int($id) ? $value : $id => (null === $this->builder ? $service : new ArrowFunction(['expr' => $service()]))];
     }
 }

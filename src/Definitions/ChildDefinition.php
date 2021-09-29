@@ -15,20 +15,27 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Builder;
+namespace Rade\DI\Definitions;
 
-use Rade\DI\ContainerBuilder;
-
-/**
- * The interface implemented to adjust DI container before is compiled to PHP class.
- *
- * @author Divine Niiquaye Ibok <divineibok@gmail.com>
- */
-interface PrependInterface
+class ChildDefinition implements \Stringable
 {
+    private string $parent;
+
     /**
-     * This method is called after all services are registered
-     * and should be used to register missing services, tags or even extending a service definition.
+     * @param string $parent The id of Definition instance to decorate
      */
-    public function before(ContainerBuilder $builder): void;
+    public function __construct(string $parent)
+    {
+        $this->parent = $parent;
+    }
+
+    /**
+     * Returns the Definition to inherit from.
+     *
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return $this->parent;
+    }
 }

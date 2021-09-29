@@ -18,15 +18,25 @@ declare(strict_types=1);
 namespace Rade\DI\Attribute;
 
 /**
- * "Inject" annotation.
  * Marks a property or method as an injection point.
- *
- * @Annotation
- * @Target({"METHOD","PROPERTY"})
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD)]
 final class Inject
 {
+    private ?string $value;
+
+    /**
+     * @param string|null $value Represents service id, may change in the future
+     */
+    public function __construct(?string $value = null)
+    {
+        $this->value = $value;
+    }
+
+    public function getValue(): ?string
+    {
+        return $this->value;
+    }
 }
