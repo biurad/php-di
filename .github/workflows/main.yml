@@ -55,7 +55,7 @@ jobs:
 
       - name: "Benchmark Container for Performance"
         if: matrix.operating-system != 'macos-latest'
-        run: composer require phpbench/phpbench && vendor/bin/phpbench run --report default --revs 1000
+        run: composer require phpbench/phpbench -W && vendor/bin/phpbench run --report default --revs 1000
 
       - name: Setup Code Climate test-reporter
         if: matrix.operating-system == 'ubuntu-latest' && matrix.php-versions == 8.0
