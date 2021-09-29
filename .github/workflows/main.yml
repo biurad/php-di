@@ -53,6 +53,10 @@ jobs:
 
           composer install --no-progress --optimize-autoloader $composer_flags
 
+      - name: "Benchmark Container for Performance"
+        if: matrix.operating-system != 'macos-latest'
+        run: composer require phpbench/phpbench && vendor/bin/phpbench run --report default --revs 1000
+
       - name: Setup Code Climate test-reporter
         if: matrix.operating-system == 'ubuntu-latest' && matrix.php-versions == 8.0
         run: |
@@ -61,6 +65,7 @@ jobs:
           ./cc-test-reporter before-build
 
       - name: Check coding standards (PHP_CodeSniffer)
+        if: matrix.operating-system != 'macos-latest'
         run: vendor/bin/phpcs
 
       - name: Run unit tests (PHPUnit)

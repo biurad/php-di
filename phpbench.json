@@ -1,0 +1,18 @@
+{
+    "runner.path": "tests/Benchmarks",
+    "runner.bootstrap": "vendor/autoload.php",
+    "runner.retry_threshold": 5,
+    "runner.php_config": {
+        "opcache.enable": true,
+        "opcache.enable_cli": true,
+        "opcache.jit": 1235,
+        "xdebug.mode": 0
+      },
+
+    "report.generators": {
+        "default": {
+            "extends": "expression",
+            "cols": [ "benchmark", "subject", "set", "mem_peak", "best", "mean", "mode", "worst", "stdev", "rstdev" ]
+        }
+    }
+}
