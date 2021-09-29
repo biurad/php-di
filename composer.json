@@ -40,7 +40,8 @@
     "autoload": {
         "psr-4": {
             "Rade\\DI\\": "src/"
-        }
+        },
+        "files": ["src/Loader/helpers.php"]
     },
     "autoload-dev": {
         "psr-4": {
