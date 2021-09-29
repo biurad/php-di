@@ -39,11 +39,12 @@ For registering services into container, a service must be a real valid PHP obje
 > Using Container without `ArrayAccess`
 
 ```php
-// Should service be autowired or not ...
-$autowire = true;
+use function Rade\DI\Loader\wrap;
 
 // define some services
-$container->set('session_storage', new SessionStorage('SESSION_ID'), $autowire);
+$container->set('session_storage', new SessionStorage('SESSION_ID'));
+// or this for default autowiring typed support
+$container->autowire('session_storage', new SessionStorage('SESSION_ID'));
 
 $container->set(
     'session', // The unique service id identifier
@@ -51,22 +52,24 @@ $container->set(
     $autowire
 );
 // or
-$container->set('session', $container->resolveClass(Session::class), $autowire);
-// or further
-$container->set('session', $container->lazy(Session::class), $autowire);
+$container->set('session', wrap(Session::class));
+// or further for autowiring
+$container->set('session', Session::class)->autowire();
 ```
 
 > Using Container with `ArrayAccess`
 
 ```php
+use Rade\DI\Definition;
+
 // define some services
 $container['session_storage'] = new SessionStorage('SESSION_ID');
 
 $container['session'] = fn(): Session => new Session($container['session_storage']);
 // or
-$container['session'] = $container->lazy(Session::class);
+$container['session'] = new Definition(Session::class);
 // or
-$container['session'] = $container->resolveClass(Session::class);
+$container['session'] = $container->call(Session::class);
 // or further
 $container['session'] = new Session($container['session_storage']);
 ```
@@ -75,8 +78,6 @@ Using the defined services is also very easy:
 
 ```php
 // get the session object
-$session = $container['session'];
-// or
 $session = $container->get('session');
 // or using ArrayAccess
 $session = $container['session'];
@@ -93,10 +94,10 @@ Container supports reuseable service instance. This is means, a registered servi
 
 Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's **set** method. By default, registering services with `ArrayAccess` implementation are all autowired.
 
->To prevent registered services from being shared, use the container's **factory** method.
-
 ```php
-$container['session'] = $container->definition(new Session($container['session_storage']), Definition::FACTORY);
+use function Rade\DI\Loader\service;
+
+$container['session'] = service(new Session($container['session_storage']))->shared(false);
 ```
 
 With the example above, each call to `$container['session']` returns a new instance of the session.
@@ -133,7 +134,9 @@ For tagging, perhaps you are building a report aggregator that receives an array
 $container['speed.report'] = new SpeedReport(...);
 $container['memory.report'] = new MemoryReport(...);
 
-$container->tag([SpeedReport::class, MemoryReport::class], ['reports']);
+$container->tags(['reports' => ['speed.report', 'memory.report']]);
+// or if autowired or not
+$container->tags(['reports' => [SpeedReport::class, MemoryReport::class]]);
 ```
 
 Once the services have been tagged, you may easily resolve them all via the `tagged` method:
@@ -142,22 +145,19 @@ Once the services have been tagged, you may easily resolve them all via the `tag
 $tags = $container->tagged('reports');
 $reports = [];
 
-foreach ($tags as [$report, $attr]) {
+foreach ($tags as $report => $attr) {
     $reports[] = $report;
 }
-
-$container->tag([SpeedReport::class, MemoryReport::class], ['reports'])
 
 $manager = new ReportAggregator($reports);
 
 // For the $attr var, this is useful if you need tag to have extra values
 // for tagging, eg:
-$container->tag([BackupProcessor::class, MonitorProcessor::class], ['process' => true]);
-$container->tag(CacheProcessor::class, ['process' => false]);
+$container->tags(['process' => [BackupProcessor::class, MonitorProcessor::class, CacheProcessor::class => false]]);
 
-foreach ($container->tagged('process') as [$process, $enabled]) {
+foreach ($container->tagged('process') as $process => $enabled) {
     if ($enabled) {
-        $manager->addProcessor($process);
+        $manager->addProcessor($container->get($process));
     }
 }
 ```
@@ -170,8 +170,9 @@ Eg: Dependency `Service1` will be passed by calling the `injectService1` method,
 
 ```php
 use Rade\DI\Attribute\Inject;
+use Rade\DI\InjectableInterface;
 
-class FooClass
+class FooClass implements InjectableInterface
 {
     #[Inject]
 	public Service2 $service2;
@@ -265,7 +266,7 @@ class MyService implements ServiceSubscriberInterface
 $container['logger'] = new Monolog\Logger();
 $container['dispatcher'] = new EventDispatcher();
 
-$container['service'] = $container->lazy(MyService::class);
+$container['service'] = MyService::class;
 ```
 
 ## 📓 Documentation
