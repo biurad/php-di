@@ -166,12 +166,14 @@ class Resolver
 
             if (\str_contains($callback, '::') && \is_callable($callback)) {
                 $callback = \explode('::', $callback, 2);
+
+                goto maybe_callable;
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
+            maybe_callable:
             return $this->resolveCallable($callback, $args);
         }
 
-        unresolved:
         return null === $this->builder ? $callback : $this->builder->val($callback);
     }
 
@@ -197,11 +199,24 @@ class Resolver
                     goto create_callable;
                 }
 
+                if ($callback[0] instanceof Expr\New_) {
+                    $type = [(string) $callback[0]->class, $callback[1]];
+
+                    goto create_callable;
+                }
+
                 if (\is_callable($callback)) {
                     goto create_callable;
                 }
+
+                goto unresolved;
             }
 
+            foreach ($callback as $offset => $value) {
+                $callback[$offset] = $this->resolve($value, $arguments);
+            }
+
+            unresolved:
             return null === $this->builder ? $callback : $this->builder->val($callback);
         }
 
