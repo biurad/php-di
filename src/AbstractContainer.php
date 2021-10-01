@@ -42,16 +42,16 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
     public function __construct()
     {
-        foreach ([self::class, static::class] as $type) {
+        foreach (\class_parents($this, false) as $type) {
             $this->types[$type] = [self::SERVICE_CONTAINER];
         }
 
-        if ($this instanceof ContainerBuilder) {
-            if (!\class_exists(\PhpParser\BuilderFactory::class)) {
-                throw new \RuntimeException('ContainerBuilder uses "nikic/php-parser" v4, do composer require nikic/php-parser.');
+        if (ContainerBuilder::class === static::class) {
+            try {
+                $builderFactory = new \PhpParser\BuilderFactory();
+            } catch (\Error $e) {
+                throw new \RuntimeException('ContainerBuilder uses "nikic/php-parser" v4, do composer require the nikic/php-parser package.', 0, $e);
             }
-
-            $builderFactory = new \PhpParser\BuilderFactory();
         }
 
         $this->resolver = new Resolvers\Resolver($this, $builderFactory ?? null);
