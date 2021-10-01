@@ -48,7 +48,7 @@ class Resolver
     /**
      * Allowing Strict rules, only resolves service types.
      */
-    final public function disableStrictRule(): void
+    public function disableStrictRule(): void
     {
         $this->strict = false;
     }
@@ -56,7 +56,7 @@ class Resolver
     /**
      * The method name generated for a service definition.
      */
-    final public function createMethod(string $id): string
+    public function createMethod(string $id): string
     {
         return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
     }
