@@ -59,10 +59,10 @@ class PhpLiteral
 
             if ([] !== $this->args) {
                 $traverser = new NodeTraverser();
-                $traverser->addVisitor(new class($resolver, $this->args) extends NodeVisitorAbstract {
+                $traverser->addVisitor(new class ($resolver, $this->args) extends NodeVisitorAbstract {
                     private Resolver $resolver;
 
-                    private int $offset = 0;
+                    private int $offset = -1;
 
                     private array $args;
 
@@ -75,8 +75,7 @@ class PhpLiteral
                     public function enterNode(Node $node)
                     {
                         if ($node instanceof String_ && '??' === $node->value) {
-                            $value = $this->args[$this->offset];
-                            ++$this->offset;
+                            $value = $this->args[++$this->offset];
 
                             if (\is_array($value)) {
                                 return $this->resolver->getBuilder()->val($this->resolver->resolveArguments($value));
