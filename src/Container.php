@@ -17,8 +17,10 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use Nette\Utils\Validators;
 use Rade\DI\Definitions\DefinitionInterface;
-use Rade\DI\Exceptions\{CircularReferenceException, FrozenServiceException, NotFoundServiceException, ContainerResolutionException};
+use Rade\DI\Definitions\ShareableDefinitionInterface;
+use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
 
 /**
  * Dependency injection container.
@@ -29,9 +31,6 @@ class Container extends AbstractContainer implements \ArrayAccess
 {
     /** @var array<string,string> internal cached services */
     protected array $methodsMap = [];
-
-    /** @var array<string,callable> un-shareable cached services */
-    protected array $factories = [];
 
     /**
      * Sets a new service to a unique identifier.
@@ -91,7 +90,9 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function definition(string $id)
     {
-        if (\array_key_exists($id, $this->services)) {
+        if ('?' === $id[0]) {
+            $id = \substr($id, 1);
+        } elseif (\array_key_exists($id, $this->services)) {
             throw new FrozenServiceException(\sprintf('The "%s" service is already initialized.', $id));
         }
 
@@ -127,7 +128,7 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $this->services[$id];
         }
 
-        return self::SERVICE_CONTAINER === $id ? $this : ($this->factories[$id] ?? [$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
+        return self::SERVICE_CONTAINER === $id ? $this : ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
     }
 
     /**
@@ -149,6 +150,10 @@ class Container extends AbstractContainer implements \ArrayAccess
             return $definition;
         }
 
+        if (\is_string($definition) && Validators::isType($definition)) {
+            return $this->createDefinition($id, new Definition($definition));
+        }
+
         return fn () => $this->resolver->resolve($definition);
     }
 
@@ -164,10 +169,14 @@ class Container extends AbstractContainer implements \ArrayAccess
         $createdService = parent::doGet($id, $invalidBehavior);
 
         if (null === $createdService) {
-            $anotherService = $this->resolver->resolve($id);
+            try {
+                $anotherService = $this->resolver->resolve($id);
 
-            if ($id !== $anotherService) {
-                return $anotherService;
+                if ($id !== $anotherService) {
+                    return $anotherService;
+                }
+            } catch (ContainerResolutionException $e) {
+                // Skip error throwing while resolving
             }
 
             if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
@@ -184,31 +193,29 @@ class Container extends AbstractContainer implements \ArrayAccess
     protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
         if ($definition instanceof DefinitionInterface) {
-            $createdService = $definition->build($id, $this->resolver);
-
-            if ($definition instanceof Definition) {
-                // Definition service available once, else if shareable, accessed from cache.
+            if ($definition instanceof ShareableDefinitionInterface) {
                 if (!$definition->isPublic()) {
-                    $this->removeDefinition($id);
+                    $this->removeDefinition($id); // Definition service available once, else if shareable, accessed from cache.
                 }
 
                 if (!$definition->isShared()) {
-                    $this->factories[$id] = static fn () => $createdService;
+                    return $definition->build($id, $this->resolver);
                 }
             }
 
-            goto cache_definition;
-        }
-
-        if (\is_callable($definition)) {
+            $definition = $definition->build($id, $this->resolver);
+        } elseif (\is_callable($definition)) {
             $definition = $this->resolver->resolve($definition);
-
-            cache_definition:
-            if (self::IGNORE_SERVICE_FREEZING === $invalidBehavior) {
-                return $this->services[$id] = $createdService ?? $definition;
-            }
         }
 
-        return $this->definitions[$id] = $this->services[$id] = $createdService ?? $definition;
+        if (self::IGNORE_SERVICE_FREEZING === $invalidBehavior) {
+            return $this->services[$id] = $definition;
+        }
+
+        if (self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior) {
+            return $this->definitions[$id] = $definition;
+        }
+
+        return $this->definitions[$id] = $this->services[$id] = $definition;
     }
 }
