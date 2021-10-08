@@ -21,6 +21,8 @@ use PhpParser\Node\{Expr, Scalar\String_};
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
 use Rade\DI\Definitions\DefinitionInterface;
+use Rade\DI\Definitions\ShareableDefinitionInterface;
+use Rade\DI\Exceptions\ContainerResolutionException;
 use Symfony\Component\Config\{
     Resource\ClassExistenceResource,
     Resource\FileResource,
@@ -30,7 +32,7 @@ use Symfony\Component\Config\{
 
 class ContainerBuilder extends AbstractContainer
 {
-    private const BUILD_SERVICE_DEFINITION = 4;
+    private const BUILD_SERVICE_DEFINITION = 5;
 
     private bool $trackResources;
 
@@ -50,6 +52,10 @@ class ContainerBuilder extends AbstractContainer
     public function __construct(string $containerParentClass = Container::class)
     {
         parent::__construct();
+
+        if (!\is_subclass_of($containerParentClass, AbstractContainer::class)) {
+            throw new ContainerResolutionException(\sprintf('Compiled container class must be a extendable of "%s" class, which "%s" is not.', AbstractContainer::class, $containerParentClass));
+        }
 
         $this->containerParentClass = $containerParentClass;
         $this->trackResources = \interface_exists(ResourceInterface::class);
@@ -126,8 +132,26 @@ class ContainerBuilder extends AbstractContainer
             $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $this->builder->val(1))]);
         }
 
-        $parameters = \array_map(fn ($value) => $this->builder->val($value), $this->parameters);
-        $astNodes[] = $this->doCompile($this->definitions, $parameters, $options['containerClass'])->getNode();
+        $compiledContainerData = $this->doAnalyse($this->definitions);
+        $compiledContainerNode = $this->builder->class($options['containerClass'])->extend($this->containerParentClass)->setDocComment(Builder\CodePrinter::COMMENT);
+
+        if (!empty($compiledContainerData[0])) {
+            $compiledContainerNode->addStmt($this->builder->property('aliases')->makeProtected()->setType('array')->setDefault($compiledContainerData[0]));
+        }
+
+        if (!empty($compiledContainerData[1])) {
+            $compiledContainerNode->addStmt($this->builder->property('parameters')->makePublic()->setType('array')->setDefault($compiledContainerData[1]));
+        }
+
+        if (!empty($compiledContainerData[2])) {
+            $compiledContainerNode->addStmt($this->builder->property('methodsMap')->makeProtected()->setType('array')->setDefault($compiledContainerData[2]));
+        }
+
+        if (!empty($compiledContainerData[4])) {
+            $compiledContainerNode->addStmt($this->builder->property('types')->makeProtected()->setType('array')->setDefault($compiledContainerData[4]));
+        }
+
+        $astNodes[] = $compiledContainerNode->addStmts($compiledContainerData[3])->getNode();
 
         if ($options['printToString']) {
             return Builder\CodePrinter::print($astNodes, $options);
@@ -197,36 +221,10 @@ class ContainerBuilder extends AbstractContainer
             $service = $this->builder->propertyFetch($this->builder->var('this'), $serviceType);
             $createdService = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($service, new String_($id)), $resolved);
 
-            return $this->services[$id] = $createdService;
+            return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $createdService : $this->services[$id] = $createdService;
         }
 
         return $compiledDefinition;
-    }
-
-    /**
-     * @param DefinitionInterfaces[] $definitions
-     */
-    protected function doCompile(array $definitions, array $parameters, string $containerClass): \PhpParser\Builder\Class_
-    {
-        [$methodsMap, $serviceMethods, $wiredTypes] = $this->doAnalyse($definitions);
-        $compiledContainerNode = $this->builder->class($containerClass)->extend($this->containerParentClass);
-
-        return $compiledContainerNode
-            ->setDocComment(Builder\CodePrinter::COMMENT)
-            ->addStmts($serviceMethods)
-            ->addStmt($this->builder->property('parameters')
-                ->makePublic()->setType('array')
-                ->setDefault($parameters))
-            ->addStmt($this->builder->property('methodsMap')
-                ->makeProtected()->setType('array')
-                ->setDefault($methodsMap))
-            ->addStmt($this->builder->property('types')
-                ->makeProtected()->setType('array')
-                ->setDefault($wiredTypes))
-            ->addStmt($this->builder->property('aliases')
-                ->makeProtected()->setType('array')
-                ->setDefault($this->aliases))
-        ;
     }
 
     /**
@@ -242,40 +240,26 @@ class ContainerBuilder extends AbstractContainer
         foreach ($definitions as $id => $definition) {
             $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
 
-            if ($this->ignoredDefinition($definition)) {
+            if ($definition instanceof ShareableDefinitionInterface && !$definition->isPublic()) {
                 continue;
             }
 
             $methodsMap[$id] = $this->resolver->createMethod($id);
         }
 
-        // Remove private aliases
-        foreach ($this->aliases as $aliased => $service) {
-            if ($this->ignoredDefinition($definitions[$service] ?? null)) {
-                unset($this->aliases[$aliased]);
-            }
-        }
+        $aliases = \array_filter($this->aliases, fn ($aliased): bool => isset($methodsMap[$aliased]));
+        $parameters = \array_map(fn ($value) => $this->builder->val($value), $this->parameters);
 
         // Prevent autowired private services from be exported.
         foreach ($this->types as $type => $ids) {
-            if (1 === \count($ids) && $this->ignoredDefinition($definitions[$ids[0]] ?? null)) {
-                continue;
+            $ids = \array_filter($ids, fn (string $id): bool => isset($methodsMap[$id]));
+
+            if ([] !== $ids) {
+                $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
+                $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
             }
-
-            $ids = \array_filter($ids, fn (string $id): bool => !$this->ignoredDefinition($definitions[$id] ?? null));
-            $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
-
-            $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
         }
 
-        return [$methodsMap, $serviceMethods, $wiredTypes];
-    }
-
-    /**
-     * @param DefinitionInterface|null $def
-     */
-    private function ignoredDefinition($def): bool
-    {
-        return $def instanceof Definition && !$def->isPublic();
+        return [$aliases, $parameters, $methodsMap, $serviceMethods, $wiredTypes];
     }
 }
