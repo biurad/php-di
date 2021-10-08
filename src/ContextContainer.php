@@ -36,6 +36,10 @@ final class ContextContainer implements ContainerInterface, ResetInterface
      */
     public function get(string $id)
     {
+        if (ContainerInterface::class === $id || __CLASS__ === $id) {
+            return $this;
+        }
+
         foreach ($this->containers as $container) {
             if ($container->has($id)) {
                 return $container->get($id);
