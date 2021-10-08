@@ -40,15 +40,18 @@ interface ContainerInterface extends PsrContainerInterface
     /** Instead of throwing an exception, null will return if service not found */
     public const NULL_ON_INVALID_SERVICE = 2;
 
-    /** This prevents registered definition from be replace, but can be shared */
+    /** This prevents registered definition from being replaced, but can be shared */
     public const IGNORE_SERVICE_FREEZING = 3;
+
+    /** This prevents registered definition from being cached, but definition replaced to an instantiated service */
+    public const IGNORE_SERVICE_INITIALIZING = 4;
 
     /**
      * Set a service definition.
      *
      * @param DefinitionInterface|string|object|null $definition
      *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function set(string $id, $definition);
 
@@ -89,7 +92,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @throws NotFoundServiceException If the identifier is not defined
      *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function extend(string $id, callable $scope = null);
 
@@ -108,4 +111,21 @@ interface ContainerInterface extends PsrContainerInterface
      * @return Definition or DefinitionInterface, mixed value which maybe object
      */
     public function definition(string $id);
+
+    /**
+     * Marks an alias id to service id.
+     *
+     * @param string $id        The alias id
+     * @param string $serviceId The registered service id
+     *
+     * @throws ContainerResolutionException Service id is not found in container
+     */
+    public function alias(string $id, string $serviceId): void;
+
+    /**
+     * Checks if a service definition has been aliased.
+     *
+     * @param string $id The registered service id
+     */
+    public function aliased(string $id): bool;
 }
