@@ -17,8 +17,14 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions\Traits;
 
+use Nette\Utils\Callback;
+use PhpParser\Builder\Method;
+use PhpParser\BuilderFactory;
+use PhpParser\Node\Expr\Assign;
+use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
 use Rade\DI\Definitions\Statement;
+use Rade\DI\Resolvers\Resolver;
 
 /**
  * This trait adds method binding functionality to the service definition
@@ -131,5 +137,41 @@ trait BindingTrait
     public function getExtras(): array
     {
         return $this->extras;
+    }
+
+    /**
+     * Resolves bindings for container builder class.
+     */
+    protected function resolveBinding(Method $defNode, Assign $createdDef, Resolver $resolver, BuilderFactory $builder): void
+    {
+        foreach ($this->parameters as $parameter => $pValue) {
+            $defNode->addStmt(new Assign($builder->propertyFetch($createdDef->var, $parameter), $resolver->resolve($pValue)));
+        }
+
+        foreach ($this->calls as $method => $mCall) {
+            if (!\is_array($mCall)) {
+                $mCall = [$mCall];
+            }
+
+            if (\is_string($this->entity) && \method_exists($this->entity, $method)) {
+                $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $method]), $mCall);
+            } else {
+                $mCall = $resolver->resolveArguments($mCall);
+            }
+
+            $defNode->addStmt($builder->methodCall($createdDef->var, $method, $mCall));
+        }
+
+        if ([] !== $this->extras) {
+            foreach ($this->extras as $code) {
+                if ($code instanceof PhpLiteral) {
+                    $defNode->addStmts($code->resolve($resolver));
+
+                    continue;
+                }
+
+                $defNode->addStmt($resolver->resolve($code));
+            }
+        }
     }
 }
