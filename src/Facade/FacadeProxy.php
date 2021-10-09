@@ -27,7 +27,8 @@ use PhpParser\Node\{
 };
 use Psr\Container\ContainerInterface;
 use Rade\DI\Builder\CodePrinter;
-use Rade\DI\{ContainerBuilder, Definition};
+use Rade\DI\ContainerBuilder;
+use Rade\DI\Definitions\{DepreciableDefinitionInterface, ShareableDefinitionInterface, TypedDefinitionInterface};
 
 /**
  * A Proxy manager for implementing laravel like facade system.
@@ -110,18 +111,16 @@ class FacadeProxy
             $definition = $container->definition($proxy);
             $proxyNode = $builder->method($method)->makePublic()->makeStatic();
 
-            if ($definition instanceof Definition) {
-                if (!$definition->isPublic()) {
-                    continue;
-                }
+            if ($definition instanceof ShareableDefinitionInterface && !$definition->isPublic()) {
+                continue;
+            }
 
-                if ($definition->isDeprecated()) {
-                    $proxyNode->addStmt($definition->triggerDeprecation($proxy, $builder));
-                }
+            if ($definition instanceof DepreciableDefinitionInterface) {
+                $definition->isDeprecated() && $proxyNode->addStmt($definition->triggerDeprecation($proxy, $builder));
+            }
 
-                if ($definition->isTyped()) {
-                    $definition->triggerReturnType($proxyNode);
-                }
+            if ($definition instanceof TypedDefinitionInterface) {
+                $definition->isTyped() && $definition->triggerReturnType($proxyNode);
             }
 
             $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
