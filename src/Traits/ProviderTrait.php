@@ -51,6 +51,7 @@ trait ProviderTrait
      *
      * @return array<string,Definitions\DefinitionInterface>
      */
+    public function providers(): array
     {
         return $this->providers;
     }
@@ -58,6 +59,7 @@ trait ProviderTrait
     /**
      * Remove a service provider.
      */
+    public function removeProvider(string $provider): void
     {
         unset($this->providers[$provider]);
     }
@@ -81,7 +83,7 @@ trait ProviderTrait
                 $providerId = $provider->getAlias();
             }
 
-            $config = (new Processor())->processConfiguration($provider, [$providerId => $config]);
+            $config = (new Processor())->processConfiguration($provider, [$providerId => $config[$providerId] ?? $config]);
         }
 
         $provider->register($this, $config);
@@ -97,13 +99,13 @@ trait ProviderTrait
             }
 
             if ($dependency instanceof ServiceProviderInterface) {
-                if (\is_numeric($offset) && $dependency instanceof AliasedInterface) {
-                    $dependencyConfig = $config[$dependency->getAlias()] ?? [];
-                } elseif (\is_string($offset)) {
-                    $dependencyConfig = $config[$offset] ?? [];
+                $configId = \is_string($offset) ? $offset : \get_class($dependency);
+
+                if ($dependency instanceof AliasedInterface) {
+                    $configId = $dependency->getAlias();
                 }
 
-                $this->register($dependency, $dependencyConfig ?? []);
+                $this->register($dependency, $config[$configId] ?? []);
             }
         }
     }
