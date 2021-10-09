@@ -17,67 +17,36 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions\Traits;
 
+use Nette\Utils\Validators;
+use PhpParser\BuilderFactory;
+use PhpParser\Node\Expr\{BooleanNot, Instanceof_, Throw_, Variable};
+use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\If_;
+use Rade\DI\Exceptions\ContainerResolutionException;
+use Rade\DI\Exceptions\ServiceCreationException;
+
 /**
- * This trait adds a few config functionality to the service definition.
+ * This trait adds instance of functionality to the service definition.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 trait ConfigureTrait
 {
-    private bool $shared = true;
-
-    private bool $public = true;
-
-    private bool $lazy = false;
-
     /** @var string|null Expect value to be a valid class|interface|enum|trait type. */
     private ?string $instanceOf = null;
 
     /**
-     * Whether or not the definition should be shareable.
+     * If set and service entity not instance of, an exception will be thrown.
+     *
+     * If value is a valid class, interface, enum or trait type, an instance of type checking is used,
+     * else value will be perceived to be a file or directory.
+     *
+     * @param string $instanceOf expect value to be a valid class|interface|enum|trait type
+     *                           or either file or directory
      *
      * @return $this
      */
-    final public function shared(bool $boolean = true): self
-    {
-        $this->shared = $boolean;
-
-        return $this;
-    }
-
-    /**
-     * Whether or not the definition should be public or private.
-     *
-     * @return $this
-     */
-    final public function public(bool $boolean = true): self
-    {
-        $this->public = $boolean;
-
-        return $this;
-    }
-
-    /**
-     * Setting lazy is similar to shared, only that definition's
-     * entity will be auto resolved by the container.
-     *
-     * @return $this
-     */
-    final public function lazy(bool $boolean = true): self
-    {
-        $this->lazy = $boolean;
-
-        return $this;
-    }
-
-    /**
-     * If set and service entity not instance of, an excerption will be thrown.
-     *
-     * @param string $instanceOf Expect value to be a valid class|interface|enum|trait type
-     *
-     * @return $this
-     */
-    final public function configure(string $instanceOf): self
+    public function configure(string $instanceOf)
     {
         $this->instanceOf = $instanceOf;
 
@@ -85,26 +54,29 @@ trait ConfigureTrait
     }
 
     /**
-     * Whether this service is public.
+     * Triggers a validation on instance of rule.
+     *
+     * @param Variable|object $service
      */
-    final public function isPublic(): bool
+    public function triggerInstanceOf(string $id, object $service, BuilderFactory $builder = null): ?If_
     {
-        return $this->public;
-    }
+        $errorMessage = \sprintf('Service with id: "%s" depends on "%s". Configure requirements and re-run.', $id, $this->instanceOf);
 
-    /**
-     * Whether this service is shared.
-     */
-    final public function isShared(): bool
-    {
-        return $this->shared;
-    }
+        if (null === $builder) {
+            if (\is_subclass_of($service, $this->instanceOf) || \file_exists($this->instanceOf)) {
+                return null;
+            }
 
-    /**
-     * Whether this service is lazy.
-     */
-    final public function isLazy(): bool
-    {
-        return $this->shared;
+            throw new ServiceCreationException($errorMessage);
+        }
+
+        if (Validators::isType($this->instanceOf)) {
+            $errorInstance = new Instanceof_($service, new Name($this->instanceOf));
+        }
+
+        return new If_(
+            new BooleanNot($errorInstance ?? $builder->funcCall('file_exists', [$this->instanceOf])),
+            ['stmts' => [new Throw_($builder->new(ContainerResolutionException::class, [$errorMessage]))]]
+        );
     }
 }
