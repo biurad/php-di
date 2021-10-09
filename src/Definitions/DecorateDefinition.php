@@ -19,6 +19,11 @@ namespace Rade\DI\Definitions;
 
 use Rade\DI\Definition;
 
+/**
+ * Decorate a lists of definitions.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
 class DecorateDefinition
 {
     /** @var array<int,DefinitionInterface|object> */

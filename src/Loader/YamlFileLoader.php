@@ -333,7 +333,7 @@ class YamlFileLoader extends FileLoader
 
             if ('php_literal' === $value->getTag()) {
                 if (\is_string($argument)) {
-                   return new PhpLiteral($argument);
+                    return new PhpLiteral($argument);
                 }
 
                 if (!\is_array($argument)) {
