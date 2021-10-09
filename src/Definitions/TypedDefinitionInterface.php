@@ -32,14 +32,14 @@ interface TypedDefinitionInterface
      *
      * @return $this
      */
-    public function autowire(array $types = []): self;
+    public function autowire(array $types = []);
 
     /**
      * Represents a PHP type-hinted for this definition.
      *
      * @return $this
      */
-    public function typed(array $to): self;
+    public function typed(array $to);
 
     /**
      * Whether definition has been typed hinted.

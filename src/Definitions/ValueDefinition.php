@@ -17,10 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions;
 
-use PhpParser\Node\Expr\{ArrayDimFetch, Assign};
-use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Return_;
-use Rade\DI\Exceptions\ContainerResolutionException;
+use Rade\DI\Exceptions\ServiceCreationException;
 use Rade\DI\Resolvers\Resolver;
 
 /**
@@ -28,9 +26,11 @@ use Rade\DI\Resolvers\Resolver;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-final class ValueDefinition implements DefinitionInterface
+class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterface, DepreciableDefinitionInterface
 {
     use Traits\DeprecationTrait;
+
+    use Traits\VisibilityTrait;
 
     /** @var mixed */
     private $value;
@@ -40,13 +40,28 @@ final class ValueDefinition implements DefinitionInterface
      *
      * @param mixed $value
      */
-    public function __construct($value)
+    public function __construct($value, bool $shared = true)
     {
-        if ($value instanceof self) {
-            throw new ContainerResolutionException('Unresolvable definition cannot contain itself.');
+        $this->replace($value);
+        $this->shared = $shared;
+    }
+
+    /**
+     * Replace the existing value.
+     *
+     * @param mixed $value
+     *
+     * @return $this
+     */
+    public function replace($value): self
+    {
+        if ($value instanceof DefinitionInterface) {
+            throw new ServiceCreationException(\sprintf('A definition entity must not be an instance of "%s".', DefinitionInterface::class));
         }
 
         $this->value = $value;
+
+        return $this;
     }
 
     /**
@@ -67,16 +82,23 @@ final class ValueDefinition implements DefinitionInterface
                 $this->triggerDeprecation($id);
             }
 
-            return $this->value;
+            return $this->lazy ? $resolver->resolve($this->value) : $this->value;
         }
 
         $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
-        $serviceVar = new ArrayDimFetch($builder->propertyFetch($builder->var('this'), 'services'), new String_($id));
 
         if ($this->isDeprecated()) {
             $defNode->addStmt($this->triggerDeprecation($id, $builder));
         }
 
-        return $defNode->addStmt(new Return_(new Assign($serviceVar, $builder->val($this->value))));
+        if ($this->lazy) {
+            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolve', [$this->value]);
+        }
+
+        if ($this->shared) {
+            $createdValue = $this->triggerSharedBuild($id, $createdValue ?? $builder->val($this->value), $builder);
+        }
+
+        return $defNode->addStmt(new Return_($createdValue ?? $builder->val($this->value)));
     }
 }
