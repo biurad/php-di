@@ -138,7 +138,7 @@ class AutowireValueResolver
             throw new ContainerResolutionException(\sprintf('Builtin type "%s" defined in %s is not supported for autowiring. Did you forget to set a value for the parameter?', $typedHint, $desc));
         }
 
-        if (Validators::isValidType($typedHint)) {
+        if (Validators::isType($typedHint)) {
             throw new ContainerResolutionException(\sprintf('Parameter type hint "%s" needed by %s not found in container. Did you forgot to autowire it?', $typedHint, $desc));
         }
 
