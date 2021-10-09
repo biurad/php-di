@@ -18,8 +18,8 @@ declare(strict_types=1);
 namespace Rade\DI\Traits;
 
 use Nette\Utils\{Arrays, Helpers};
-use Rade\DI\Definition;
-use Rade\DI\Definitions\{ChildDefinition, DecorateDefinition, DefinitionAwareInterface, DefinitionInterface, Statement, TypedDefinitionInterface};
+use Rade\DI\{Definition, Definitions};
+use Rade\DI\Definitions\{DecorateDefinition, DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException, ServiceCreationException};
 
 /**
@@ -91,7 +91,7 @@ trait DefinitionTrait
      *
      * @param DefinitionInterface|string|object|null $definition
      *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function set(string $id, $definition = null)
     {
@@ -121,7 +121,7 @@ trait DefinitionTrait
     /**
      * {@inheritdoc}
      *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function extend(string $id, callable $scope = null)
     {
@@ -131,7 +131,7 @@ trait DefinitionTrait
             throw $this->createNotFound($id);
         }
 
-        if (!$definition instanceof DefinitionInterface) {
+        if (null !== $scope) {
             $definition = $scope($definition, $this);
         }
 
@@ -141,28 +141,20 @@ trait DefinitionTrait
     /**
      * Decorate a list of definitions belonging to a type or tag.
      */
-	public function decorate(string $typeOrTag): DecorateDefinition
-	{
+    public function decorate(string $typeOrTag): DecorateDefinition
+    {
         $definitions = [];
 
         foreach (\array_keys($this->tagged($typeOrTag)) as $serviceId) {
-            $tagDef = $this->definition($serviceId);
-
-            if ($tagDef instanceof Definition) {
-                $definitions[] = $tagDef;
-            }
+            $definitions[] = $this->definition($serviceId);
         }
 
-		foreach ($this->typed($typeOrTag, true) as $typedId) {
-			$typedDef = $this->definition($typedId);
+        foreach ($this->typed($typeOrTag, true) as $typedId) {
+            $definitions[] = $this->definition($typedId);
+        }
 
-            if ($typedDef instanceof Definition) {
-                $definitions[] = $typedDef;
-            }
-		}
-
-		return new DecorateDefinition($definitions);
-	}
+        return new DecorateDefinition($definitions);
+    }
 
     /**
      * Create a valid service definition.
@@ -173,7 +165,13 @@ trait DefinitionTrait
      */
     protected function createDefinition(string $id, $definition)
     {
-        if ($definition instanceof ChildDefinition) {
+        if ($definition instanceof Definitions\Statement) {
+            $definition = new Definition($definition->getValue(), $definition->getArguments());
+
+            goto bind_definition;
+        }
+
+        if ($definition instanceof Definitions\ChildDefinition) {
             $definition = \serialize($this->definitions[(string) $definition] ?? null);
 
             if (\strlen($definition) < 5) {
@@ -185,8 +183,6 @@ trait DefinitionTrait
 
         if ($definition instanceof TypedDefinitionInterface) {
             $definition->isTyped() && $this->type($id, $definition->getTypes());
-        } elseif ($definition instanceof Statement) {
-            $definition = new Definition($definition->getValue(), $definition->getArguments());
         }
 
         if ($definition instanceof DefinitionAwareInterface) {
@@ -197,6 +193,7 @@ trait DefinitionTrait
                 }
             }
 
+            bind_definition:
             $definition->bindWith($id, $this);
         }
 
