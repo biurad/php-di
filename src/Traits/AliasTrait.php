@@ -38,12 +38,7 @@ trait AliasTrait
     }
 
     /**
-     * Marks an alias id to service id.
-     *
-     * @param string $id        The alias id
-     * @param string $serviceId The registered service id
-     *
-     * @throws ContainerResolutionException Service id is not found in container
+     * {@inheritdoc}
      */
     public function alias(string $id, string $serviceId): void
     {
@@ -64,13 +59,10 @@ trait AliasTrait
         }
 
         $this->aliases[$id] = $this->aliases[$serviceId] ?? $serviceId;
-
     }
 
     /**
-     * Checks if a service definition has been aliased.
-     *
-     * @param string $id The registered service id
+     * {@inheritdoc}
      */
     public function aliased(string $id): bool
     {
