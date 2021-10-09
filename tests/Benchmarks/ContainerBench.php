@@ -28,8 +28,8 @@ use Symfony\Component\Filesystem\Filesystem;
 use function Rade\DI\Loader\service;
 
 /**
- * @BeforeClassMethods({"clearCache"}, extend=true)
  * @BeforeClassMethods({"clearCache", "warmup"})
+ * @AfterClassMethods({"tearDown"})
  * @Iterations(5)
  * @Revs(100)
  */
@@ -55,11 +55,16 @@ class ContainerBench
 
     public static function clearCache(): void
     {
+        self::tearDown();
+        \mkdir(self::CACHE_DIR);
+    }
+
+    public static function tearDown(): void
+    {
         if (\file_exists(self::CACHE_DIR)) {
             $fs = new Filesystem();
             $fs->remove(self::CACHE_DIR);
         }
-        \mkdir(self::CACHE_DIR);
     }
 
     public static function warmup(bool $dump = true): void
@@ -67,10 +72,10 @@ class ContainerBench
         $builder = new ContainerBuilder();
 
         for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $builder->set("shared$i",  service(Service::class));
+            $builder->set("shared$i", service(Service::class));
             $builder->set("factory$i", service(Service::class))->shared(false);
 
-            $builder->autowire("shared_autowired$i",  service(Constructor::class));
+            $builder->autowire("shared_autowired$i", service(Constructor::class));
             $builder->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
         }
 
@@ -91,10 +96,10 @@ class ContainerBench
         $container = new Container();
 
         for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $container->set("shared$i",  new Service());
+            $container->set("shared$i", new Service());
             $container->set("factory$i", service(Service::class))->shared(false);
 
-            $container->autowire("shared_autowired$i",  service(Constructor::class));
+            $container->autowire("shared_autowired$i", service(Constructor::class));
             $container->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
         }
 
