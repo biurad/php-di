@@ -90,9 +90,8 @@ trait AutowireTrait
         foreach ($this->types as $offset => $typed) {
             if (\class_exists($typed)) {
                 $defTyped[] = $typed;
-                unset($this->types[$offset]);
 
-                foreach ($this->types as $interface) {
+                foreach (\array_slice($this->types, $offset + 1) as $interface) {
                     if (!\is_subclass_of($typed, $interface)) {
                         $defTyped[] = $interface;
                     }
