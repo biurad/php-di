@@ -56,7 +56,7 @@ trait BindingTrait
      *
      * @return $this
      */
-    public function bind(string $nameOrMethod, $valueOrRef): self
+    public function bind(string $nameOrMethod, $valueOrRef)
     {
         if ('$' === $nameOrMethod[0]) {
             $this->parameters[\substr($nameOrMethod, 1)] = $valueOrRef;
@@ -78,7 +78,7 @@ trait BindingTrait
      *
      * @return $this
      */
-    public function binds(array $bindings): self
+    public function binds(array $bindings)
     {
         foreach ($bindings as $nameOrMethod => $valueOrRef) {
             $this->bind($nameOrMethod, $valueOrRef);
@@ -92,7 +92,7 @@ trait BindingTrait
      *
      * @return $this
      */
-    public function unbind(string $parameterOrMethod): self
+    public function unbind(string $parameterOrMethod)
     {
         if (\array_key_exists($parameterOrMethod, $this->calls)) {
             unset($this->calls[$parameterOrMethod]);

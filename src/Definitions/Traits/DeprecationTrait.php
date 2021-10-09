@@ -32,7 +32,7 @@ trait DeprecationTrait
     /**
      * {@inheritdoc}
      */
-    public function deprecate(string $package = '', float $version = null, string $message = null): self
+    public function deprecate(string $package = '', float $version = null, string $message = null)
     {
         $this->deprecation['package'] = $package;
         $this->deprecation['version'] = $version ?? '';

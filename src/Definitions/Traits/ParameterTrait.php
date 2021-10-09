@@ -35,7 +35,7 @@ trait ParameterTrait
      *
      * @return $this
      */
-    public function arg($name, $value): self
+    public function arg($name, $value)
     {
         $this->arguments[$name] = $value;
 
@@ -49,7 +49,7 @@ trait ParameterTrait
      *
      * @return $this
      */
-    public function args(array $arguments): self
+    public function args(array $arguments)
     {
         foreach ($arguments as $name => $value) {
             $this->arguments[$name] = $value;

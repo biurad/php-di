@@ -33,7 +33,7 @@ trait AutowireTrait
     /**
      * {@inheritdoc}
      */
-    public function autowire(array $types = []): self
+    public function autowire(array $types = [])
     {
         if ([] === $types) {
             $types = Resolver::autowireService($this->getEntity());
@@ -51,7 +51,7 @@ trait AutowireTrait
     /**
      * {@inheritdoc}
      */
-    public function typed(array $to): self
+    public function typed(array $to)
     {
         if (isset($this->innerId)) {
             $this->container->type($this->innerId, $to);

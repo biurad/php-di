@@ -50,7 +50,7 @@ trait DefinitionAwareTrait
      *
      * @return $this
      */
-    public function tag(string $name, $value = true): self
+    public function tag(string $name, $value = true)
     {
         if (null !== $this->innerId) {
             $this->tags[] = $name;
@@ -67,12 +67,13 @@ trait DefinitionAwareTrait
      *
      * @return $this
      */
-    public function tags(array $tags): self
+    public function tags(array $tags)
     {
         $tags = Arrays::normalize($tags, true);
 
-        foreach ($tags as $tag => $value)
+        foreach ($tags as $tag => $value) {
             $this->tag($tag, $value);
+        }
 
         return $this;
     }
@@ -84,8 +85,9 @@ trait DefinitionAwareTrait
      */
     public function tagged(string $name)
     {
-        if (null !== $this->innerId)
+        if (null !== $this->innerId) {
             return $this->container->tagged($name, $this->innerId);
+        }
 
         return $this->tags[$name] ?? null;
     }
@@ -107,8 +109,9 @@ trait DefinitionAwareTrait
     {
         $tagged = [];
 
-        foreach ($this->tags as $tag)
+        foreach ($this->tags as $tag) {
             $tagged[$tag] = $this->tagged($tag);
+        }
 
         return $tagged;
     }
