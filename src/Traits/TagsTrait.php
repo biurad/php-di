@@ -30,7 +30,7 @@ trait TagsTrait
     /**
      * Remove a registered tag.
      */
-    final public function removeTag(string $name): void
+    public function removeTag(string $name): void
     {
         unset($this->tags[$name]);
     }

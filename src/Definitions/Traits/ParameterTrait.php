@@ -35,7 +35,7 @@ trait ParameterTrait
      *
      * @return $this
      */
-    final public function arg($name, $value): self
+    public function arg($name, $value): self
     {
         $this->arguments[$name] = $value;
 
@@ -49,7 +49,7 @@ trait ParameterTrait
      *
      * @return $this
      */
-    final public function args(array $arguments): self
+    public function args(array $arguments): self
     {
         foreach ($arguments as $name => $value) {
             $this->arguments[$name] = $value;
@@ -61,7 +61,7 @@ trait ParameterTrait
     /**
      * Whether this definition has constructor/factory arguments.
      */
-    final public function hasArguments(): bool
+    public function hasArguments(): bool
     {
         return !empty($this->arguments);
     }
@@ -71,7 +71,7 @@ trait ParameterTrait
      *
      * @return array<int|string,mixed>
      */
-    final public function getArguments(): array
+    public function getArguments(): array
     {
         return $this->arguments;
     }

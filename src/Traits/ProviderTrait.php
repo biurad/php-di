@@ -35,7 +35,7 @@ trait ProviderTrait
      *
      * @param string $id The class name of the service provider
      */
-    final public function provider(string $id, bool $extendable = false): ?ServiceProviderInterface
+    public function provider(string $id, bool $extendable = false): ?ServiceProviderInterface
     {
         $provider = $this->providers[$id] ?? null;
 
@@ -51,7 +51,6 @@ trait ProviderTrait
      *
      * @return array<string,Definitions\DefinitionInterface>
      */
-    final public function providers(): array
     {
         return $this->providers;
     }
@@ -59,7 +58,6 @@ trait ProviderTrait
     /**
      * Remove a service provider.
      */
-    final public function removeProvider(string $provider): void
     {
         unset($this->providers[$provider]);
     }
