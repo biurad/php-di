@@ -30,13 +30,7 @@ trait DeprecationTrait
     private array $deprecation = [];
 
     /**
-     * Whether this definition is deprecated, that means it should not be used anymore.
-     *
-     * @param string      $package The name of the composer package that is triggering the deprecation
-     * @param float|null  $version The version of the package that introduced the deprecation
-     * @param string|null $message The deprecation message to use
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function deprecate(string $package = '', float $version = null, string $message = null): self
     {
@@ -59,7 +53,7 @@ trait DeprecationTrait
     }
 
     /**
-     * Whether this definition is deprecated, that means it should not be called anymore.
+     * {@inheritdoc}
      */
     public function isDeprecated(): bool
     {
@@ -67,11 +61,7 @@ trait DeprecationTrait
     }
 
     /**
-     * Return a non-empty array if definition is deprecated.
-     *
-     * @param string $id Service id relying on this definition
-     *
-     * @return array<string,string>
+     * {@inheritdoc}
      */
     public function getDeprecation(string $id): array
     {
