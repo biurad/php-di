@@ -63,7 +63,7 @@ trait BindingTrait
         } elseif (Definition::EXTRA_BIND === $nameOrMethod) {
             $this->extras[] = $valueOrRef;
         } else {
-            $this->calls[$nameOrMethod] = $valueOrRef;
+            $this->calls[] = [$nameOrMethod, $valueOrRef];
         }
 
         return $this;
@@ -94,9 +94,15 @@ trait BindingTrait
      */
     public function unbind(string $parameterOrMethod)
     {
-        if (\array_key_exists($parameterOrMethod, $this->calls)) {
-            unset($this->calls[$parameterOrMethod]);
-        } elseif (\array_key_exists($parameterOrMethod, $this->parameters)) {
+        foreach ($this->calls as $offset => [$method, $mCall]) {
+            if (\in_array($parameterOrMethod, [$offset . $method, $method], true)) {
+                unset($this->calls[$offset]);
+
+                break;
+            }
+        }
+
+        if (\array_key_exists($parameterOrMethod, $this->parameters)) {
             unset($this->parameters[$parameterOrMethod]);
         }
 
@@ -148,7 +154,7 @@ trait BindingTrait
             $defNode->addStmt(new Assign($builder->propertyFetch($createdDef->var, $parameter), $resolver->resolve($pValue)));
         }
 
-        foreach ($this->calls as $method => $mCall) {
+        foreach ($this->calls as [$method, $mCall]) {
             if (!\is_array($mCall)) {
                 $mCall = [$mCall];
             }

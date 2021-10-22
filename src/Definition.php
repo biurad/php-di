@@ -138,7 +138,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
                 $resolved->{$property} = $resolver->resolve($propertyValue);
             }
 
-            foreach ($this->calls as $method => $methodValue) {
+            foreach ($this->calls as [$method, $methodValue]) {
                 $resolver->resolve([$resolved, $method], (array) $methodValue);
             }
         }
