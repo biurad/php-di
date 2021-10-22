@@ -43,10 +43,14 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     public function __construct()
     {
         foreach (\class_parents($this, false) as $type) {
+            if ($type instanceof ContainerBuilder) {
+                continue;
+            }
+
             $this->types[$type] = [self::SERVICE_CONTAINER];
         }
 
-        if (ContainerBuilder::class === static::class) {
+        if ($this instanceof ContainerBuilder) {
             try {
                 $builderFactory = new \PhpParser\BuilderFactory();
             } catch (\Error $e) {
