@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\Reflection;
+use Nette\Utils\{Reflection, Type};
 use PhpParser\Builder\Method;
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\{Assign, Variable};
@@ -135,7 +135,11 @@ class Injectable
                 continue;
             }
 
-            foreach (Reflection::getPropertyTypes($property) as $pType) {
+            if (null === $pTypes = Type::fromReflection($property)) {
+                continue;
+            }
+
+            foreach ($pTypes->getNames() as $pType) {
                 if (Reflection::isBuiltinType($pType)) {
                     continue;
                 }

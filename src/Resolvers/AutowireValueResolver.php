@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use Nette\Utils\{Reflection, Validators};
+use Nette\Utils\{Reflection, Type, Validators};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
@@ -62,7 +62,7 @@ class AutowireValueResolver
      */
     private static function autowireArgument(\ReflectionParameter $parameter, callable $getter, array $providedParameters)
     {
-        $types = Reflection::getParameterTypes($parameter);
+        $types = ($t = Type::fromReflection($parameter)) ? $t->getNames() : [];
         $method = $parameter->getDeclaringFunction();
 
         foreach ($types as $typeName) {
