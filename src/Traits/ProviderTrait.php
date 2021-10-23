@@ -30,6 +30,9 @@ trait ProviderTrait
     /** @var array<string,ServiceProviderInterface> A list of service providers */
     protected array $providers = [];
 
+    /** @var array<string,string> */
+    protected array $namedProviders = [];
+
     /**
      * Returns the registered service provider.
      *
@@ -37,7 +40,7 @@ trait ProviderTrait
      */
     public function provider(string $id, bool $extendable = false): ?ServiceProviderInterface
     {
-        $provider = $this->providers[$id] ?? null;
+        $provider = $this->providers[$id = $this->namedProviders[$id] ?? $id] ?? null;
 
         if (null === $provider) {
             return null; // Disallow setting null providers on extendable mode.
@@ -62,6 +65,12 @@ trait ProviderTrait
     public function removeProvider(string $provider): void
     {
         unset($this->providers[$provider]);
+
+        foreach ($this->namedProviders as $alias => $service) {
+            if ($provider === $service) {
+                unset($this->namedProviders[$alias]);
+            }
+        }
     }
 
     /**
@@ -78,12 +87,15 @@ trait ProviderTrait
             $this->registerDependents($provider, $config);
         }
 
-        if ($provider instanceof ConfigurationInterface) {
-            if ($provider instanceof AliasedInterface) {
-                $providerId = $provider->getAlias();
-            }
+        if ($provider instanceof AliasedInterface) {
+            $this->namedProviders[$aliasedId = $provider->getAlias()] = $providerId;
+        }
 
-            $config = (new Processor())->processConfiguration($provider, [$providerId => $config[$providerId] ?? $config]);
+        if ($provider instanceof ConfigurationInterface) {
+            $config = (new Processor())->process(
+                $treeBuilder = $provider->getConfigTreeBuilder()->buildTree(),
+                [$treeBuilder->getName() => $config[$aliasedId] ?? $config[$providerId] ?? $config]
+            );
         }
 
         $provider->register($this, $config);
