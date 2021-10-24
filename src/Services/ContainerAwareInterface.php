@@ -15,7 +15,9 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI;
+namespace Rade\DI\Services;
+
+use Rade\DI\ContainerInterface;
 
 /**
  * ContainerAwareInterface should be implemented by classes that depends on a Container.
