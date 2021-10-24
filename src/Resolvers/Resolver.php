@@ -23,7 +23,8 @@ use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
-use Rade\DI\{AbstractContainer, Injectable, InjectableInterface, Services\ServiceLocator};
+use Rade\DI\{AbstractContainer, Services\ServiceLocator};
+use Rade\DI\Injector\{Injectable, InjectableInterface};
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 /**

@@ -15,7 +15,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI;
+namespace Rade\DI\Injector;
 
 use Nette\Utils\{Reflection, Type};
 use PhpParser\Builder\Method;
