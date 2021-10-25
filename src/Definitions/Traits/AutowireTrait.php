@@ -30,6 +30,8 @@ trait AutowireTrait
     /** @var array<int,string> */
     private array $types = [];
 
+    private bool $autowired = false;
+
     /**
      * {@inheritdoc}
      */
@@ -37,6 +39,7 @@ trait AutowireTrait
     {
         if ([] === $types) {
             $types = Resolver::autowireService($this->getEntity());
+            $this->autowired = true;
         }
 
         if (isset($this->innerId)) {

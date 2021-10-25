@@ -80,7 +80,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
      *
      * @return $this
      */
-    final public function replace($entity, bool $if): self
+    public function replace($entity, bool $if): self
     {
         if ($entity instanceof DefinitionInterface) {
             throw new ServiceCreationException(\sprintf('A definition entity must not be an instance of "%s".', DefinitionInterface::class));
@@ -88,6 +88,10 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
 
         if ($if /* Replace if matches a rule */) {
             $this->entity = $entity;
+
+            if ($this->autowired) {
+                $this->autowire();
+            }
         }
 
         return $this;
