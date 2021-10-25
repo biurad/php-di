@@ -170,7 +170,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
             $createdDef = $resolver->resolve($this->entity, $this->arguments);
         }
 
-        if ($createdDef instanceof Injectable) {
+        if ($createdDef instanceof Injector\Injectable) {
             $createdDef = $createdDef->build($defNode, $builder->var('service'), $builder);
         }
 
