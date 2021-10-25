@@ -34,17 +34,11 @@ use Rade\DI\Definitions\Traits as Defined;
 class Definition implements DefinitionInterface, TypedDefinitionInterface, ShareableDefinitionInterface, DefinitionAwareInterface, DepreciableDefinitionInterface
 {
     use Defined\DeprecationTrait;
-
     use Defined\ParameterTrait;
-
     use Defined\BindingTrait;
-
     use Defined\VisibilityTrait;
-
     use Defined\ConfigureTrait;
-
     use Defined\AutowireTrait;
-
     use Defined\DefinitionAwareTrait;
 
     /** Use in second parameter of bind method. */
