@@ -41,10 +41,8 @@ COMMENT;
     public static function print(array $stmts, array $options = []): string
     {
         $printer = new self(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
-        $spacing = "{\n" . $nl = \str_repeat(' ', $options['spacingLevel'] ?? 8) . "\n"; // Replace tabs with spacing
 
-        // Resolve whitespace ...
-        return \str_replace([$spacing, "\n\n}", $nl], ["{\n", "\n}\n", "\n"], $printer->prettyPrintFile($stmts));
+        return $printer->prettyPrintFile($stmts);
     }
 
     protected function pStmt_Return(\PhpParser\Node\Stmt\Return_ $node): string
@@ -70,6 +68,28 @@ COMMENT;
             $classMethod = \str_replace(') :', '):', $classMethod);
         }
 
+        $this->indent();
+        $classMethod = \str_replace(["{\n" . ($nl = \strrev($this->nl)), $nl], ["{\n", "\n"], $classMethod);
+        $this->outdent();
+
         return $classMethod . "\n"; // prefer spaces instead of tab
+    }
+
+    protected function pScalar_String(\PhpParser\Node\Scalar\String_ $node): string
+    {
+        if (\Nette\Utils\Validators::isType($node->value)) {
+            return $this->pExpr_ConstFetch(new \PhpParser\Node\Expr\ConstFetch(new \PhpParser\Node\Name($node->value . '::class')));
+        }
+
+        return parent::pScalar_String($node);
+    }
+
+    protected function pMaybeMultiline(array $nodes, bool $trailingComma = false): string
+    {
+        if (\count($nodes) > 5 || (isset($nodes[0]) && $nodes[0]->getAttribute('multiline'))) {
+            return $this->pCommaSeparatedMultiline($nodes, $trailingComma) . $this->nl;
+        }
+
+        return parent::pMaybeMultiline($nodes, $trailingComma);
     }
 }
