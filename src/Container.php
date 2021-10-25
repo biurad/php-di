@@ -173,7 +173,7 @@ class Container extends AbstractContainer implements \ArrayAccess
                 $anotherService = $this->resolver->resolve($id);
 
                 if ($id !== $anotherService) {
-                    return $anotherService;
+                    return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $anotherService : $this->services[$id] = $anotherService;
                 }
             } catch (ContainerResolutionException $e) {
                 // Skip error throwing while resolving

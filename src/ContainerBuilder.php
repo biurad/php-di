@@ -185,7 +185,7 @@ class ContainerBuilder extends AbstractContainer
             $anotherService = $this->resolver->resolve($id);
 
             if (!$anotherService instanceof String_) {
-                return $anotherService;
+                return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $anotherService : $this->services[$id] = $anotherService;
             }
 
             if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
