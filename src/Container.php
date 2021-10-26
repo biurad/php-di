@@ -18,8 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Nette\Utils\Validators;
-use Rade\DI\Definitions\DefinitionInterface;
-use Rade\DI\Definitions\ShareableDefinitionInterface;
+use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
 
 /**
