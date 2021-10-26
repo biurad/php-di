@@ -109,7 +109,13 @@ trait DefinitionAwareTrait
     {
         $tagged = [];
 
-        foreach ($this->tags as $tag) {
+        foreach ($this->tags as $offset => $tag) {
+            if (!\is_numeric($offset)) {
+                $tagged[$offset] = $tag;
+
+                continue;
+            }
+
             $tagged[$tag] = $this->tagged($tag);
         }
 
