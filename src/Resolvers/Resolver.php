@@ -20,7 +20,6 @@ namespace Rade\DI\Resolvers;
 use Nette\Utils\{Callback, Reflection};
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr;
-use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
 use Rade\DI\{AbstractContainer, Services\ServiceLocator};
@@ -313,7 +312,14 @@ class Resolver
                 $services += $this->resolveServiceSubscriber($name, $service);
             }
 
-            return null === $this->builder ? new ServiceLocator($services) : $this->builder->new(ServiceLocator::class, $services);
+            if (null === $this->builder) {
+                return new ServiceLocator($services);
+            }
+
+            // Should be a registered as a private service.
+            $this->container->set($id = \uniqid('service_locator_'), ServiceLocator::class)->arg(0, $services)->public(false)->tag('container.service_locators');
+
+            return $this->container->get($id);
         }
 
         if (!$this->strict) {
@@ -373,21 +379,29 @@ class Resolver
     private function resolveServiceSubscriber($id, string $value): array
     {
         if ('?' === $value[0]) {
-            $arrayLike = \str_ends_with('[]', $value = \substr($value, 1));
+            $arrayLike = \str_ends_with($value = \substr($value, 1), '[]');
 
             if (\is_int($id)) {
                 $id = $arrayLike ? \substr($value, 0, -2) : $value;
             }
 
-            return ($this->container->has($id) || $this->container->typed($id)) ? $this->resolveServiceSubscriber($id, $value) : ($arrayLike ? [] : null);
+            return ($this->container->has($id) || $this->container->typed($id)) ? $this->resolveServiceSubscriber($id, $value) : [$id => $arrayLike ? [] : null];
         }
 
-        if ('[]' === \substr($value, -2)) {
-            $service = fn (): array => $this->container->get(\substr($value, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
-        } else {
-            $service = fn () => $this->container->get($value);
+        $service = function () use ($value) {
+            if ('[]' === \substr($value, -2)) {
+                $service = $this->container->get(\substr($value, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
+
+                return \is_array($service) ? $service : [$service];
+            }
+
+            return $this->container->get($value);
+        };
+
+        if (null !== $this->builder) {
+            $service = new Expr\ArrowFunction(['expr' => $this->builder->val($service()), 'returnType' => '[]' !== \substr($value, -2) ? $value : 'array']);
         }
 
-        return [\is_int($id) ? $value : $id => (null === $this->builder ? $service : new ArrowFunction(['expr' => $service()]))];
+        return [\is_int($id) ? \rtrim($value, '[]') : $id => $service];
     }
 }
