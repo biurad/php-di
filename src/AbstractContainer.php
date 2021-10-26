@@ -123,7 +123,9 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         }
 
         try {
-            return $this->resolver->resolveCallable($scope);
+            $ref = new \ReflectionFunction($scope);
+
+            return $ref->invokeArgs($this->resolver->autowireArguments($ref));
         } finally {
             foreach ($cleanup as $alias) {
                 $this->removeDefinition($alias);
