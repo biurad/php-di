@@ -96,7 +96,7 @@ class AutowireValueResolver
 
             if (
                 $method instanceof \ReflectionMethod
-                && \preg_match('#@param[ \t]+([\w\\\\]+)\[\][ \t]+\$' . $parameter->name . '#', (string) $method->getDocComment(), $m)
+                && \preg_match('#@param[ \t]+([\w\\\\]+)(?:\[\])?[ \t]+\$' . $parameter->name . '#', (string) $method->getDocComment(), $m)
                 && ($itemType = Reflection::expandClassName($m[1], $method->getDeclaringClass()))
                 && (\class_exists($itemType) || \interface_exists($itemType))
             ) {
