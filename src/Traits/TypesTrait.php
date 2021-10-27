@@ -163,7 +163,7 @@ trait TypesTrait
             return $definition;
         }
 
-        $this->type($id, Resolver::autowireService($definition));
+        $this->type($id, Resolver::autowireService($definition, false, $this));
 
         return $definition;
     }

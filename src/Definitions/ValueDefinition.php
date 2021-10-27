@@ -85,7 +85,7 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
             return $this->lazy ? $resolver->resolve($this->value) : $this->value;
         }
 
-        $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
+        $defNode = $builder->method($resolver->createMethod($id))->makeProtected()->setReturnType(\get_debug_type($this->value));
 
         if ($this->isDeprecated()) {
             $defNode->addStmt($this->triggerDeprecation($id, $builder));

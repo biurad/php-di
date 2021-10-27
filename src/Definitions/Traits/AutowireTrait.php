@@ -38,7 +38,7 @@ trait AutowireTrait
     public function autowire(array $types = [])
     {
         if ([] === $types) {
-            $types = Resolver::autowireService($this->getEntity());
+            $types = Resolver::autowireService($this->getEntity(), true, isset($this->innerId) ? $this->container : null);
             $this->autowired = true;
         }
 
@@ -106,7 +106,19 @@ trait AutowireTrait
 
         if ([] === $defTyped) {
             $defTyped = $this->types;
+
+            if (empty($defTyped)) {
+                $this->types = Resolver::autowireService($this->getEntity(), true, isset($this->innerId) ? $this->container : null);
+
+                if (!empty($this->types)) {
+                    $this->triggerReturnType($defNode);
+                }
+
+                return;
+            }
         }
+
+        $defTyped = \array_unique($defTyped); // Fix same type repeating.
 
         if (1 === count($defTyped) || \PHP_VERSION_ID < 80000) {
             $defNode->setReturnType(\current($defTyped));

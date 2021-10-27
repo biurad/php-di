@@ -150,9 +150,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
 
     protected function createServiceEntity(string $id, Resolver $resolver, Method $defNode, BuilderFactory $builder): Expr
     {
-        if ($this->isTyped()) {
-            $this->triggerReturnType($defNode);
-        }
+        $this->triggerReturnType($defNode);
 
         if ($this->isDeprecated()) {
             $defNode->addStmt($this->triggerDeprecation($id, $builder));

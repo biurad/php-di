@@ -64,20 +64,34 @@ class Resolver
     /**
      * @param mixed $definition
      */
-    public static function autowireService($definition): array
+    public static function autowireService($definition, bool $allTypes = false, AbstractContainer $container = null): array
     {
         $types = $autowired = [];
 
-        if ($definition instanceof \stdClass) {
-            return $types;
-        }
-
         if (\is_callable($definition)) {
             $types = Reflection::getReturnTypes(Callback::toReflection($definition));
-        } elseif (\is_string($definition) && \class_exists($definition)) {
+        } elseif (\is_string($definition)) {
+            if (!\class_exists($definition)) {
+                return $allTypes ? ['string'] : $types;
+            }
+
             $types[] = $definition;
         } elseif (\is_object($definition)) {
+            if ($definition instanceof \stdClass) {
+                return $allTypes ? ['object'] : $types;
+            }
+
             $types[] = \get_class($definition);
+        } elseif (\is_array($definition)) {
+            if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
+                if ($definition[0] instanceof Reference) {
+                    $types = Reflection::getReturnTypes(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
+                } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
+                    $types = Reflection::getReturnTypes(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
+                }
+            } else {
+                return $allTypes ? ['array'] : [];
+            }
         }
 
         foreach ($types as $type) {
