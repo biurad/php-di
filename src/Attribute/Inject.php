@@ -22,7 +22,7 @@ namespace Rade\DI\Attribute;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD)]
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::TARGET_PARAMETER)]
 final class Inject
 {
     private ?string $value;

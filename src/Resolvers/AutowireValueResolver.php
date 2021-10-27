@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Resolvers;
 
 use Nette\Utils\{Reflection, Type, Validators};
+use Rade\DI\Attribute\Inject;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
@@ -94,6 +95,22 @@ class AutowireValueResolver
                 return $getter($class->getName());
             }
 
+            if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
+                foreach ($attributes as $attribute) {
+                    if (Inject::class === $attribute->getName()) {
+                        if (null === $attrName = $attribute->getArguments()[0] ?? null) {
+                            throw new ContainerResolutionException(\sprintf('Using the Inject attribute on parameter %s requires a value to be set.', $parameter->getName()));
+                        }
+
+                        if ($arrayLike = \str_ends_with($attrName, '[]')) {
+                            $attrName = \substr($attrName, 0, -2);
+                        }
+
+                        return $getter($attrName, !$arrayLike);
+                    }
+                }
+            }
+
             if (
                 $method instanceof \ReflectionMethod
                 && \preg_match('#@param[ \t]+([\w\\\\]+)(?:\[\])?[ \t]+\$' . $parameter->name . '#', (string) $method->getDocComment(), $m)
@@ -142,7 +159,7 @@ class AutowireValueResolver
             throw new ContainerResolutionException(\sprintf('Parameter type hint "%s" needed by %s not found in container. Did you forgot to autowire it?', $typedHint, $desc));
         }
 
-        if ('' === $typedHint) {
+        if (empty($typedHint)) {
             $message = 'Parameter %s%s has no type hint or default value, so its value must be specified.';
         }
 
