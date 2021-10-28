@@ -84,7 +84,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
             $this->entity = $entity;
 
             if ($this->autowired) {
-                $this->autowire();
+                $this->typed(Resolver::autowireService($entity, false, isset($this->innerId) ? $this->container : null));
             }
         }
 

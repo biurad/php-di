@@ -38,14 +38,14 @@ trait AutowireTrait
     public function autowire(array $types = [])
     {
         if ([] === $types) {
-            $types = Resolver::autowireService($this->getEntity(), true, isset($this->innerId) ? $this->container : null);
-            $this->autowired = true;
+            $types = Resolver::autowireService($this->getEntity(), false, isset($this->innerId) ? $this->container : null);
         }
 
         if (isset($this->innerId)) {
             $this->container->type($this->innerId, $types);
         }
 
+        $this->autowired = true;
         $this->types = $types;
 
         return $this;
