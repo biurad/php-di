@@ -169,14 +169,20 @@ trait BindingTrait
         }
 
         if ([] !== $this->extras) {
-            foreach ($this->extras as $code) {
+            foreach ($this->extras as $offset => $code) {
                 if ($code instanceof PhpLiteral) {
                     $defNode->addStmts($code->resolve($resolver));
 
                     continue;
                 }
 
-                $defNode->addStmt($resolver->resolve($code));
+                $code = $resolver->resolve($code);
+
+                if (!\is_numeric($offset)) {
+                    $code = new Assign($builder->var($offset), $code);
+                }
+
+                $defNode->addStmt($code);
             }
         }
     }
