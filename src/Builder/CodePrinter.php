@@ -75,6 +75,11 @@ COMMENT;
         return $classMethod . "\n"; // prefer spaces instead of tab
     }
 
+    protected function pStmt_Class(\PhpParser\Node\Stmt\Class_ $node): string
+    {
+        return \str_replace("\n" . \strrev($this->nl) . '}', "\n}", parent::pStmt_Class($node));
+    }
+
     protected function pScalar_String(\PhpParser\Node\Scalar\String_ $node): string
     {
         if (\Nette\Utils\Validators::isType($node->value)) {
