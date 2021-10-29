@@ -19,9 +19,9 @@ namespace Rade\DI\Definitions\Traits;
 
 use Nette\Utils\Validators;
 use PhpParser\BuilderFactory;
-use PhpParser\Node\Expr\{BooleanNot, Instanceof_, Throw_, Variable};
+use PhpParser\Node\Expr\{BooleanNot, Instanceof_, Variable};
 use PhpParser\Node\Name;
-use PhpParser\Node\Stmt\If_;
+use PhpParser\Node\Stmt\{If_, Throw_};
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\ServiceCreationException;
 
@@ -60,7 +60,7 @@ trait ConfigureTrait
      */
     public function triggerInstanceOf(string $id, object $service, BuilderFactory $builder = null): ?If_
     {
-        $errorMessage = \sprintf('Service with id: "%s" depends on "%s". Configure requirements and re-run.', $id, $this->instanceOf);
+        $errorMessage = \sprintf('Service with id: "%s" depends on "%s".', $id, $this->instanceOf);
 
         if (null === $builder) {
             if (\is_subclass_of($service, $this->instanceOf) || \file_exists($this->instanceOf)) {
@@ -76,7 +76,7 @@ trait ConfigureTrait
 
         return new If_(
             new BooleanNot($errorInstance ?? $builder->funcCall('file_exists', [$this->instanceOf])),
-            ['stmts' => [new Throw_($builder->new(ContainerResolutionException::class, [$errorMessage]))]]
+            ['stmts' => [new Throw_($builder->new(ContainerResolutionException::class, [$errorMessage])), ]]
         );
     }
 }
