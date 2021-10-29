@@ -148,6 +148,28 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * Return a list of definitions belonging to a type or tag.
+     *
+     * @return array<int,Definitions\DefinitionInterface|object>
+     */
+    public function findBy(string $typeOrTag): array
+    {
+        $definitions = [];
+
+        if (isset($this->tags[$typeOrTag])) {
+            foreach (\array_keys($this->tags[$typeOrTag]) as $serviceId) {
+                $definitions[] = $this->definition($serviceId);
+            }
+        } elseif (isset($this->types[$typeOrTag])) {
+            foreach ($this->types[$typeOrTag] as $serviceId) {
+                $definitions[] = $this->definition($serviceId);
+            }
+        }
+
+        return $definitions;
+    }
+
+    /**
      * Resets the container.
      */
     public function reset(): void
