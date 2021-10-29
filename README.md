@@ -170,7 +170,7 @@ Eg: Dependency `Service1` will be passed by calling the `injectService1` method,
 
 ```php
 use Rade\DI\Attribute\Inject;
-use Rade\DI\InjectableInterface;
+use Rade\DI\Injector\InjectableInterface;
 
 class FooClass implements InjectableInterface
 {
