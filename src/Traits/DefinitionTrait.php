@@ -84,6 +84,18 @@ trait DefinitionTrait
     public function removeDefinition(string $id): void
     {
         unset($this->definitions[$id], $this->services[$id]);
+
+        if (isset($this->types)) {
+            foreach ($this->types as &$serviceIds) {
+                foreach ($serviceIds as $offset => $serviceId) {
+                    if ($id !== $serviceId) {
+                        continue;
+                    }
+
+                    unset($serviceIds[$offset]);
+                }
+            }
+        }
     }
 
     /**
