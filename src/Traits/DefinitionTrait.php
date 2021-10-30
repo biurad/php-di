@@ -206,10 +206,10 @@ trait DefinitionTrait
     protected function createNotFound(string $id): NotFoundServiceException
     {
         if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
-            $suggest = " Did you mean: \"$suggest\" ?";
+            $suggest = " Did you mean: \"$suggest\"?";
         }
 
-        return new NotFoundServiceException(\sprintf('Identifier "%s" is not defined.' . $suggest, $id));
+        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest, $id));
     }
 
     /**
