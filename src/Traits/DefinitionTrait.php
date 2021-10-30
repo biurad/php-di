@@ -215,7 +215,7 @@ trait DefinitionTrait
     /**
      * @param string $id The unique identifier for the service definition
      *
-     * @throws FrozenServiceException
+     * @throws FrozenServiceException|ServiceCreationException
      */
     private function validateDefinition(string $id): void
     {
@@ -225,6 +225,10 @@ trait DefinitionTrait
 
         if (\array_key_exists($id, $this->privates)) {
             throw new FrozenServiceException(\sprintf('The "%s" service is private, and cannot be replaced.', $id));
+        }
+
+        if (ContainerInterface::SERVICE_CONTAINER === $id) {
+            throw new ServiceCreationException(\sprintf('The "%s" service is reserved, and cannot be set or modified.'));
         }
     }
 }
