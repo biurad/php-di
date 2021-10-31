@@ -109,6 +109,18 @@ final class DefinitionBuilder
     }
 
     /**
+     * Marks an alias id to service id.
+     *
+     * @return $this
+     */
+    public function alias(string $id, string $serviceId)
+    {
+        $this->container->alias($id, $serviceId);
+
+        return $this;
+    }
+
+    /**
      * Set a service definition.
      *
      * @param DefinitionInterface|string|object|null $definition
