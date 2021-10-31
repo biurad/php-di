@@ -32,7 +32,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     use Traits\DefinitionTrait;
     use Traits\TagsTrait;
     use Traits\TypesTrait;
-    use Traits\ProviderTrait;
 
     /** @var array<string,bool> service name => bool */
     protected array $loading = [];
