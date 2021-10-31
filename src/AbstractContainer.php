@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use Rade\DI\Definitions\DefinitionInterface;
 use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException};
 use Symfony\Contracts\Service\ResetInterface;
 

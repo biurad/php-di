@@ -29,7 +29,6 @@ use Rade\DI\Resolvers\Resolver;
 class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterface, DepreciableDefinitionInterface
 {
     use Traits\DeprecationTrait;
-
     use Traits\VisibilityTrait;
 
     /** @var mixed */
