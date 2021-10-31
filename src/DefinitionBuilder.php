@@ -35,6 +35,7 @@ final class DefinitionBuilder
 {
     private AbstractContainer $container;
 
+    /** @var array<string,array<int,mixed>> */
     private array $classes = [];
 
     /** @var array<string,array<int,array<int,mixed>>> */
@@ -45,8 +46,6 @@ final class DefinitionBuilder
     private ?string $directory = null;
 
     private bool $trackDefaults = false;
-
-    private bool $trackClasses = false;
 
     public function __construct(AbstractContainer $container)
     {
@@ -208,10 +207,9 @@ final class DefinitionBuilder
         }
 
         $classes = $this->findClasses($namespace, $resource ?? $this->findResourcePath($namespace), (array) $exclude);
-        $this->doCreate($definition = new Definition($this->definition = $namespace), false);
+        $this->doCreate($definition = new Definition($this->definition = $namespace));
 
         $this->classes[$namespace] = [$definition, $classes];
-        $this->trackClasses = true;
 
         return $this;
     }
@@ -233,12 +231,10 @@ final class DefinitionBuilder
         return $this->container;
     }
 
-    /**
-     * Undocumented function.
-     */
-    private function doCreate(DefinitionInterface $definition, bool $destruct = true): void
+    private function doCreate(object $definition): void
     {
-        $this->trackDefaults = $this->trackClasses = false;
+        $this->trackDefaults = false;
+
         foreach ($this->defaults as $offset => $defaultMethods) {
             if ('#defaults' !== $offset) {
                 $class = $definition instanceof DefinitionInterface ? $definition->getEntity() : $definition;
@@ -257,7 +253,12 @@ final class DefinitionBuilder
             }
         }
 
-        $destruct && $this->__destruct();
+        $this->__destruct();
+    }
+
+    private function getDefinition(string $id): object
+    {
+        return !isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0];
     }
 
     private function findResourcePath(string $namespace): string
