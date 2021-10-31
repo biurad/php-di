@@ -214,13 +214,21 @@ final class DefinitionBuilder
 
     private function findResourcePath(string $namespace): string
     {
-        if (\class_exists(\Composer\Autoload\ClassLoader::class)) {
-            $psr4Prefixes = require \dirname((new \ReflectionClass(\Composer\Autoload\ClassLoader::class))->getFileName()) . '/autoload_psr4.php';
+        foreach (\spl_autoload_functions() as $classLoader) {
+            if (!\is_array($classLoader)) {
+                continue;
+            }
 
-            foreach ($psr4Prefixes as $prefix => $paths) {
-                if (\str_starts_with($namespace, $prefix)) {
+            if ($classLoader[0] instanceof \Composer\Autoload\ClassLoader) {
+                $psr4Prefixes = $classLoader[0]->getPrefixesPsr4();
+
+                foreach ($psr4Prefixes as $prefix => $paths) {
+                    if (!\str_starts_with($namespace, $prefix)) {
+                        continue;
+                    }
+
                     foreach ($paths as $path) {
-                        $this->prefixPostFix = \strlen($namespacePostfix = '/' . \substr($namespace, \strlen($prefix)));
+                        $namespacePostfix = '/' . \substr($namespace, \strlen($prefix));
 
                         if (\file_exists($path = $path . $namespacePostfix)) {
                             $this->directory = \dirname($path) . '/';
@@ -229,6 +237,8 @@ final class DefinitionBuilder
                         }
                     }
                 }
+
+                break;
             }
         }
 
