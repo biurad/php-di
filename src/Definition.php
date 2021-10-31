@@ -17,10 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Builder\Method;
-use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\{Assign, Variable};
-use PhpParser\Node\{Expr, Stmt\Return_};
+use PhpParser\Node\Stmt\Return_;
 use Rade\DI\Exceptions\ServiceCreationException;
 use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, DepreciableDefinitionInterface, ShareableDefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Resolvers\Resolver;
@@ -37,7 +35,6 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
     use Defined\ParameterTrait;
     use Defined\BindingTrait;
     use Defined\VisibilityTrait;
-    use Defined\ConfigureTrait;
     use Defined\AutowireTrait;
     use Defined\DefinitionAwareTrait;
 
@@ -100,12 +97,28 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
             return $this->resolve($id, $resolver);
         }
 
-        $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
-        $createdDef = $this->createServiceEntity($id, $resolver, $defNode, $builder);
+        $this->triggerReturnType($defNode = $builder->method($resolver->createMethod($id))->makeProtected());
 
-        if (null !== $this->instanceOf) {
-            $createdDef = $this->createAssignedService($defNode, $createdDef);
-            $defNode->addStmt($this->triggerInstanceOf($id, $createdDef->var, $builder));
+        if ($this->isDeprecated()) {
+            $defNode->addStmt($this->triggerDeprecation($id, $builder));
+        }
+
+        if ($this->lazy) {
+            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$this->entity, $resolver->resolveArguments($this->arguments)]);
+        } else {
+            $createdDef = $resolver->resolve($this->entity, $this->arguments);
+
+            if ($createdDef instanceof Injector\Injectable) {
+                $createdDef = $createdDef->build($defNode, $builder->var('service'), $builder);
+            }
+        }
+
+        if ($this->hasBinding()) {
+            if (!$createdDef instanceof Assign) {
+                $defNode->addStmt($createdDef = new Assign(new Variable('service'), $createdDef));
+            }
+
+            $this->resolveBinding($defNode, $createdDef, $resolver, $builder);
         }
 
         if ($this->shared) {
@@ -117,14 +130,10 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
 
     protected function resolve(string $id, Resolver $resolver)
     {
-        $resolved = $this->entity;
-
-        if (\is_callable($resolved) || !\is_object($resolved)) {
+        if (is_callable($resolved = $this->entity)) {
+            $resolved = $resolver->resolveCallable($resolved);
+        } elseif (!\is_object($resolved)) {
             $resolved = $resolver->resolve($this->entity, $this->arguments);
-        }
-
-        if (null !== $this->instanceOf) {
-            (\is_object($resolved) || \is_string($resolved)) && null === $this->triggerInstanceOf($id, $resolved);
         }
 
         if ($this->isDeprecated()) {
@@ -146,39 +155,5 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
         }
 
         return $resolved;
-    }
-
-    protected function createServiceEntity(string $id, Resolver $resolver, Method $defNode, BuilderFactory $builder): Expr
-    {
-        $this->triggerReturnType($defNode);
-
-        if ($this->isDeprecated()) {
-            $defNode->addStmt($this->triggerDeprecation($id, $builder));
-        }
-
-        if ($this->lazy) {
-            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$this->entity, $this->arguments]);
-        } else {
-            $createdDef = $resolver->resolve($this->entity, $this->arguments);
-        }
-
-        if ($createdDef instanceof Injector\Injectable) {
-            $createdDef = $createdDef->build($defNode, $builder->var('service'), $builder);
-        }
-
-        if ($this->hasBinding()) {
-            $this->resolveBinding($defNode, $createdDef = $this->createAssignedService($defNode, $createdDef), $resolver, $builder);
-        }
-
-        return $createdDef;
-    }
-
-    protected function createAssignedService(Method $defNode, Expr $createdDef): Assign
-    {
-        if (!$createdDef instanceof Assign) {
-            $defNode->addStmt($createdDef = new Assign(new Variable('service'), $createdDef));
-        }
-
-        return $createdDef;
     }
 }
