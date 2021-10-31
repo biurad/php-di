@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
+use Nette\Utils\{ObjectHelpers, Validators};
 use Rade\DI\Definitions\DefinitionInterface;
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
 
@@ -80,15 +81,28 @@ final class DefinitionBuilder
         $id = $this->definition;
 
         if ('autowire' === $name) {
-            if (empty($arguments) || 1 === \count($arguments)) {
-                $id && $this->container->definition($id)->autowire($arguments[0] ?? []);
-            } else {
+            if (\is_string($arguments[0] ?? null)) {
                 $this->doCreate($this->container->autowire($this->definition = $arguments[0], $arguments[1] ?? null));
+            } else {
+                if ($this->trackDefaults) {
+                    goto call_for_default;
+                }
+
+                $this->getDefinition($id)->autowire($arguments[0] ?? []);
             }
-        } elseif ($this->trackDefaults) {
-            $this->defaults[$name][] = $arguments;
         } elseif (null !== $id) {
-            (!$this->trackClasses ? $this->container->definition($id) : $this->classes[$id][0])->{$name}(...$arguments);
+            if ($this->trackDefaults) {
+                call_for_default:
+                $this->defaults[$id][] = [$name, $arguments];
+            } else {
+                try {
+                    $this->getDefinition($id)->{$name}(...$arguments);
+                } catch (\Error $e) {
+                    throw $this->createErrorException($name, $e);
+                }
+            }
+        } else {
+            throw new \LogicException(\sprintf('Did you forgot to register a service via "set", "autowire", or "namespaced" methods\' before calling %s::%().', __CLASS__, $name));
         }
 
         return $this;
@@ -388,5 +402,19 @@ final class DefinitionBuilder
         }
 
         return null;
+    }
+
+    private function createErrorException(string $name, \Throwable $e): \BadMethodCallException
+    {
+        if (!\str_starts_with($e->getMessage(), 'Call to undefined method')) {
+            throw $e;
+        }
+
+        $hint = ObjectHelpers::getSuggestion(\array_merge(
+            \get_class_methods($this),
+            \get_class_methods(Definition::class),
+        ), $name);
+
+        return new \BadMethodCallException(\sprintf('Call to undefined method %s::%s()' . ($hint ? ", did you mean $hint()?" : '.'), __CLASS__, $name), 0, $e);
     }
 }
