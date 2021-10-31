@@ -169,7 +169,7 @@ final class DefinitionBuilder
         }
 
         if (null !== $resource) {
-            $resource = \rtrim($this->directory, '\\/') . '/' . $this->container->parameter($resource);
+            $resource = $this->container->parameter($this->directory . $resource);
         }
 
         $classes = $this->findClasses($namespace, $resource ?? $this->findResourcePath($namespace), (array) $exclude);
@@ -188,7 +188,7 @@ final class DefinitionBuilder
      */
     public function directory(string $path)
     {
-        $this->directory = $path;
+        $this->directory = \rtrim($path, '\\/') . '/';
 
         return $this;
     }
@@ -269,9 +269,9 @@ final class DefinitionBuilder
                 $path = \str_replace('\\', '/', $path); // normalize Windows slashes
 
                 foreach ($excludePatterns as $excludePattern) {
-                    $excludePattern = $this->directory . $container->parameter($excludePattern);
+                    $excludePattern = $container->parameter($this->directory . $excludePattern);
 
-                    foreach (\glob($excludePattern, \GLOB_BRACE) as $excludedPath) {
+                    foreach (\glob($excludePattern, \GLOB_BRACE) ?: [$excludePattern] as $excludedPath) {
                         if (\str_starts_with($path, \str_replace('\\', '/', $excludedPath))) {
                             continue 3;
                         }
