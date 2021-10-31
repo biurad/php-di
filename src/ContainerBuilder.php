@@ -17,32 +17,27 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr, Scalar\String_};
-use PhpParser\Node\Expr\ArrayItem;
+use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
 use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
-use Rade\DI\Definitions\DefinitionInterface;
-use Rade\DI\Definitions\ShareableDefinitionInterface;
-use Rade\DI\Exceptions\ContainerResolutionException;
-use Symfony\Component\Config\{
-    Resource\ClassExistenceResource,
-    Resource\FileResource,
-    Resource\FileExistenceResource,
-    Resource\ResourceInterface
-};
+use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
+use Symfony\Component\Config\Resource\ResourceInterface;
 
+/**
+ * A compilable container to build services easily.
+ *
+ * Generates a compiled container. This means that there is no runtime performance impact.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
 class ContainerBuilder extends AbstractContainer
 {
     private const BUILD_SERVICE_DEFINITION = 5;
 
-    private bool $trackResources;
-
-    /** @var ResourceInterface[] */
-    private array $resources = [];
+    /** @var array<string,ResourceInterface>|null */
+    private ?array $resources;
 
     /** Name of the compiled container parent class. */
     private string $containerParentClass;
-
-    private \PhpParser\BuilderFactory $builder;
 
     /**
      * Compile the container for optimum performances.
@@ -51,17 +46,14 @@ class ContainerBuilder extends AbstractContainer
      */
     public function __construct(string $containerParentClass = Container::class)
     {
-        parent::__construct();
-
-        if (!\is_subclass_of($containerParentClass, AbstractContainer::class)) {
-            throw new ContainerResolutionException(\sprintf('Compiled container class must be a extendable of "%s" class, which "%s" is not.', AbstractContainer::class, $containerParentClass));
+        if (!\class_exists(\PhpParser\BuilderFactory::class)) {
+            throw new \RuntimeException('ContainerBuilder uses "nikic/php-parser" v4, do composer require the nikic/php-parser package.');
         }
 
-        $this->containerParentClass = $containerParentClass;
-        $this->trackResources = \interface_exists(ResourceInterface::class);
+        parent::__construct();
 
-        $this->builder = $this->resolver->getBuilder();
-        $this->services[self::SERVICE_CONTAINER] = $this->builder->var('this');
+        $this->containerParentClass = $containerParentClass;
+        $this->resources = \interface_exists(ResourceInterface::class) ? [] : null;
     }
 
     /**
@@ -80,7 +72,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function getResources(): array
     {
-        return \array_values($this->resources);
+        return \array_values($this->resources ?? []);
     }
 
     /**
@@ -90,7 +82,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function addResource(ResourceInterface $resource): self
     {
-        if ($this->trackResources) {
+        if (\is_array($this->resources)) {
             $this->resources[(string) $resource] = $resource;
         }
 
@@ -105,7 +97,6 @@ class ContainerBuilder extends AbstractContainer
      * - strictType => true,
      * - printToString => true,
      * - shortArraySyntax => true,
-     * - spacingLevel => 8,
      * - containerClass => CompiledContainer,
      *
      * @throws \ReflectionException
@@ -115,44 +106,30 @@ class ContainerBuilder extends AbstractContainer
     public function compile(array $options = [])
     {
         $options += ['strictType' => true, 'printToString' => true, 'containerClass' => 'CompiledContainer'];
-        $astNodes = [];
+        $astNodes = $options['strictType'] ? [new Declare_([new DeclareDeclare('strict_types', $this->resolver->getBuilder()->val(1))])] : [];
 
-        foreach ($this->providers as $name => $builder) {
-            if ($this->trackResources) {
-                $this->addResource(new ClassExistenceResource($name, false));
-                $this->addResource(new FileExistenceResource($rPath = (new \ReflectionClass($name))->getFileName()));
-                $this->addResource(new FileResource($rPath));
-            }
+        $processedData = $this->doAnalyse($this->definitions);
+        $containerNode = $this->resolver->getBuilder()->class($options['containerClass'])->extend($this->containerParentClass);
 
-            if ($builder instanceof Services\PrependInterface) {
-                $builder->before($this);
-            }
+        if (!empty($processedData[0])) {
+            $containerNode->addStmt($this->resolver->getBuilder()->property('aliases')->makeProtected()->setType('array')->setDefault($processedData[0]));
         }
 
-        if ($options['strictType']) {
-            $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $this->builder->val(1))]);
+        $this->compileParameters($this->parameters, $containerNode->setDocComment(Builder\CodePrinter::COMMENT));
+
+        if (!empty($processedData[1])) {
+            $containerNode->addStmt($this->resolver->getBuilder()->property('methodsMap')->makeProtected()->setType('array')->setDefault($processedData[1]));
         }
 
-        $compiledContainerData = $this->doAnalyse($this->definitions);
-        $compiledContainerNode = $this->builder->class($options['containerClass'])->extend($this->containerParentClass)->setDocComment(Builder\CodePrinter::COMMENT);
-
-        if (!empty($compiledContainerData[0])) {
-            $compiledContainerNode->addStmt($this->builder->property('aliases')->makeProtected()->setType('array')->setDefault($compiledContainerData[0]));
+        if (!empty($processedData[3])) {
+            $containerNode->addStmt($this->resolver->getBuilder()->property('types')->makeProtected()->setType('array')->setDefault($processedData[3]));
         }
 
-        if (!empty($compiledContainerData[1])) {
-            $compiledContainerNode->addStmt($this->builder->property('parameters')->makePublic()->setType('array')->setDefault($compiledContainerData[1]));
+        if (!empty($processedData[4])) {
+            $containerNode->addStmt($this->resolver->getBuilder()->property('tags')->makeProtected()->setType('array')->setDefault($processedData[4]));
         }
 
-        if (!empty($compiledContainerData[2])) {
-            $compiledContainerNode->addStmt($this->builder->property('methodsMap')->makeProtected()->setType('array')->setDefault($compiledContainerData[2]));
-        }
-
-        if (!empty($compiledContainerData[4])) {
-            $compiledContainerNode->addStmt($this->builder->property('types')->makeProtected()->setType('array')->setDefault($compiledContainerData[4]));
-        }
-
-        $astNodes[] = $compiledContainerNode->addStmts($compiledContainerData[3])->getNode();
+        $astNodes[] = $containerNode->addStmts($processedData[2])->getNode();
 
         if ($options['printToString']) {
             return Builder\CodePrinter::print($astNodes, $options);
@@ -195,7 +172,7 @@ class ContainerBuilder extends AbstractContainer
         $compiledDefinition = $definition->build($id, $this->resolver);
 
         if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
-            $resolved = $this->builder->methodCall($this->builder->var('this'), $this->resolver->createMethod($id));
+            $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver->createMethod($id));
             $serviceType = 'services';
 
             if ($definition instanceof Definition) {
@@ -208,7 +185,7 @@ class ContainerBuilder extends AbstractContainer
                 }
             }
 
-            $service = $this->builder->propertyFetch($this->builder->var('this'), $serviceType);
+            $service = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), $serviceType);
             $createdService = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($service, new String_($id)), $resolved);
 
             return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $createdService : $this->services[$id] = $createdService;
@@ -222,7 +199,7 @@ class ContainerBuilder extends AbstractContainer
      *
      * @param DefinitionInterface[] $definitions
      */
-    protected function doAnalyse(array $definitions): array
+    protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
         $methodsMap = $serviceMethods = $wiredTypes = [];
         \ksort($definitions);
@@ -237,19 +214,87 @@ class ContainerBuilder extends AbstractContainer
             $methodsMap[$id] = $this->resolver->createMethod($id);
         }
 
-        $aliases = \array_filter($this->aliases, fn ($aliased): bool => isset($methodsMap[$aliased]));
-        $parameters = \array_map(fn ($value) => $this->builder->val($value), $this->parameters);
+        if ($onlyDefinitions) {
+            return [$methodsMap, $serviceMethods];
+        }
+
+        if ($newDefinitions = \array_diff_key($this->definitions, $definitions)) {
+            $processedData = $this->doAnalyse($newDefinitions, true);
+            $methodsMap = \array_merge($methodsMap, $processedData[0]);
+            $serviceMethods = \array_merge($serviceMethods, $processedData[1]);
+        }
+
+        $aliases = \array_filter($this->aliases, static fn (string $aliased): bool => isset($methodsMap[$aliased]));
+        $tags = \array_filter($this->tags, static fn (array $tagged): bool => isset($methodsMap[\key($tagged)]));
 
         // Prevent autowired private services from be exported.
         foreach ($this->types as $type => $ids) {
-            $ids = \array_filter($ids, fn (string $id): bool => isset($methodsMap[$id]));
+            $ids = \array_filter($ids, static fn (string $id): bool => isset($methodsMap[$id]));
 
             if ([] !== $ids) {
                 $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
-                $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
+                $wiredTypes[] = new Expr\ArrayItem($this->resolver->getBuilder()->val($ids), new String_($type));
             }
         }
 
-        return [$aliases, $parameters, $methodsMap, $serviceMethods, $wiredTypes];
+        return [$aliases, $methodsMap, $serviceMethods, $wiredTypes, $tags];
+    }
+
+    /**
+     * Build parameters + dynamic parameters in compiled container class.
+     *
+     * @param array<int,array<string,mixed>> $parameters
+     */
+    protected function compileParameters(array $parameters, \PhpParser\Builder\Class_ $containerNode): void
+    {
+        if (0 === \count($parameters)) {
+            return;
+        }
+
+        [$resolvedParameters, $dynamicParameters] = $this->resolveParameters($parameters);
+
+        if (!empty($dynamicParameters)) {
+            $constructorNode = $this->resolver->getBuilder()->method('__construct');
+
+            if (\method_exists($this->containerParentClass, '__construct')) {
+                $constructorNode->addStmt($this->resolver->getBuilder()->staticCall(new Name('parent'), '__construct'));
+            }
+
+            foreach ($dynamicParameters as $offset => $value) {
+                $parameter = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), 'parameter');
+                $constructorNode->addStmt(new Expr\Assign(new Expr\ArrayDimFetch($parameter, new String_($offset)), $value));
+            }
+
+            $containerNode->addStmt($constructorNode->makePublic());
+        }
+
+        $containerNode->addStmt($this->resolver->getBuilder()->property('parameters')->makePublic()->setType('array')->setDefault($resolvedParameters));
+    }
+
+    /**
+     * Resolve parameter's and retrieve dynamic type parameter.
+     *
+     * @param array<string,mixed> $parameters
+     *
+     * @return array<int,mixed>
+     */
+    protected function resolveParameters(array $parameters, bool &$dynamic = false): array
+    {
+        $resolvedParameters = $dynamicParameters = [];
+
+        foreach ($parameters as $parameter => $value) {
+            if (\is_array($value)) {
+                $arrayParameters = $this->resolveParameters($value, $dynamic);
+                $resolvedParameters = \array_merge($resolvedParameters, $arrayParameters[0]);
+                $dynamicParameters = \array_merge($dynamicParameters, $arrayParameters[1]);
+
+                continue;
+            }
+
+            $value = \is_string($value) ? new String_($value) : $this->resolver->resolve($value);
+            $value instanceof Scalar ? $resolvedParameters[$parameter] = $value : $dynamicParameters[$parameter] = $value;
+        }
+
+        return [$resolvedParameters, $dynamicParameters];
     }
 }
