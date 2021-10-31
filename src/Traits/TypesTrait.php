@@ -180,23 +180,24 @@ trait TypesTrait
      */
     public function autowired(string $id, bool $single = false)
     {
-        if (1 === \count($autowired = $this->types[$id] ?? [])) {
-            $service = $this->get($autowired[0]);
+        $autowired = $this->types[$id] ?? [];
 
-            return $single ? $service : [$service];
+        if ($single && 1 === \count($autowired)) {
+            return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
         }
 
-        if ([] === $autowired) {
+        if (empty($autowired)) {
             throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
         }
 
         if ($single) {
             \natsort($autowired);
+            $autowired = count($autowired) <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
 
-            throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, \implode(', ', $autowired)));
+            throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, $autowired));
         }
 
-        return \array_map([$this, 'get'], $autowired);
+        return \array_map(fn (string $id) => $this->services[$id] ?? $this->get($id), $autowired);
     }
 
     /**
