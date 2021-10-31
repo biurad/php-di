@@ -23,6 +23,8 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceReso
 /**
  * A builder specialized in creating homogeneous service definitions.
  *
+ * This class has some performance impact and recommended to be used with ContainerBuilder class.
+ *
  * @experimental in 1.0
  *
  * @method self|Definition autowire(string $id, DefinitionInterface|string|object|null $definition = null)
