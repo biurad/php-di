@@ -37,6 +37,7 @@ final class DefinitionBuilder
 
     private array $classes = [];
 
+    /** @var array<string,array<int,array<int,mixed>>> */
     private array $defaults = [];
 
     private ?string $definition = null;
@@ -155,8 +156,12 @@ final class DefinitionBuilder
      */
     public function defaults(bool $merge = true)
     {
-        $this->defaults = $merge ? $this->defaults ?? [] : [];
         $this->trackDefaults = true;
+        $this->definition = '#defaults';
+
+        if (!$merge) {
+            $this->defaults[$this->definition] = [];
+        }
 
         return $this;
     }
@@ -216,10 +221,14 @@ final class DefinitionBuilder
     private function doCreate(DefinitionInterface $definition, bool $destruct = true): void
     {
         $this->trackDefaults = $this->trackClasses = false;
+        foreach ($this->defaults as $offset => $defaultMethods) {
 
-        foreach ($this->defaults as $defaultMethod => $defaultArguments) {
-            foreach ($defaultArguments as $default) {
-                $definition->{$defaultMethod}(...$default);
+            foreach ($defaultMethods as [$defaultMethod, $defaultArguments]) {
+                try {
+                    $definition->{$defaultMethod}(...$defaultArguments);
+                } catch (\Error $e) {
+                    throw $this->createErrorException($defaultMethod, $e);
+                }
             }
         }
 
