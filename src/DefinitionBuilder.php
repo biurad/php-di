@@ -270,15 +270,15 @@ final class DefinitionBuilder
         $container = $this->container;
 
         foreach (\glob($pattern, \GLOB_BRACE) as $path) {
-            $pathLength = \strlen($this->directory ?? $path);
-
             $directoryIterator = new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
             $files = \iterator_to_array(new \RecursiveIteratorIterator($directoryIterator));
 
             \uksort($files, 'strnatcmp');
 
+            /** @var \SplFileInfo $info */
             foreach ($files as $path => $info) {
                 $path = \str_replace('\\', '/', $path); // normalize Windows slashes
+                $pathLength = 0;
 
                 foreach ($excludePatterns as $excludePattern) {
                     $excludePattern = $container->parameter($this->directory . $excludePattern);
@@ -294,36 +294,23 @@ final class DefinitionBuilder
                     continue;
                 }
 
-                $class = \str_replace('/', '\\', \substr($path, $pathLength, -\strlen($m[0])));
-                $class = $namespace . \ltrim(\str_replace(\explode('\\', $namespace), '', $class), '\\.');
+                foreach (\explode('\\', $namespace, -1) as $namespaced) {
+                    if ($pos = \strpos($path, $namespaced . '/')) {
+                        $pathLength = +$pos + \strlen($namespaced . '/');
+                    }
+                }
 
-                if (!\preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+(?:\\\\[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+)*+$/', $class)) {
+                if (0 === $pathLength) {
+                    $pathLength = \preg_match('/\w+\.php$/', $path, $l) ? \strpos($path, $l[0]) : 0;
+                }
+
+                $class = \str_replace('/', '\\', \substr($path, $pathLength, -\strlen($m[0])));
+
+                if (null === $class = $this->findClass($container, $namespace . $class, $path, $pattern)) {
                     continue;
                 }
 
-                try {
-                    $r = new \ReflectionClass($class);
-                } catch (\Error | \ReflectionException $e) {
-                    if (\preg_match('/^Class .* not found$/', $e->getMessage())) {
-                        continue;
-                    }
-
-                    if ($e instanceof \ReflectionException) {
-                        throw new \InvalidArgumentException(\sprintf('Expected to find class "%s" in file "%s" while importing services from resource "%s", but it was not found! Check the namespace prefix used with the resource.', $class, $path, $pattern), 0, $e);
-                    }
-
-                    throw $e;
-                }
-
-                if ($container instanceof ContainerBuilder && \interface_exists(ResourceInterface::class)) {
-                    $container->addResource(new ClassExistenceResource($class, false));
-                    $container->addResource(new FileExistenceResource($rPath = $r->getFileName()));
-                    $container->addResource(new FileResource($rPath));
-                }
-
-                if ($r->isInstantiable()) {
-                    $classNames[] = $class;
-                }
+                $classNames[] = $class;
             }
 
             // track only for new & removed files
@@ -333,5 +320,38 @@ final class DefinitionBuilder
         }
 
         return $classNames;
+    }
+
+    private function findClass(AbstractContainer $container, string $class, string $path, string $pattern): ?string
+    {
+        if (!\preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+(?:\\\\[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+)*+$/', $class)) {
+            return null;
+        }
+
+        try {
+            $r = new \ReflectionClass($class);
+        } catch (\Error | \ReflectionException $e) {
+            if (\preg_match('/^Class .* not found$/', $e->getMessage())) {
+                return null;
+            }
+
+            if ($e instanceof \ReflectionException) {
+                throw new \InvalidArgumentException(\sprintf('Expected to find class "%s" in file "%s" while importing services from resource "%s", but it was not found! Check the namespace prefix used with the resource.', $class, $path, $pattern), 0, $e);
+            }
+
+            throw $e;
+        }
+
+        if ($container instanceof ContainerBuilder && \interface_exists(ResourceInterface::class)) {
+            $container->addResource(new ClassExistenceResource($class, false));
+            $container->addResource(new FileExistenceResource($rPath = $r->getFileName()));
+            $container->addResource(new FileResource($rPath));
+        }
+
+        if ($r->isInstantiable()) {
+            return $class;
+        }
+
+        return null;
     }
 }
