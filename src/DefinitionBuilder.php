@@ -167,6 +167,24 @@ final class DefinitionBuilder
     }
 
     /**
+     * Defines a set of defaults only for services whose class matches a defined one.
+     *
+     * @return Definition|$this
+     */
+    public function instanceOf(string $interfaceOrClass)
+    {
+        $this->trackDefaults = true;
+
+        if (!Validators::isType($interfaceOrClass)) {
+            throw new \RuntimeException(\sprintf('"%s" is set as an "instanceof" conditional, but it does not exist.', $interfaceOrClass));
+        }
+
+        $this->definition = $interfaceOrClass;
+
+        return $this;
+    }
+
+    /**
      * Registers a set of classes as services using PSR-4 for discovery.
      *
      * @param string               $namespace The namespace prefix of classes in the scanned directory
@@ -222,6 +240,13 @@ final class DefinitionBuilder
     {
         $this->trackDefaults = $this->trackClasses = false;
         foreach ($this->defaults as $offset => $defaultMethods) {
+            if ('#defaults' !== $offset) {
+                $class = $definition instanceof DefinitionInterface ? $definition->getEntity() : $definition;
+
+                if (!(\is_string($class) || \is_object($class)) || !\is_subclass_of($class, $offset)) {
+                    continue;
+                }
+            }
 
             foreach ($defaultMethods as [$defaultMethod, $defaultArguments]) {
                 try {
