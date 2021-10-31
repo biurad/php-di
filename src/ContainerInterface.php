@@ -49,11 +49,11 @@ interface ContainerInterface extends PsrContainerInterface
     /**
      * Set a service definition.
      *
-     * @param DefinitionInterface|string|object|null $definition
+     * @param DefinitionInterface|object|null $definition
      *
      * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
-    public function set(string $id, $definition);
+    public function set(string $id, object $definition = null): object;
 
     /**
      * {@inheritdoc}

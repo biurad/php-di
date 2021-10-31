@@ -17,9 +17,9 @@ declare(strict_types=1);
 
 namespace Rade\DI\Traits;
 
-use Nette\Utils\{Arrays, Helpers};
-use Rade\DI\{Definition, Definitions};
-use Rade\DI\Definitions\{DecorateDefinition, DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
+use Nette\Utils\Helpers;
+use Rade\DI\{ContainerInterface, Definition, Definitions};
+use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException, ServiceCreationException};
 
 /**
@@ -101,11 +101,11 @@ trait DefinitionTrait
     /**
      * {@inheritdoc}
      *
-     * @param DefinitionInterface|string|object|null $definition
+     * @param DefinitionInterface|object|null $definition
      *
      * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
-    public function set(string $id, $definition = null)
+    public function set(string $id, object $definition = null): object
     {
         $this->validateDefinition($id);
 
@@ -113,7 +113,36 @@ trait DefinitionTrait
             unset($this->aliases[$id]); // Incase new service definition exists in aliases.
         }
 
-        return $this->definitions[$id] = $this->createDefinition($id, $definition ?? new Definition($id));
+        if (null === $definition || $definition instanceof Definitions\Statement) {
+            ($definition = new Definition($definition ? $definition->getValue() : $id, $definition ? $definition->getArguments() : []))->bindWith($id, $this);
+
+            return $this->definitions[$id] = $definition;
+        }
+
+        if ($definition instanceof DefinitionInterface) {
+            if ($definition instanceof TypedDefinitionInterface) {
+                $definition->isTyped() && $this->type($id, $definition->getTypes());
+            }
+
+            if ($definition instanceof DefinitionAwareInterface) {
+                /** @var \Rade\DI\Definitions\Traits\DefinitionAwareTrait $definition */
+                if ($definition->hasTags()) {
+                    foreach ($definition->getTags() as $tag => $value) {
+                        $this->tag($id, $tag, $value);
+                    }
+                }
+
+                $definition->bindWith($id, $this);
+            }
+        } elseif ($definition instanceof Definitions\ChildDefinition) {
+            if (!\array_key_exists($id, $this->definitions)) {
+                throw new ServiceCreationException(\sprintf('Constructing service "%s" from a parent definition encountered an error, parent definition seems non-existing.', $id));
+            }
+
+            $definition = clone $definition;
+        }
+
+        return $this->definitions[$id] = $definition;
     }
 
     /**
@@ -123,9 +152,11 @@ trait DefinitionTrait
      */
     public function multiple(array $definitions): void
     {
-        $definitions = Arrays::normalize($definitions);
-
         foreach ($definitions as $id => $definition) {
+            if (\is_int($id)) {
+                [$id, $definition] = [$definition, null];
+            }
+
             $this->set($id, $definition);
         }
     }
@@ -151,65 +182,25 @@ trait DefinitionTrait
     }
 
     /**
-     * Decorate a list of definitions belonging to a type or tag.
-     */
-    public function decorate(string $typeOrTag): DecorateDefinition
-    {
-        $definitions = [];
-
-        foreach (\array_keys($this->tagged($typeOrTag)) as $serviceId) {
-            $definitions[] = $this->definition($serviceId);
-        }
-
-        foreach ($this->typed($typeOrTag, true) as $typedId) {
-            $definitions[] = $this->definition($typedId);
-        }
-
-        return new DecorateDefinition($definitions);
-    }
-
-    /**
-     * Create a valid service definition.
+     * Replaces old service with a new one, but keeps a reference
+     * of the old one as: service_id.inner.
      *
-     * @param string|object|DefinitionInterface $definition
+     * All decorated services under the tag: container.decorated_services
      *
-     * @return DefinitionInterface|object
+     * @param DefinitionInterface|object|null $definition
+     *
+     * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
-    protected function createDefinition(string $id, $definition)
+    public function decorate(string $id, object $definition = null)
     {
-        if ($definition instanceof Definitions\Statement) {
-            $definition = new Definition($definition->getValue(), $definition->getArguments());
-
-            goto bind_definition;
+        if (null === $innerDefinition = $this->definitions[$id] ?? null) {
+            throw $this->createNotFound($id);
         }
 
-        if ($definition instanceof Definitions\ChildDefinition) {
-            $definition = \serialize($this->definitions[(string) $definition] ?? null);
+        $this->removeDefinition($id);
+        $this->set($id . '.inner', $innerDefinition)->tag('container.decorated_services');
 
-            if (\strlen($definition) < 5) {
-                throw new ServiceCreationException(\sprintf('Constructing service "%s" from a parent definition encountered an error, parent definition seems non-existing.', $id));
-            }
-
-            $definition = \unserialize($definition);
-        }
-
-        if ($definition instanceof TypedDefinitionInterface) {
-            $definition->isTyped() && $this->type($id, $definition->getTypes());
-        }
-
-        if ($definition instanceof DefinitionAwareInterface) {
-            /** @var \Rade\DI\Definitions\Traits\DefinitionAwareTrait $definition */
-            if ($definition->hasTags()) {
-                foreach ($definition->getTags() as $tag => $value) {
-                    $this->tag($id, $tag, $value);
-                }
-            }
-
-            bind_definition:
-            $definition->bindWith($id, $this);
-        }
-
-        return $definition;
+        return $this->set($id, $definition);
     }
 
     /**

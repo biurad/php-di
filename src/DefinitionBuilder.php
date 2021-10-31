@@ -137,11 +137,11 @@ final class DefinitionBuilder
     /**
      * Set a service definition.
      *
-     * @param DefinitionInterface|string|object|null $definition
+     * @param DefinitionInterface|object|null $definition
      *
      * @return Definition|$this
      */
-    public function set(string $id, $definition = null)
+    public function set(string $id, object $definition = null)
     {
         $this->doCreate($this->container->set($this->definition = $id, $definition));
 

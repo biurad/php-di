@@ -17,9 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\Validators;
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
-use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
+use Rade\DI\Exceptions\{ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
 
 /**
  * Dependency injection container.
@@ -140,28 +139,6 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /**
      * {@inheritdoc}
-     */
-    protected function createDefinition(string $id, $definition)
-    {
-        $definition = parent::createDefinition($id, $definition);
-
-        if ($definition instanceof DefinitionInterface || \is_callable($definition) || \is_object($definition)) {
-            return $definition;
-        }
-
-        if (\is_string($definition) && Validators::isType($definition)) {
-            return $this->createDefinition($id, new Definition($definition));
-        }
-
-        return fn () => $this->resolver->resolve($definition);
-    }
-
-    /**
-     * Build an entry of the container by its name.
-     *
-     * @throws CircularReferenceException|NotFoundServiceException
-     *
-     * @return mixed
      */
     protected function doGet(string $id, int $invalidBehavior)
     {

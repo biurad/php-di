@@ -147,7 +147,7 @@ trait TypesTrait
      *
      * @return Definition or DefinitionInterface, mixed value which maybe object
      */
-    public function autowire(string $id, $definition = null)
+    public function autowire(string $id, object $definition = null): object
     {
         $definition = $this->set($id, $definition);
 

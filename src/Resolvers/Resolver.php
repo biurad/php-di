@@ -22,7 +22,7 @@ use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
-use Rade\DI\{AbstractContainer, Services\ServiceLocator};
+use Rade\DI\{AbstractContainer, Definition, Services\ServiceLocator};
 use Rade\DI\Injector\{Injectable, InjectableInterface};
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
@@ -331,7 +331,8 @@ class Resolver
             }
 
             // Should be a registered as a private service.
-            $this->container->set($id = \uniqid('service_locator_'), ServiceLocator::class)->arg(0, $services)->public(false)->tag('container.service_locators');
+            $this->container->set($id = \uniqid('service_locator_'), new Definition(ServiceLocator::class))
+                ->arg(0, $services)->public(false)->tag('container.service_locators');
 
             return $this->container->get($id);
         }
