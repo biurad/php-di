@@ -69,7 +69,8 @@ class ContainerBuilder extends AbstractContainer
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->doGet($id, $invalidBehavior);
+        return $this->services[$id = $this->aliases[$id] ?? $id]
+            ?? self::SERVICE_CONTAINER === $id ? $this->services[$id] = new Expr\Variable('this') : $this->doGet($id, $invalidBehavior);
     }
 
     /**
@@ -161,39 +162,28 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * {@inheritdoc}
+     * @param mixed $createdService
+     *
+     * @return mixed
      */
-    protected function createDefinition(string $id, $definition)
+    public function dumpObject(string $id, $createdService, bool $nullOnInvalid)
     {
-        $definition = parent::createDefinition($id, $definition);
-
-        if (!$definition instanceof DefinitionInterface) {
-            return $this->createDefinition($id, new Definition($definition));
-        }
-
-        return $definition;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function doGet(string $id, int $invalidBehavior)
-    {
-        $createdService = parent::doGet($id, $invalidBehavior);
-
         if (null === $createdService) {
             $anotherService = $this->resolver->resolve($id);
 
             if (!$anotherService instanceof String_) {
-                return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $anotherService : $this->services[$id] = $anotherService;
+                return $anotherService;
             }
 
-            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
+            if (!$nullOnInvalid) {
                 throw $this->createNotFound($id);
             }
+
+            return null;
         }
 
-        return $createdService;
+        // @Todo: Support for dumping objects in compiled container.
+        return $this->resolver->getBuilder()->val($createdService);
     }
 
     /**

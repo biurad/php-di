@@ -28,7 +28,7 @@ use Rade\DI\Exceptions\{CircularReferenceException, NotFoundServiceException};
  */
 interface ContainerInterface extends PsrContainerInterface
 {
-    /** @final The name of the default container's service */
+    /** @final The reserved service id for container's instance */
     public const SERVICE_CONTAINER = 'container';
 
     /** Sets the behaviour to ignore exception on types with multiple services */

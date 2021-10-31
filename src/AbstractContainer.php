@@ -201,24 +201,26 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     protected function doGet(string $id, int $invalidBehavior)
     {
-        if (isset($this->loading[$id])) {
+        if (\array_key_exists($id, $this->loading)) {
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
 
-        if (\array_key_exists($id, $this->definitions)) {
-            $this->loading[$id] = true; // Checking if circular reference exists ...
+        $definition = $this->definitions[$id] ?? (isset($this->types[$id]) ? $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior) : null);
 
-            try {
-                return $this->doCreate($id, $this->definitions[$id], $invalidBehavior);
-            } finally {
-                unset($this->loading[$id]);
+        if (!($definition instanceof DefinitionInterface || \is_callable($definition))) {
+            if ($this instanceof ContainerBuilder) {
+                $definition = $this->dumpObject($id, $definition, self::NULL_ON_INVALID_SERVICE === $invalidBehavior);
             }
+
+            return null === $definition || self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $definition : $this->services[$id] = $definition;
         }
 
-        if (\array_key_exists($id, $this->types)) {
-            return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-        }
+        $this->loading[$id] = true; // Checking if circular reference exists ...
 
-        return null; // Extend for additional context and/or exceptions.
+        try {
+            return $this->doCreate($id, $definition, $invalidBehavior);
+        } finally {
+            unset($this->loading[$id]);
+        }
     }
 }

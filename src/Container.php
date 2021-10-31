@@ -122,11 +122,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
-            return $this->services[$id];
-        }
-
-        return self::SERVICE_CONTAINER === $id ? $this : ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
+        return $this->services[$id = $this->aliases[$id] ?? $id] ?? ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
     }
 
     /**
@@ -142,7 +138,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     protected function doGet(string $id, int $invalidBehavior)
     {
-        $createdService = parent::doGet($id, $invalidBehavior);
+        $createdService = self::SERVICE_CONTAINER === $id ? $this : parent::doGet($id, $invalidBehavior);
 
         if (null === $createdService) {
             try {
@@ -164,7 +160,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     }
 
     /**
-     * @param DefinitionInterface|callable|mixed
+     * {@inheritdoc}
      */
     protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
@@ -181,7 +177,7 @@ class Container extends AbstractContainer implements \ArrayAccess
 
             $definition = $definition->build($id, $this->resolver);
         } elseif (\is_callable($definition)) {
-            $definition = $this->resolver->resolve($definition);
+            $definition = $this->resolver->resolveCallable($definition);
         }
 
         if (self::IGNORE_SERVICE_FREEZING === $invalidBehavior) {
