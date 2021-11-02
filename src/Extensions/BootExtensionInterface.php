@@ -15,22 +15,21 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
+namespace Rade\DI\Extensions;
 
 use Rade\DI\AbstractContainer;
-use Rade\DI\Extensions\ExtensionInterface;
 
 /**
- * The interface implemented for building services into container.
- *
- * @deprecated use the ExtensionInterface instead, will be removed in the future.
+ * This interface is implement by the service extension providers to
+ * adjust the container after extensions have been loaded.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface ServiceProviderInterface extends ExtensionInterface
+interface BootExtensionInterface
 {
     /**
-     * {@inheritdoc}
+     * This method is called after all extensions have be loaded.
+     * and should be used to register missing services, tags or even extend service definitions.
      */
-    public function register(AbstractContainer $container, array $configs = []): void;
+    public function boot(AbstractContainer $container): void;
 }

@@ -15,20 +15,26 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
+namespace Rade\DI\Extensions;
 
-use Rade\DI\ContainerBuilder;
+use Rade\DI\AbstractContainer;
 
 /**
- * The interface implemented to adjust DI container before is compiled to PHP class.
+ * The interface implemented for building services into container.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface PrependInterface
+interface ExtensionInterface
 {
+    /** The builder's extension registered in container */
+    public const BUILDER = 'extensions.builder';
+
     /**
-     * This method is called after all services are registered
-     * and should be used to register missing services, tags or even extending a service definition.
+     * Registers services on the given container.
+     *
+     * This method should only be used to configure services and parameters.
+     *
+     * @param array<int|string,mixed> $configs
      */
-    public function before(ContainerBuilder $builder): void;
+    public function register(AbstractContainer $container, array $configs): void;
 }

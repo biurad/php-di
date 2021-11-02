@@ -15,22 +15,18 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
-
-use Rade\DI\AbstractContainer;
-use Rade\DI\Extensions\ExtensionInterface;
+namespace Rade\DI\Extensions;
 
 /**
- * The interface implemented for building services into container.
- *
- * @deprecated use the ExtensionInterface instead, will be removed in the future.
+ * Implementing this interface in a extension type class
+ * will explicitly allow registering the extension in a dev or prod environment.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface ServiceProviderInterface extends ExtensionInterface
+interface DebugExtensionInterface
 {
     /**
-     * {@inheritdoc}
+     * Return true if this extension is for dev mode else false.
      */
-    public function register(AbstractContainer $container, array $configs = []): void;
+    public static function inDevelopment(): bool;
 }
