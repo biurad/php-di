@@ -28,7 +28,7 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceReso
  *
  * @experimental in 1.0
  *
- * @method self|Definition autowire(string $id, DefinitionInterface|string|object|null $definition = null)
+ * @method self|Definition autowire(string $id, Definitions\TypedDefinitionInterface|object|null $definition = null)
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -78,31 +78,18 @@ final class DefinitionBuilder
      */
     public function __call(string $name, array $arguments)
     {
-        $id = $this->definition;
+        if (!$id = $this->definition) {
+            throw $this->createInitializingError(__METHOD__);
+        }
 
-        if ('autowire' === $name) {
-            if (\is_string($arguments[0] ?? null)) {
-                $this->doCreate($this->container->autowire($this->definition = $arguments[0], $arguments[1] ?? null));
-            } else {
-                if ($this->trackDefaults) {
-                    goto call_for_default;
-                }
-
-                $this->getDefinition($id)->autowire($arguments[0] ?? []);
-            }
-        } elseif (null !== $id) {
-            if ($this->trackDefaults) {
-                call_for_default:
-                $this->defaults[$id][] = [$name, $arguments];
-            } else {
-                try {
-                    $this->getDefinition($id)->{$name}(...$arguments);
-                } catch (\Error $e) {
-                    throw $this->createErrorException($name, $e);
-                }
-            }
+        if ($this->trackDefaults) {
+            $this->defaults[$id][] = [$name, $arguments];
         } else {
-            throw new \LogicException(\sprintf('Did you forgot to register a service via "set", "autowire", or "namespaced" methods\' before calling %s::%().', __CLASS__, $name));
+            try {
+                (!isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0])->{$name}(...$arguments);
+            } catch (\Error $e) {
+                throw $this->createErrorException($name, $e);
+            }
         }
 
         return $this;
@@ -130,6 +117,42 @@ final class DefinitionBuilder
     public function alias(string $id, string $serviceId)
     {
         $this->container->alias($id, $serviceId);
+
+        return $this;
+    }
+
+    /**
+     * Enables autowiring.
+     *
+     * @param string                                           $id
+     * @param array<int,string>                                $types
+     * @param Definitions\TypedDefinitionInterface|object|null $definition
+     *
+     * @return Definition|$this
+     */
+    public function autowire(/* string $id, $definition or array $types */)
+    {
+        $arguments = \func_get_args();
+
+        if (\is_string($arguments[0] ?? null)) {
+            $this->doCreate($this->container->autowire($this->definition = $arguments[0], $arguments[1] ?? null));
+
+            return $this;
+        }
+
+        if (!$id = $this->definition) {
+            throw $this->createInitializingError(__FUNCTION__);
+        }
+
+        if ($this->trackDefaults) {
+            $this->defaults[$id][] = [__FUNCTION__, $arguments];
+        } else {
+            $definition = !isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0];
+
+            if ($definition instanceof Definitions\TypedDefinitionInterface) {
+                $definition->autowire($arguments[0] ?? []);
+            }
+        }
 
         return $this;
     }
@@ -268,11 +291,6 @@ final class DefinitionBuilder
         }
 
         $this->__destruct();
-    }
-
-    private function getDefinition(string $id): object
-    {
-        return !isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0];
     }
 
     private function findResourcePath(string $namespace): string
@@ -416,5 +434,10 @@ final class DefinitionBuilder
         ), $name);
 
         return new \BadMethodCallException(\sprintf('Call to undefined method %s::%s()' . ($hint ? ", did you mean $hint()?" : '.'), __CLASS__, $name), 0, $e);
+    }
+
+    private function createInitializingError(string $name): \LogicException
+    {
+        return new \LogicException(\sprintf('Did you forgot to register a service via "set", "autowire", or "namespaced" methods\' before calling %s::%().', __CLASS__, $name));
     }
 }

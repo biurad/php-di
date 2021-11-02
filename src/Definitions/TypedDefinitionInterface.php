@@ -37,6 +37,8 @@ interface TypedDefinitionInterface
     /**
      * Represents a PHP type-hinted for this definition.
      *
+     * @param array<int,string> $to
+     *
      * @return $this
      */
     public function typed(array $to);
