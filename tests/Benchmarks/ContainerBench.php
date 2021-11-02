@@ -19,8 +19,11 @@ namespace Rade\DI\Tests\Benchmarks;
 
 use DivineNii\Invoker\ArgumentResolver\NamedValueResolver;
 use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
+use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
+use Rade\DI\DefinitionBuilder;
+use Rade\DI\SealedContainer;
 use Rade\DI\Tests\Fixtures\Constructor;
 use Rade\DI\Tests\Fixtures\Service;
 use Symfony\Component\Filesystem\Filesystem;
@@ -39,17 +42,20 @@ class ContainerBench
 
     protected const CACHE_DIR = __DIR__ . '/../cache';
 
-    private Container $container;
+    private ContainerInterface $container;
 
     public function provideDefinitions(): iterable
     {
         yield 'Shared' => ['shared'];
+
         yield 'Factory' => ['factory'];
 
         yield 'Shared,Autowired' => ['shared_autowired'];
+
         yield 'Factory,Autowired' => ['factory_autowired'];
 
         yield 'Shared,Typed,Autowired' => [0, Service::class];
+
         yield 'Factory,Typed,Autowired' => [0, ArgumentValueResolverInterface::class];
     }
 
@@ -71,22 +77,42 @@ class ContainerBench
     {
         $builder = new ContainerBuilder();
 
+        if ($dump) {
+            $sealed = new ContainerBuilder(SealedContainer::class);
+        }
+
         for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
             $builder->set("shared$i", service(Service::class));
             $builder->set("factory$i", service(Service::class))->shared(false);
 
             $builder->autowire("shared_autowired$i", service(Constructor::class));
             $builder->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+
+            if (isset($sealed)) {
+                $sealed->set("shared$i", service(Service::class));
+                $sealed->set("factory$i", service(Service::class))->shared(false);
+
+                $sealed->autowire("shared_autowired$i", service(Constructor::class));
+                $sealed->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+            }
         }
 
         if ($dump) {
             \file_put_contents(self::CACHE_DIR . '/container.php', $builder->compile());
+            \file_put_contents(self::CACHE_DIR . '/sealed_container.php', $sealed->compile());
         }
     }
 
     public function createOptimized(): void
     {
         include_once self::CACHE_DIR . \DIRECTORY_SEPARATOR . 'container.php';
+
+        $this->container = new \CompiledContainer();
+    }
+
+    public function createSealed(): void
+    {
+        include_once self::CACHE_DIR . \DIRECTORY_SEPARATOR . 'sealed_container.php';
 
         $this->container = new \CompiledContainer();
     }
@@ -106,7 +132,7 @@ class ContainerBench
         $this->container = $container;
     }
 
-    public function benchConstructWithMultiple(): void
+    public function benchConstructWithMultiple(bool $set = false): void
     {
         $definitions = [];
 
@@ -114,12 +140,16 @@ class ContainerBench
             $definitions["shared$i"] = new Service();
             $definitions["factory$i"] = service(Service::class)->shared(false);
 
-            $definitions["shared_autowired$i"] = service(Constructor::class);
-            $definitions["factory_autowired$i"] = service(NamedValueResolver::class)->shared(false);
+            $definitions["shared_autowired$i"] = service(Constructor::class)->autowire();
+            $definitions["factory_autowired$i"] = service(NamedValueResolver::class)->autowire()->shared(false);
         }
 
         $container = new Container();
         $container->multiple($definitions);
+
+        if ($set) {
+            $this->container = $container;
+        }
     }
 
     public function benchContainerBuilder(): void
@@ -135,45 +165,90 @@ class ContainerBench
             $definitions["shared$i"] = service(Service::class);
             $definitions["factory$i"] = service(Service::class)->shared(false);
 
-            $definitions["shared_autowired$i"] = service(Constructor::class);
-            $definitions["factory_autowired$i"] = service(NamedValueResolver::class)->shared(false);
+            $definitions["shared_autowired$i"] = service(Constructor::class)->autowire();
+            $definitions["factory_autowired$i"] = service(NamedValueResolver::class)->autowire()->shared(false);
         }
 
         $builder = new ContainerBuilder();
         $builder->multiple($definitions);
     }
 
+    public function benchContainerWithDefinitionBuilder(bool $set = false): void
+    {
+        $definitions = new DefinitionBuilder(new Container());
+
+        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+            $definitions
+                ->set("shared$i", service(Service::class))
+                ->set("factory$i", service(Service::class))->shared(false)
+
+                ->autowire("shared_autowired$i", service(Constructor::class))
+                ->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+        }
+
+        if ($set) {
+            $this->container = $definitions->getContainer();
+        }
+    }
+
+    public function benchContainerBuilderWithDefinitionBuilder(): void
+    {
+        $definitions = new DefinitionBuilder(new ContainerBuilder());
+
+        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+            $definitions
+                ->set("shared$i", service(Service::class))
+                ->set("factory$i", service(Service::class))->shared(false)
+
+                ->autowire("shared_autowired$i", service(Constructor::class))
+                ->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+        }
+
+        $definitions->getContainer();
+    }
+
     /**
-     * @BeforeMethods({"createOptimized"}, extend=true)
+     * @BeforeMethods({"createOptimized"})
      * @ParamProviders({"provideDefinitions"})
      */
     public function benchOptimizedGet(array $params): void
     {
         if (isset($params[1])) {
             $this->container->get($params[1], Container::IGNORE_MULTIPLE_SERVICE);
-
-            return;
-        }
-
-        for ($i = 0; $i < self::SERVICE_COUNT / 2; ++$i) {
-            $this->container->get($params[0] . $i);
+        } else {
+            for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+                $this->container->get($params[0] . $i);
+            }
         }
     }
 
     /**
-     * @BeforeMethods({"benchConstruct"}, extend=true)
+     * @BeforeMethods({"createSealed"})
+     * @ParamProviders({"provideDefinitions"})
+     */
+    public function benchSealedGet(array $params): void
+    {
+        if (isset($params[1])) {
+            $this->container->get($params[1] . '[]');
+        } else {
+            for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+                $this->container->get($params[0] . $i);
+            }
+        }
+    }
+
+    /**
+     * @BeforeMethods({"benchConstruct"})
      * @ParamProviders({"provideDefinitions"})
      */
     public function benchUnoptimizedGet(array $params): void
     {
         if (isset($params[1])) {
             $this->container->get($params[1], Container::IGNORE_MULTIPLE_SERVICE);
-
-            return;
-        }
-
-        for ($i = 0; $i < self::SERVICE_COUNT / 2; ++$i) {
-            $this->container->get($params[0] . $i);
+        } else {
+            for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+                $this->container->get($params[0] . $i);
+            }
         }
     }
 
@@ -189,9 +264,36 @@ class ContainerBench
     /**
      * @ParamProviders({"provideDefinitions"})
      */
+    public function benchSealedLifecycle(array $params): void
+    {
+        $this->createSealed();
+        $this->container->get((isset($params[1]) ? $params[1] . '[]' : $params[0] . \rand(0, 199)));
+    }
+
+    /**
+     * @ParamProviders({"provideDefinitions"})
+     */
     public function benchUnoptimisedLifecycle(array $params): void
     {
         $this->benchConstruct();
+        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
+    }
+
+    /**
+     * @ParamProviders({"provideDefinitions"})
+     */
+    public function benchUnoptimisedMultipleLifecycle(array $params): void
+    {
+        $this->benchConstructWithMultiple(true);
+        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
+    }
+
+    /**
+     * @ParamProviders({"provideDefinitions"})
+     */
+    public function benchUnoptimisedBuilderLifecycle(array $params): void
+    {
+        $this->benchContainerWithDefinitionBuilder(true);
         $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
     }
 }
