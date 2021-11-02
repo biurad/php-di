@@ -57,6 +57,12 @@ COMMENT;
 
     protected function pStmt_Property(\PhpParser\Node\Stmt\Property $node): string
     {
+        if ('tags' === $node->props[0]->name->name) {
+            foreach ($node->props[0]->default->items as $item) {
+                $item->setAttribute('multiline', true);
+            }
+        }
+
         return parent::pStmt_Property($node) . "\n";
     }
 
