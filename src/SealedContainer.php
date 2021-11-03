@@ -58,7 +58,11 @@ class SealedContainer implements ContainerInterface
             $id = \substr($id, 1);
         }
 
-        return $this->services[$id = $this->aliases[$id] ?? $id] ?? [$this, $this->methodsMap[$id] ?? 'doGet']($id, $nullOnInvalid);
+        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
+            return $this->services[$id];
+        }
+
+        return AbstractContainer::SERVICE_CONTAINER === $id ? $this : ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $nullOnInvalid);
     }
 
     /**
@@ -85,10 +89,6 @@ class SealedContainer implements ContainerInterface
      */
     protected function doGet(string $id, bool $nullOnInvalid)
     {
-        if (AbstractContainer::SERVICE_CONTAINER === $id) {
-            return $this->services[AbstractContainer::SERVICE_CONTAINER] = $this; // The reserved service id is required in this container.
-        }
-
         if (\preg_match('/\[(.*)\]$/', $id, $matches, \PREG_UNMATCHED_AS_NULL)) {
             $autowired = $this->types[\str_replace($matches[0], '', $oldId = $id)] ?? [];
 

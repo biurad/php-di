@@ -61,8 +61,11 @@ class ContainerBuilder extends AbstractContainer
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        return $this->services[$id = $this->aliases[$id] ?? $id]
-            ?? self::SERVICE_CONTAINER === $id ? $this->services[$id] = new Expr\Variable('this') : $this->doGet($id, $invalidBehavior);
+        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
+            return $this->services[$id];
+        }
+
+        return self::SERVICE_CONTAINER === $id ? $this->services[$id] = new Expr\Variable('this') : $this->doGet($id, $invalidBehavior);
     }
 
     /**

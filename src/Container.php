@@ -122,7 +122,11 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        return $this->services[$id = $this->aliases[$id] ?? $id] ?? ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
+        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
+            return $this->services[$id];
+        }
+
+        return self::SERVICE_CONTAINER === $id ? $this : ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
     }
 
     /**
@@ -138,7 +142,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     protected function doGet(string $id, int $invalidBehavior)
     {
-        $createdService = self::SERVICE_CONTAINER === $id ? $this : parent::doGet($id, $invalidBehavior);
+        $createdService = parent::doGet($id, $invalidBehavior);
 
         if (null === $createdService) {
             try {
