@@ -281,21 +281,34 @@ class ContainerBuilder extends AbstractContainer
      *
      * @return array<int,mixed>
      */
-    protected function resolveParameters(array $parameters, bool &$dynamic = false): array
+    protected function resolveParameters(array $parameters, bool $recursive = false): array
     {
         $resolvedParameters = $dynamicParameters = [];
 
+        if (!$recursive) {
+            $parameters = $this->resolver->resolveArguments($parameters);
+        }
+
         foreach ($parameters as $parameter => $value) {
             if (\is_array($value)) {
-                $arrayParameters = $this->resolveParameters($value, $dynamic);
-                $resolvedParameters = \array_merge($resolvedParameters, $arrayParameters[0]);
-                $dynamicParameters = \array_merge($dynamicParameters, $arrayParameters[1]);
+                $arrayParameters = $this->resolveParameters($value, $recursive);
+
+                if (!empty($arrayParameters[1])) {
+                    $dynamicParameters[$parameter] = \array_merge(...$arrayParameters);
+                } else {
+                    $resolvedParameters[$parameter] = $arrayParameters[0];
+                }
 
                 continue;
             }
 
-            $value = \is_string($value) ? new String_($value) : $this->resolver->resolve($value);
-            $value instanceof Scalar ? $resolvedParameters[$parameter] = $value : $dynamicParameters[$parameter] = $value;
+            if ($value instanceof Scalar || $value instanceof Expr\ConstFetch) {
+                $resolvedParameters[$parameter] = $value;
+
+                continue;
+            }
+
+            $dynamicParameters[$parameter] = $value;
         }
 
         return [$resolvedParameters, $dynamicParameters];
