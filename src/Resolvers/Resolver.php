@@ -19,10 +19,11 @@ namespace Rade\DI\Resolvers;
 
 use Nette\Utils\{Callback, Type};
 use PhpParser\BuilderFactory;
-use PhpParser\Node\Expr;
+use PhpParser\Node\{Expr, Stmt, Scalar};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
 use Rade\DI\{AbstractContainer, Definition, Services\ServiceLocator};
+use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Injector\{Injectable, InjectableInterface};
 use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
@@ -174,9 +175,21 @@ class Resolver
         if ($callback instanceof Reference) {
             $callback = $this->resolveReference((string) $callback);
 
-            if (\is_callable($callback)) {
+            if (\is_callable($callback) || (\is_array($callback) && 2 === \count($callback, \COUNT_RECURSIVE))) {
                 return $this->resolveCallable($callback, $args);
             }
+
+            return $callback; // Expected to be resolved.
+        }
+
+        if ($callback instanceof ValueDefinition) {
+            return $callback->getEntity();
+        }
+
+        if ($callback instanceof PhpLiteral) {
+            $expression = $callback->resolve($this)[0];
+
+            return $expression instanceof Stmt\Expression ? $expression->expr : $expression;
         }
 
         if (\is_string($callback)) {
@@ -188,13 +201,14 @@ class Resolver
                 return $this->resolveClass($callback, $args);
             }
 
-            if (\str_contains($callback, '::') && \is_callable($callback)) {
-                $callback = \explode('::', $callback, 2);
+            if (\function_exists($callback)) {
+                return $this->resolveCallable($callback, $args);
+            }
 
-                goto maybe_callable;
+            if (\str_contains($callback, '::') && \is_callable($callback)) {
+                return $this->resolveCallable(\explode('::', $callback, 2), $args);
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
-            maybe_callable:
             return $this->resolveCallable($callback, $args);
         }
 
@@ -202,7 +216,7 @@ class Resolver
     }
 
     /**
-     * Undocumented function.
+     * Resolves callables and array like callables.
      *
      * @param callable|array<int,mixed> $callback
      * @param array<int|string,mixed>   $arguments
@@ -214,33 +228,22 @@ class Resolver
     public function resolveCallable($callback, array $arguments = [])
     {
         if (\is_array($callback)) {
-            if (\array_keys($callback) === [0, 1]) {
+            if (2 === \count($callback, \COUNT_RECURSIVE)) {
                 $callback[0] = $this->resolve($callback[0]);
 
                 if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
                     $type = [$this->container->definition($callback[0]->left->dim->value)->getEntity(), $callback[1]];
-
-                    goto create_callable;
-                }
-
-                if ($callback[0] instanceof Expr\New_) {
+                } elseif ($callback[0] instanceof Expr\New_) {
                     $type = [(string) $callback[0]->class, $callback[1]];
-
-                    goto create_callable;
                 }
 
-                if (\is_callable($callback)) {
+                if (isset($type) || \is_callable($callback)) {
                     goto create_callable;
                 }
-
-                goto unresolved;
             }
 
-            foreach ($callback as $offset => $value) {
-                $callback[$offset] = $this->resolve($value, $arguments);
-            }
+            $callback = $this->resolveArguments($callback);
 
-            unresolved:
             return null === $this->builder ? $callback : $this->builder->val($callback);
         }
 
