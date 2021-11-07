@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use Nette\Utils\{Callback, Reflection};
+use Nette\Utils\{Callback, Type};
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
@@ -69,7 +69,7 @@ class Resolver
         $types = $autowired = [];
 
         if (\is_callable($definition)) {
-            $types = Reflection::getReturnTypes(Callback::toReflection($definition));
+            $types = Type::fromReflection(Callback::toReflection($definition));
         } elseif (\is_string($definition)) {
             if (!\class_exists($definition)) {
                 return $allTypes ? ['string'] : $types;
@@ -85,16 +85,20 @@ class Resolver
         } elseif (\is_array($definition)) {
             if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
                 if ($definition[0] instanceof Reference) {
-                    $types = Reflection::getReturnTypes(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
+                    $types = Type::fromReflection(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
                 } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
-                    $types = Reflection::getReturnTypes(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
+                    $types = Type::fromReflection(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
                 }
             } else {
                 return $allTypes ? ['array'] : [];
             }
         }
 
-        foreach ($types as $type) {
+        if ($types instanceof Type) {
+            $types = $types->getNames();
+        }
+
+        foreach (($types ?? []) as $type) {
             $autowired[] = $type;
 
             foreach (\class_implements($type) ?: [] as $interface) {
