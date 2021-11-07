@@ -67,32 +67,30 @@ class AutowireValueResolver
         $method = $parameter->getDeclaringFunction();
 
         foreach ($types as $typeName) {
-            if ('null' === $typeName) {
-                continue;
-            }
-
-            try {
-                return $providedParameters[$typeName] ?? $getter($typeName, !$parameter->isVariadic());
-            } catch (NotFoundServiceException $e) {
-                // Ignore this exception ...
-            } catch (ContainerResolutionException $e) {
-                $errorException = new ContainerResolutionException(\sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter)));
-            }
-
-            if (
-                ServiceProviderInterface::class === $typeName &&
-                null !== $class = $parameter->getDeclaringClass()
-            ) {
-                if (!$class->implementsInterface(ServiceSubscriberInterface::class)) {
-                    throw new ContainerResolutionException(\sprintf(
-                        'Service of type %s needs parent class %s to implement %s.',
-                        $typeName,
-                        $class->getName(),
-                        ServiceSubscriberInterface::class
-                    ));
+            if (!Reflection::isBuiltinType($typeName)) {
+                try {
+                    return $providedParameters[$typeName] ?? $getter($typeName, !$parameter->isVariadic());
+                } catch (NotFoundServiceException $e) {
+                    // Ignore this exception ...
+                } catch (ContainerResolutionException $e) {
+                    $errorException = new ContainerResolutionException(\sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter)));
                 }
 
-                return $getter($class->getName());
+                if (
+                    ServiceProviderInterface::class === $typeName &&
+                    null !== $class = $parameter->getDeclaringClass()
+                ) {
+                    if (!$class->implementsInterface(ServiceSubscriberInterface::class)) {
+                        throw new ContainerResolutionException(\sprintf(
+                            'Service of type %s needs parent class %s to implement %s.',
+                            $typeName,
+                            $class->getName(),
+                            ServiceSubscriberInterface::class
+                        ));
+                    }
+
+                    return $getter($class->getName());
+                }
             }
 
             if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
