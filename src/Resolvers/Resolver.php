@@ -301,23 +301,27 @@ class Resolver
     public function resolveArguments(array $arguments = []): array
     {
         foreach ($arguments as $key => $value) {
-            if (\is_array($value)) {
-                $arguments[$key] = $this->resolveArguments($value);
+            if ($value instanceof \stdClass) {
+                $resolved = null === $this->builder ? $value : new Expr\Cast\Object_($this->builder->val($this->resolveArguments((array) $value)));
+            } elseif (\is_array($value)) {
+                $resolved = $this->resolveArguments($value);
+            } elseif (\is_int($value)) {
+                $resolved = null === $this->builder ? $value : new Scalar\LNumber($value);
+            } elseif (\is_float($value)) {
+                $resolved = null === $this->builder ? (int) $value : new Scalar\DNumber($value);
+            } elseif (\is_numeric($value)) {
+                $resolved = null === $this->builder ? (int) $value : Scalar\LNumber::fromString($value);
+            } elseif (\is_string($value)) {
+                if (\str_contains($value, '%')) {
+                    $value = $this->container->parameter($value);
+                }
 
-                continue;
+                $resolved = null === $this->builder ? $value : new Scalar\String_($value);
+            } else {
+                $resolved = $this->resolve($value);
             }
 
-            if (\is_numeric($value)) {
-                $arguments[$key] = (int) $value;
-
-                continue;
-            }
-
-            if ($value instanceof ValueDefinition) {
-                $value = $value->getEntity();
-            }
-
-            $arguments[$key] = $this->resolve($value);
+            $arguments[$key] = $resolved;
         }
 
         return $arguments;
