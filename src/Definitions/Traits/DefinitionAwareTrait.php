@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions\Traits;
 
-use Nette\Utils\Arrays;
 use Rade\DI\AbstractContainer;
 
 /**
@@ -69,10 +68,8 @@ trait DefinitionAwareTrait
      */
     public function tags(array $tags)
     {
-        $tags = Arrays::normalize($tags, true);
-
         foreach ($tags as $tag => $value) {
-            $this->tag($tag, $value);
+            $this->tag(\is_int($tag) ? $value : $tag, \is_int($tag) ? true : $value);
         }
 
         return $this;
