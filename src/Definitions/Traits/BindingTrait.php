@@ -21,9 +21,9 @@ use Nette\Utils\Callback;
 use PhpParser\Builder\Method;
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\Assign;
-use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
 use Rade\DI\Definitions\Statement;
+use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\Resolver;
 
 /**
@@ -151,13 +151,17 @@ trait BindingTrait
     protected function resolveBinding(Method $defNode, Assign $createdDef, Resolver $resolver, BuilderFactory $builder): void
     {
         foreach ($this->parameters as $parameter => $pValue) {
-            $defNode->addStmt(new Assign($builder->propertyFetch($createdDef->var, $parameter), $resolver->resolve($pValue)));
+            $pValue = $resolver->resolve($pValue);
+
+            if ($pValue instanceof \PhpParser\Node\Stmt) {
+                throw new ContainerResolutionException(\sprintf('Constructing property "%s" for service "%s" failed, expression not supported.', $parameter, $this->innerId));
+            }
+
+            $defNode->addStmt(new Assign($builder->propertyFetch($createdDef->var, $parameter), $pValue));
         }
 
         foreach ($this->calls as [$method, $mCall]) {
-            if (!\is_array($mCall)) {
-                $mCall = [$mCall];
-            }
+            $mCall = \is_array($mCall) ? $mCall : [$mCall];
 
             if (\is_string($this->entity) && \method_exists($this->entity, $method)) {
                 $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $method]), $mCall);
@@ -170,19 +174,8 @@ trait BindingTrait
 
         if ([] !== $this->extras) {
             foreach ($this->extras as $offset => $code) {
-                if ($code instanceof PhpLiteral) {
-                    $defNode->addStmts($code->resolve($resolver));
-
-                    continue;
-                }
-
                 $code = $resolver->resolve($code);
-
-                if (!\is_numeric($offset)) {
-                    $code = new Assign($builder->var($offset), $code);
-                }
-
-                $defNode->addStmt($code);
+                $defNode->addStmt($code instanceof \PhpParser\Node\Stmt || \is_numeric($offset) ? $code : new Assign($builder->var($offset), $code));
             }
         }
     }
