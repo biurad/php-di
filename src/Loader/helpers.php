@@ -35,10 +35,11 @@ function value($definition): ValueDefinition
  *
  * @param mixed $value
  * @param array<int|string,mixed> $arguments
+ * @param bool $closure Resolved value will be wrapped in a closure
  */
-function wrap($value, array $arguments = []): Statement
+function wrap($value, array $arguments = [], $closure = false): Statement
 {
-    return new Statement($value, $arguments);
+    return new Statement($value, $arguments, $closure);
 }
 
 /**

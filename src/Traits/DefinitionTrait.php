@@ -114,12 +114,16 @@ trait DefinitionTrait
         }
 
         if (null === $definition || $definition instanceof Definitions\Statement) {
-            ($definition = new Definition($definition ? $definition->getValue() : $id, $definition ? $definition->getArguments() : []))->bindWith($id, $this);
+            if (null !== $definition) {
+                if ($definition->isClosureWrappable()) {
+                    throw new ServiceCreationException(sprintf('Service definition for "%s", defined as inline closure is not supported.', $id));
+                }
 
-            return $this->definitions[$id] = $definition;
-        }
+                $definition = new Definition($definition->getValue(), $definition->getArguments());
+            }
 
-        if ($definition instanceof DefinitionInterface) {
+            ($definition ?? $definition = new Definition($id))->bindWith($id, $this);
+        } elseif ($definition instanceof DefinitionInterface) {
             if ($definition instanceof TypedDefinitionInterface) {
                 $definition->isTyped() && $this->type($id, $definition->getTypes());
             }

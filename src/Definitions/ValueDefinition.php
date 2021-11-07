@@ -52,7 +52,7 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
      *
      * @return $this
      */
-    public function replace($value): self
+    public function replace($value)
     {
         if ($value instanceof DefinitionInterface) {
             throw new ServiceCreationException(\sprintf('A definition entity must not be an instance of "%s".', DefinitionInterface::class));
@@ -81,7 +81,7 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
                 $this->triggerDeprecation($id);
             }
 
-            return $this->lazy ? $resolver->resolve($this->value) : $this->value;
+            return \is_array($value = $this->value) ? $resolver->resolveArguments($value) : $value;
         }
 
         $defNode = $builder->method($resolver->createMethod($id))->makeProtected()->setReturnType(\get_debug_type($this->value));
@@ -90,8 +90,8 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
             $defNode->addStmt($this->triggerDeprecation($id, $builder));
         }
 
-        if ($this->lazy) {
-            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolve', [$this->value]);
+        if ($this->lazy && is_array($this->value)) {
+            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolveArguments', [$this->value]);
         }
 
         if ($this->shared) {

@@ -30,16 +30,20 @@ class Statement
     /** @var array<int|string,mixed> */
     private array $args;
 
+    private bool $inlineWrap;
+
     /**
      * Statement constructor.
      *
      * @param mixed                   $value
      * @param array<int|string,mixed> $args
+     * @param bool $closure Resolved value will be wrapped in a closure
      */
-    public function __construct($value, array $args = [])
+    public function __construct($value, array $args = [], bool $closure = false)
     {
         $this->value = $value;
         $this->args = $args;
+        $this->inlineWrap = $closure;
     }
 
     /**
@@ -56,5 +60,10 @@ class Statement
     public function getArguments(): array
     {
         return $this->args;
+    }
+
+    public function isClosureWrappable(): bool
+    {
+        return $this->inlineWrap;
     }
 }

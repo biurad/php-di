@@ -158,7 +158,13 @@ class Resolver
     public function resolve($callback, array $args = [])
     {
         if ($callback instanceof Statement) {
-            return $this->resolve($callback->getValue(), $callback->getArguments());
+            $resolved = $this->resolve($callback->getValue(), $callback->getArguments());
+
+            if ($callback->isClosureWrappable()) {
+                $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
+            }
+
+            return $resolved;
         }
 
         if ($callback instanceof Reference) {
