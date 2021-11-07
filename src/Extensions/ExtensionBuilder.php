@@ -27,7 +27,7 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileResource, Fil
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-final class ExtensionBuilder
+class ExtensionBuilder
 {
     private AbstractContainer $container;
 
@@ -109,7 +109,7 @@ final class ExtensionBuilder
      *
      * @return array<int|string,mixed>
      */
-    private function process(ExtensionInterface $extension): array
+    protected function process(ExtensionInterface $extension): array
     {
         if ($extension instanceof AliasedInterface) {
             $this->aliases[$aliasedId = $extension->getAlias()] = \get_class($extension);
@@ -137,12 +137,10 @@ final class ExtensionBuilder
      */
     private function bootExtensions(array $extensions, array &$afterLoading): void
     {
-        $container = &$this->container;
+        $container = $this->container;
 
         foreach ($this->sortExtensions($extensions) as $extension) {
-            if (\is_array($extension)) {
-                [$extension, $args] = $extension;
-            }
+            [$extension, $args] = \is_array($extension) ? $extension : [$extension, []];
 
             if (\is_subclass_of($extension, DebugExtensionInterface::class) && $extension::inDevelopment() !== $container->parameters['debug']) {
                 continue;
@@ -156,9 +154,9 @@ final class ExtensionBuilder
                 }
 
                 $ref = $ref ?? new \ReflectionClass($extension);
-                $resolved = $ref->newInstanceArgs(\array_map(static fn ($value) => \is_string($value) && \str_contains($value, '%') ? $container->parameter($value) : $value, $args ?? []));
+                $resolved = $ref->newInstanceArgs(\array_map(static fn ($value) => \is_string($value) && \str_contains($value, '%') ? $container->parameter($value) : $value, $args));
             } else {
-                $resolved = $container->getResolver()->resolveClass($extension, $args ?? []);
+                $resolved = $container->getResolver()->resolveClass($extension, $args);
             }
 
             if ($resolved instanceof DependenciesInterface) {
