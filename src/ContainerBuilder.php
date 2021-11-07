@@ -208,6 +208,10 @@ class ContainerBuilder extends AbstractContainer
         \ksort($definitions);
 
         foreach ($definitions as $id => $definition) {
+            if ($this->tagged('container.remove_services', $id)) {
+                continue;
+            }
+
             $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
 
             if ($definition instanceof ShareableDefinitionInterface && !$definition->isPublic()) {
