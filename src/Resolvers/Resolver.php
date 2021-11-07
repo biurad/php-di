@@ -46,11 +46,11 @@ class Resolver
     }
 
     /**
-     * Allowing Strict rules, only resolves service types.
+     * If true, exception will be thrown on resolvable services with are not typed.
      */
-    public function disableStrictRule(): void
+    public function setStrictAutowiring(bool $boolean = true): void
     {
-        $this->strict = false;
+        $this->strict = $boolean;
     }
 
     /**
