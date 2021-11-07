@@ -55,7 +55,7 @@ trait AliasTrait
         }
 
         if (!$this->has($serviceId)) {
-            throw new ContainerResolutionException(\sprintf('Service id "%s" is not found in container.', $serviceId));
+            throw $this->createNotFound($serviceId);
         }
 
         $this->aliases[$id] = $this->aliases[$serviceId] ?? $serviceId;
