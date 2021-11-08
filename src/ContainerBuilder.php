@@ -201,9 +201,9 @@ class ContainerBuilder extends AbstractContainer
             $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver->createMethod($id));
             $serviceType = 'services';
 
-            if ($definition instanceof Definition) {
+            if ($definition instanceof ShareableDefinitionInterface) {
                 if (!$definition->isShared()) {
-                    return $this->services[$id] = $resolved;
+                    return $resolved;
                 }
 
                 if (!$definition->isPublic()) {
