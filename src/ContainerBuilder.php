@@ -39,6 +39,8 @@ class ContainerBuilder extends AbstractContainer
     /** Name of the compiled container parent class. */
     private string $containerParentClass;
 
+    private ?\PhpParser\NodeTraverser $nodeTraverser = null;
+
     /**
      * Compile the container for optimum performances.
      *
@@ -93,6 +95,22 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * Add a node visitor to traverse the generated ast.
+     *
+     * @return $this
+     */
+    public function addNodeVisitor(\PhpParser\NodeVisitor $nodeVisitor)
+    {
+        if (null === $this->nodeTraverser) {
+            $this->nodeTraverser = new \PhpParser\NodeTraverser();
+        }
+
+        $this->nodeTraverser->addVisitor($nodeVisitor);
+
+        return $this;
+    }
+
+    /**
      * Compiles the container.
      * This method main job is to manipulate and optimize the container.
      *
@@ -133,6 +151,10 @@ class ContainerBuilder extends AbstractContainer
         }
 
         $astNodes[] = $containerNode->addStmts($processedData[2])->getNode();
+
+        if (null !== $this->nodeTraverser) {
+            $astNodes = $this->nodeTraverser->traverse($astNodes);
+        }
 
         if ($options['printToString']) {
             return Builder\CodePrinter::print($astNodes, $options);
