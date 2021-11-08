@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
+use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
 use Rade\DI\Definitions\{ChildDefinition, Reference, Statement, ValueDefinition};
 
@@ -69,4 +70,14 @@ function referenced(string $id): Reference
 function parent(string $abstract): ChildDefinition
 {
     return new ChildDefinition($abstract);
+}
+
+/**
+ * Represent a php code which will be parsed into ast.
+ *
+ * @param array<int,mixed> $args
+ */
+function phpCode(string $phpCode, array $args = []): PhpLiteral
+{
+    return new PhpLiteral($phpCode, $args);
 }

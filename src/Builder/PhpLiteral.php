@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI\Builder;
 
-use PhpParser\{Node, NodeTraverser, NodeVisitorAbstract, ParserFactory};
-use PhpParser\Node\Scalar\String_;
+use PhpParser\{NodeTraverser, ParserFactory};
+use Rade\DI\NodeVisitor\PhpLiteralVisitor;
 use Rade\DI\Resolvers\Resolver;
 
 /**
@@ -59,32 +59,7 @@ class PhpLiteral
 
             if ([] !== $this->args) {
                 $traverser = new NodeTraverser();
-                $traverser->addVisitor(new class ($resolver, $this->args) extends NodeVisitorAbstract {
-                    private Resolver $resolver;
-
-                    private int $offset = -1;
-
-                    private array $args;
-
-                    public function __construct(Resolver $resolver, array $args)
-                    {
-                        $this->args = $args;
-                        $this->resolver = $resolver;
-                    }
-
-                    public function enterNode(Node $node)
-                    {
-                        if ($node instanceof String_ && '??' === $node->value) {
-                            $value = $this->args[++$this->offset];
-
-                            if (\is_array($value)) {
-                                return $this->resolver->getBuilder()->val($this->resolver->resolveArguments($value));
-                            }
-
-                            return $this->resolver->resolve($value);
-                        }
-                    }
-                });
+                $traverser->addVisitor(new PhpLiteralVisitor($resolver, $this->args));
 
                 $astCode = $traverser->traverse($astCode);
             }
