@@ -146,24 +146,24 @@ class ContainerBuilder extends AbstractContainer
      *
      * @return mixed
      */
-    public function dumpObject(string $id, $createdService, bool $nullOnInvalid)
+    public function dumpObject(string $id, $definition)
     {
-        if (null === $createdService) {
-            $anotherService = $this->resolver->resolve($id);
+        $method = $this->resolver->getBuilder()->method($this->resolver->createMethod($id))->makeProtected();
 
-            if (!$anotherService instanceof String_) {
-                return $anotherService;
-            }
-
-            if (!$nullOnInvalid) {
-                throw $this->createNotFound($id);
-            }
-
-            return null;
+        if ($definition instanceof \stdClass) {
+            $method->setReturnType('object');
+            $definition = new Expr\Cast\Object_($this->resolver->getBuilder()->val($this->resolver->resolveArguments((array) $definition)));
+        } elseif ($definition instanceof \IteratorAggregate) {
+            $method->setReturnType('iterable');
+            $definition = $this->resolver->getBuilder()->new(\get_class($definition), [$this->resolver->resolveArguments(\iterator_to_array($definition))]);
+        } elseif (\is_object($definition) && !$definition instanceof \Closure) {
+            $method->setReturnType(\get_class($definition));
+            $definition = $this->resolver->getBuilder()->funcCall('\\unserialize', [new String_(\serialize($definition), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
         }
 
-        // @Todo: Support for dumping objects in compiled container.
-        return $this->resolver->getBuilder()->val($createdService);
+        $cachedService = new Expr\ArrayDimFetch(new Expr\PropertyFetch(new Expr\Variable('this'), 'services'), new String_($id));
+
+        return $method->addStmt(new \PhpParser\Node\Stmt\Return_(new Expr\Assign($cachedService, $this->resolver->getBuilder()->val($definition))));
     }
 
     /**
@@ -171,10 +171,33 @@ class ContainerBuilder extends AbstractContainer
      */
     protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
+        if (!$definition) {
+            $anotherService = $this->resolver->resolve($id);
+
+            if (!$anotherService instanceof String_) {
+                return $anotherService;
+            }
+
+            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
+                throw $this->createNotFound($id);
+            }
+
+            return null;
+        }
+
+        if (!$definition instanceof DefinitionInterface) {
+            if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
+                goto preconfigured_service;
+            }
+
+            return $this->dumpObject($id, $definition, $invalidBehavior);
+        }
+
         /** @var DefinitionInterface $definition */
         $compiledDefinition = $definition->build($id, $this->resolver);
 
         if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
+            preconfigured_service:
             $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver->createMethod($id));
             $serviceType = 'services';
 
@@ -269,7 +292,7 @@ class ContainerBuilder extends AbstractContainer
 
             foreach ($dynamicParameters as $offset => $value) {
                 $parameter = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), 'parameter');
-                $constructorNode->addStmt(new Expr\Assign(new Expr\ArrayDimFetch($parameter, new String_($offset)), $value));
+                $constructorNode->addStmt(new Expr\Assign(new Expr\ArrayDimFetch($parameter, new String_($offset)), $this->resolver->getBuilder()->val($value)));
             }
 
             $containerNode->addStmt($constructorNode->makePublic());

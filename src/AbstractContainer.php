@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Rade\DI\Definitions\DefinitionInterface;
 use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException};
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -202,19 +201,13 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
         }
 
-        $definition = $this->definitions[$id] ?? (isset($this->types[$id]) ? $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior) : null);
-
-        if (!($definition instanceof DefinitionInterface || \is_callable($definition))) {
-            if ($this instanceof ContainerBuilder) {
-                $definition = $this->dumpObject($id, $definition, self::NULL_ON_INVALID_SERVICE === $invalidBehavior);
-            }
-
-            return null === $definition || self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $definition : $this->services[$id] = $definition;
-        }
-
         $this->loading[$id] = true; // Checking if circular reference exists ...
 
         try {
+            if (true === $definition = $this->definitions[$id] ?? \array_key_exists($id, $this->types)) {
+                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+            }
+
             return $this->doCreate($id, $definition, $invalidBehavior);
         } finally {
             unset($this->loading[$id]);

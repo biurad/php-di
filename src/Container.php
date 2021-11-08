@@ -140,32 +140,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * {@inheritdoc}
      */
-    protected function doGet(string $id, int $invalidBehavior)
-    {
-        $createdService = parent::doGet($id, $invalidBehavior);
-
-        if (null === $createdService) {
-            try {
-                $anotherService = $this->resolver->resolve($id);
-
-                if ($id !== $anotherService) {
-                    return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $anotherService : $this->services[$id] = $anotherService;
-                }
-            } catch (ContainerResolutionException $e) {
-                // Skip error throwing while resolving
-            }
-
-            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
-                throw $this->createNotFound($id);
-            }
-        }
-
-        return $createdService;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
         if ($definition instanceof DefinitionInterface) {
@@ -182,6 +156,20 @@ class Container extends AbstractContainer implements \ArrayAccess
             $definition = $definition->build($id, $this->resolver);
         } elseif (\is_callable($definition)) {
             $definition = $this->resolver->resolveCallable($definition);
+        } elseif (!$definition) {
+            try {
+                if ($id !== $anotherService = $this->resolver->resolve($id)) {
+                    return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $anotherService : $this->services[$id] = $anotherService;
+                }
+            } catch (ContainerResolutionException $e) {
+                // Skip error throwing while resolving
+            }
+
+            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
+                throw $this->createNotFound($id);
+            }
+
+            return null;
         }
 
         if (self::IGNORE_SERVICE_FREEZING === $invalidBehavior) {
