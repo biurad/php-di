@@ -114,9 +114,9 @@ final class DefinitionBuilder
      *
      * @return $this
      */
-    public function alias(string $id, string $serviceId)
+    public function alias(string $id, ?string $serviceId = null)
     {
-        $this->container->alias($id, $serviceId);
+        $this->container->alias($id, $serviceId ?? $this->definition);
 
         return $this;
     }

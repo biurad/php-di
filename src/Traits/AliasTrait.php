@@ -46,7 +46,7 @@ trait AliasTrait
             throw new \LogicException(\sprintf('[%s] is aliased to itself.', $id));
         }
 
-        if ($typed = $this->typed($serviceId, true)) {
+        if (isset($this->types) && $typed = $this->typed($serviceId, true)) {
             if (\count($typed) > 1) {
                 throw new ContainerResolutionException(\sprintf('Aliasing an alias of "%s" on a multiple defined type "%s" is not allowed.', $id, $serviceId));
             }
