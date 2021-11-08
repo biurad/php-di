@@ -222,7 +222,7 @@ trait DefinitionTrait
     /**
      * @param string $id The unique identifier for the service definition
      *
-     * @throws FrozenServiceException|ServiceCreationException
+     * @throws FrozenServiceException
      */
     private function validateDefinition(string $id): void
     {
@@ -235,7 +235,7 @@ trait DefinitionTrait
         }
 
         if (ContainerInterface::SERVICE_CONTAINER === $id) {
-            throw new ServiceCreationException(\sprintf('The "%s" service is reserved, and cannot be set or modified.'));
+            throw new FrozenServiceException(\sprintf('The "%s" service is reserved, and cannot be set or modified.', $id));
         }
     }
 }
