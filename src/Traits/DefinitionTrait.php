@@ -139,11 +139,11 @@ trait DefinitionTrait
                 $definition->bindWith($id, $this);
             }
         } elseif ($definition instanceof Definitions\ChildDefinition) {
-            if (!\array_key_exists($id, $this->definitions)) {
-                throw new ServiceCreationException(\sprintf('Constructing service "%s" from a parent definition encountered an error, parent definition seems non-existing.', $id));
+            if (!\array_key_exists((string) $definition, $this->definitions)) {
+                throw new ServiceCreationException(\sprintf('Constructing a child service definition "%s" from a non-existing parent definition "%s", encountered an error.', $id, (string) $definition));
             }
 
-            $definition = clone $definition;
+            $definition = clone $this->definitions[(string) $definition];
         }
 
         return $this->definitions[$id] = $definition;
