@@ -102,18 +102,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * {@inheritdoc}
      */
-    public function extend(string $id, callable $scope = null)
-    {
-        if (isset($this->methodsMap[$id])) {
-            throw new FrozenServiceException(\sprintf('The internal service definition for "%s", cannot be overwritten.', $id));
-        }
-
-        return parent::extend($id, $scope);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function keys(): array
     {
         return \array_merge(parent::keys(), \array_keys($this->methodsMap));

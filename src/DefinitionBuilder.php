@@ -176,9 +176,9 @@ final class DefinitionBuilder
      *
      * @return Definition|$this
      */
-    public function extend(string $id, callable $scope = null)
+    public function extend(string $id)
     {
-        $this->doCreate($this->container->extend($this->definition = $id, $scope));
+        $this->doCreate($this->container->definition($this->definition = $id));
 
         return $this;
     }

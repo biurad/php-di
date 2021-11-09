@@ -166,26 +166,6 @@ trait DefinitionTrait
     }
 
     /**
-     * {@inheritdoc}
-     *
-     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
-     */
-    public function extend(string $id, callable $scope = null)
-    {
-        $this->validateDefinition($id);
-
-        if (null === $definition = $this->definitions[$id] ?? null) {
-            throw $this->createNotFound($id);
-        }
-
-        if (null !== $scope) {
-            $definition = $scope($definition, $this);
-        }
-
-        return $this->definitions[$id] = $definition;
-    }
-
-    /**
      * Replaces old service with a new one, but keeps a reference
      * of the old one as: service_id.inner.
      *

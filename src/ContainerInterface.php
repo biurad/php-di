@@ -85,18 +85,6 @@ interface ContainerInterface extends PsrContainerInterface
     public function initialized(string $id): bool;
 
     /**
-     * Extends a service definition.
-     *
-     * @param string        $id    The unique identifier for the object
-     * @param callable|null $scope A service definition to extend the original
-     *
-     * @throws NotFoundServiceException If the identifier is not defined
-     *
-     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
-     */
-    public function extend(string $id, callable $scope = null);
-
-    /**
      * Sets multiple definitions at once into the container.
      *
      * @param array<int|string,mixed> $definitions indexed by their ids
@@ -104,7 +92,7 @@ interface ContainerInterface extends PsrContainerInterface
     public function multiple(array $definitions): void;
 
     /**
-     * Gets the service definition or aliased entry from the container.
+     * Gets/Extends a service definition from the container by its id.
      *
      * @param string $id service id relying on this definition
      *
