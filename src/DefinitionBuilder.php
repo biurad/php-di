@@ -184,6 +184,22 @@ final class DefinitionBuilder
     }
 
     /**
+     * Replaces old service with a new one, but keeps a reference of the old one as: service_id.inner.
+     *
+     * @param DefinitionInterface|object|null $definition
+     *
+     * @see Rade\DI\Traits\DefinitionTrait::decorate
+     *
+     * @return Definition|$this
+     */
+    public function decorate(string $id, object $definition = null)
+    {
+        $this->doCreate($this->container->decorate($this->definition = $id, $definition));
+
+        return $this;
+    }
+
+    /**
      * Defines a set of defaults for following service definitions.
      *
      * @param bool $merge If true, new defaults will be merged into existing
