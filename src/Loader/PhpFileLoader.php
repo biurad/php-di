@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Loader;
 
 use Psr\Container\ContainerInterface;
-use Rade\DI\{ContainerBuilder, DefinitionBuilder};
+use Rade\DI\{AbstractContainer, ContainerBuilder, DefinitionBuilder};
 use Symfony\Component\Config\Resource\{FileExistenceResource, FileResource};
 
 /**
@@ -53,19 +53,19 @@ class PhpFileLoader extends FileLoader
             $reflectionType = $parameter->getType();
 
             if (!$reflectionType instanceof \ReflectionNamedType) {
-                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "$%s" for "%s". You must typehint it (for example with "%s" or "%s").', $parameter->getName(), $path, ContainerConfigurator::class, ContainerBuilder::class));
+                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "$%s" for "%s". You must typehint it (for example with "%s" or "%s").', $parameter->getName(), $path, DefinitionBuilder::class, AbstractContainer::class));
             }
 
             $type = $reflectionType->getName();
 
             if (DefinitionBuilder::class === $type) {
                 $arguments[$offset] = $this->builder;
-            } elseif ($type instanceof ContainerInterface) {
+            } elseif (\is_subclass_of($type, ContainerInterface::class)) {
                 $arguments[$offset] = $container;
-            } elseif ($type instanceof FileLoader) {
+            } elseif (\is_subclass_of($type, FileLoader::class)) {
                 $arguments[$offset] = $this;
             } else {
-                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "%s" for "%s".', $type . ' $' . $parameter->getName(), $path), 0, $e);
+                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "%s" for "%s".', $type . ' $' . $parameter->getName(), $path));
             }
         }
 

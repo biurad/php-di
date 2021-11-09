@@ -19,7 +19,7 @@ namespace Rade\DI\Traits;
 
 use Nette\Utils\Validators;
 use Psr\Container\ContainerInterface;
-use Rade\DI\{AbstractContainer, Definition, Definitions, Services};
+use Rade\DI\{AbstractContainer, Definition, Definitions, Extensions, Services};
 use Rade\DI\Definitions\{DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Resolvers\Resolver;
@@ -46,15 +46,19 @@ trait TypesTrait
         \stdClass::class => true,
         \SplStack::class => true,
         \Stringable::class => true,
+        \Reflector::class => true,
         \Iterator::class => true,
         \Traversable::class => true,
+        \RecursiveIterator::class => true,
         \Serializable::class => true,
         \JsonSerializable::class => true,
         ResetInterface::class => true,
         ServiceSubscriberInterface::class => true,
+        Extensions\BootExtensionInterface::class => true,
+        Extensions\DebugExtensionInterface::class => true,
+        Extensions\ExtensionInterface::class => true,
         Services\DependenciesInterface::class => true,
         Services\AliasedInterface::class => true,
-        Services\PrependInterface::class => true,
         Services\ServiceProviderInterface::class => true,
         Services\ServiceLocator::class => true,
         Definitions\DefinitionInterface::class => true,
@@ -143,7 +147,7 @@ trait TypesTrait
     /**
      * Alias of container's set method with default autowiring.
      *
-     * @param DefinitionInterface|string|object|null $definition
+     * @param DefinitionInterface|object|null $definition
      *
      * @return Definition or DefinitionInterface, mixed value which maybe object
      */

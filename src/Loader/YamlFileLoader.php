@@ -58,7 +58,6 @@ class YamlFileLoader extends FileLoader
         'autowire' => 'autowire',
         'bind' => 'bind',
         'calls' => 'bind',
-        'instanceOf' => 'instanceOf',
     ];
 
     private const PROTOTYPE_KEYWORDS = [
@@ -287,7 +286,7 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException('"!statement" tag only accepts array keys of "value" and "args"');
                 }
 
-                return new Statement($argument['value'], $this->resolveServices($argument['args'] ?? [], $file, $isParameter));
+                return new Statement($argument['value'], $this->resolveServices($argument['args'] ?? [], $file, $isParameter), $argument['closure'] ?? false);
             }
 
             if ('php_literal' === $value->getTag()) {
@@ -300,7 +299,7 @@ class YamlFileLoader extends FileLoader
                 }
 
                 if (2 !== \count($argument, \COUNT_RECURSIVE)) {
-                    throw new \InvalidArgumentException(\sprintf('"!%s" tag only accepts a one count map array, key as the string, and value as array.', $value->getTag(), $file));
+                    throw new \InvalidArgumentException(\sprintf('"!%s" tag only accepts a one count map array in "%s", key as the string, and value as array.', $value->getTag(), $file));
                 }
 
                 return new PhpLiteral(\key($argument), $this->resolveServices(\current($argument), $file, $isParameter));
@@ -325,7 +324,7 @@ class YamlFileLoader extends FileLoader
             if ('?' === $value[0]) {
                 $value = \substr($value, 1);
 
-                if (!($this->container->has($value) || $this->container->typed($value))) {
+                if (!($this->builder->getContainer()->has($value) || $this->builder->getContainer()->typed($value))) {
                     return null;
                 }
             }
@@ -369,7 +368,7 @@ class YamlFileLoader extends FileLoader
             }
 
             if ($service instanceof Statement) {
-                $service = ['entity' => $service->getValue(), 'arguments' => $service->getArguments()];
+                $service = ['entity' => new Statement($service->getValue(), $this->resolveServices($service->getArguments(), $file), $service->isClosureWrappable())];
             }
 
             if (empty($service)) {
@@ -507,10 +506,6 @@ class YamlFileLoader extends FileLoader
 
             $definition->deprecate($package, '' === $version ? null : (float) $version, $message);
         }
-
-        if ([] !== $tags) {
-            $definition->tags($this->parseDefinitionTags($id, $tags, $file));
-        }
     }
 
     /**
@@ -562,7 +557,7 @@ class YamlFileLoader extends FileLoader
         $serviceTags = [];
 
         foreach ($tags as $k => $tag) {
-            if (\is_int($k) && \is_array($tag)) {
+            if (!(\is_string($tag) || \is_array($tag))) {
                 throw new \InvalidArgumentException(\sprintf('The "tags" entry %s is invalid, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
             }
 

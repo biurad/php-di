@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException};
+use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -185,6 +185,8 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
     /**
      * @param mixed $definition
+     *
+     * @throws NotFoundServiceException
      */
     abstract protected function doCreate(string $id, $definition, int $invalidBehavior);
 

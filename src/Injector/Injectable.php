@@ -36,7 +36,7 @@ class Injectable
 {
     private object $service;
 
-    /** @var array<string,array<string,mixed[]>> */
+    /** @var array<int,array<string,mixed>> */
     private array $properties;
 
     /**
@@ -61,9 +61,6 @@ class Injectable
         return $this->service;
     }
 
-    /**
-     * @param Definition|Method $definition
-     */
     public function build(Method $definition, Variable $service, BuilderFactory $builder): Assign
     {
         $definition->addStmt($createdService = new Assign($service, $this->service));

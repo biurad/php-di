@@ -33,7 +33,7 @@ trait DefinitionAwareTrait
 
     protected ?string $innerId = null;
 
-    /** @var array<int,string> */
+    /** @var array<int|string,mixed> */
     private array $tags;
 
     public function bindWith(string $id, AbstractContainer $container): void

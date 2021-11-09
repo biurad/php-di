@@ -135,8 +135,6 @@ class AutowireValueResolver
     /**
      * Get the parameter's default value else null.
      *
-     * @param string[] $invalid
-     *
      * @throws \ReflectionException|ContainerResolutionException
      *
      * @return mixed

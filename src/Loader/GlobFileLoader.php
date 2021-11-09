@@ -31,12 +31,14 @@ class GlobFileLoader extends FileLoader
      */
     public function load($resource, string $type = null): void
     {
+        $container = $this->builder->getContainer();
+
         foreach ($this->glob($resource, false, $globResource) as $path => $info) {
             $this->import($path);
         }
 
-        if ($this->container instanceof ContainerBuilder) {
-            $this->container->addResource($globResource);
+        if ($container instanceof ContainerBuilder) {
+            $container->addResource($globResource);
         }
     }
 

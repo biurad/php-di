@@ -35,10 +35,11 @@ class DirectoryLoader extends FileLoader
     {
         $file = \rtrim($file, '/');
         $path = $this->locator->locate($file);
+        $container = $this->builder->getContainer();
 
-        if ($this->container instanceof ContainerBuilder) {
-            $this->container->addResource(new FileExistenceResource($file));
-            $this->container->addResource(new GlobResource($path, '/*', false));
+        if ($container instanceof ContainerBuilder) {
+            $container->addResource(new FileExistenceResource($file));
+            $container->addResource(new GlobResource($path, '/*', false));
         }
 
         foreach (\scandir($path) as $dir) {

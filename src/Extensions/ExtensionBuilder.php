@@ -31,13 +31,13 @@ class ExtensionBuilder
 {
     private AbstractContainer $container;
 
-    /** @var array<string,mixed> */
+    /** @var \ArrayIterator<string,mixed> */
     private \ArrayIterator $configuration;
 
     /** @var array<string,string> */
     private array $aliases = [];
 
-    /** @var array<int,mixed> */
+    /** @var array<int,ExtensionInterface> */
     private array $extensions = [];
 
     /**

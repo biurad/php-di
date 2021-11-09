@@ -51,7 +51,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param DefinitionInterface|object|null $definition
      *
-     * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
+     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function set(string $id, object $definition = null): object;
 
@@ -106,7 +106,7 @@ interface ContainerInterface extends PsrContainerInterface
      * @param string $id        The alias id
      * @param string $serviceId The registered service id
      *
-     * @throws ContainerResolutionException Service id is not found in container
+     * @throws NotFoundServiceException Service id is not found in container
      */
     public function alias(string $id, string $serviceId): void;
 

@@ -83,8 +83,6 @@ class SealedContainer implements ContainerInterface
     /**
      * Return the resolved service of an entry.
      *
-     * @param bool|string $arrayLike
-     *
      * @return mixed
      */
     protected function doGet(string $id, bool $nullOnInvalid)

@@ -164,7 +164,7 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * @param mixed $createdService
+     * @param mixed $definition
      *
      * @return mixed
      */
@@ -212,7 +212,7 @@ class ContainerBuilder extends AbstractContainer
                 goto preconfigured_service;
             }
 
-            return $this->dumpObject($id, $definition, $invalidBehavior);
+            return $this->dumpObject($id, $definition);
         }
 
         /** @var DefinitionInterface $definition */

@@ -17,11 +17,18 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions;
 
+/**
+ * Represents a clone of a/an parent/existing service definition.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
 class ChildDefinition implements \Stringable
 {
     private string $parent;
 
     /**
+     * The parent service definition must be cloneable.
+     *
      * @param string $parent The id of Definition instance to decorate
      */
     public function __construct(string $parent)

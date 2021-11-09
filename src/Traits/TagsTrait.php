@@ -57,7 +57,7 @@ trait TagsTrait
      *     $container->tags(['my.tag' => ['foo' => ['hello' => 'world'], 'bar'], 'my.tag2' => 'baz']);
      * ```
      *
-     * @param array<string,string|array<int|string,mixed> $tags
+     * @param array<string,string|array<int|string,mixed>> $tags
      */
     public function tags(array $tags): void
     {

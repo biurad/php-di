@@ -114,7 +114,7 @@ final class DefinitionBuilder
      *
      * @return $this
      */
-    public function alias(string $id, ?string $serviceId = null)
+    public function alias(string $id, string $serviceId = null)
     {
         $this->container->alias($id, $serviceId ?? $this->definition);
 
@@ -438,6 +438,6 @@ final class DefinitionBuilder
 
     private function createInitializingError(string $name): \LogicException
     {
-        return new \LogicException(\sprintf('Did you forgot to register a service via "set", "autowire", or "namespaced" methods\' before calling %s::%().', __CLASS__, $name));
+        return new \LogicException(\sprintf('Did you forgot to register a service via "set", "autowire", or "namespaced" methods\' before calling %s::%s().', __CLASS__, $name));
     }
 }

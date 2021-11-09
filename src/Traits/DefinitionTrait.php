@@ -25,6 +25,8 @@ use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException, Servic
 /**
  * This trait adds definition's functionality to container.
  *
+ * @property \Rade\DI\Resolvers\Resolver $resolver
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 trait DefinitionTrait
@@ -103,7 +105,7 @@ trait DefinitionTrait
      *
      * @param DefinitionInterface|object|null $definition
      *
-     * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
+     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function set(string $id, object $definition = null): object
     {
@@ -173,7 +175,7 @@ trait DefinitionTrait
      *
      * @param DefinitionInterface|object|null $definition
      *
-     * @return Definition||Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
+     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
     public function decorate(string $id, object $definition = null)
     {
