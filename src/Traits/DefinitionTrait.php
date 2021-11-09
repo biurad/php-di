@@ -87,6 +87,14 @@ trait DefinitionTrait
     {
         unset($this->definitions[$id], $this->services[$id]);
 
+        foreach ($this->aliases as $alias => $aliased) {
+            if ($id !== $aliased) {
+                continue;
+            }
+
+            $this->removeAlias($alias);
+        }
+
         if (isset($this->types)) {
             foreach ($this->types as &$serviceIds) {
                 foreach ($serviceIds as $offset => $serviceId) {
