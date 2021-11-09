@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Traits;
 
 use Nette\Utils\Helpers;
+use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\{ContainerInterface, Definition, Definitions};
 use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException, ServiceCreationException};
@@ -126,7 +127,13 @@ trait DefinitionTrait
         if (null === $definition || $definition instanceof Definitions\Statement) {
             if (null !== $definition) {
                 if ($definition->isClosureWrappable()) {
-                    throw new ServiceCreationException(sprintf('Service definition for "%s", defined as inline closure is not supported.', $id));
+                    if ($this->resolver->getBuilder()) {
+                        $entity = new ArrowFunction(['expr' => $this->resolver->resolve($definition->getValue(), $definition->getArguments())]);
+                    } else {
+                        $entity = fn () => $this->resolver->resolve($definition->getValue(), $definition->getArguments());
+                    }
+
+                    return $this->definitions[$id] = $entity;
                 }
 
                 $definition = new Definition($definition->getValue(), $definition->getArguments());
