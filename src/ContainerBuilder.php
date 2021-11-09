@@ -85,7 +85,7 @@ class ContainerBuilder extends AbstractContainer
      *
      * @return $this
      */
-    public function addResource(ResourceInterface $resource): self
+    public function addResource(ResourceInterface $resource)
     {
         if (\is_array($this->resources)) {
             $this->resources[(string) $resource] = $resource;

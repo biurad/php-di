@@ -26,7 +26,7 @@ use Rade\DI\Exceptions\ContainerResolutionException;
  */
 trait AliasTrait
 {
-    /** @var array<int,string> alias => service name */
+    /** @var array<string,string> alias => service name */
     protected array $aliases = [];
 
     /**
