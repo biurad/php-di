@@ -63,7 +63,7 @@ COMMENT;
             }
         }
 
-        return parent::pStmt_Property($node) . \PHP_EOL;
+        return parent::pStmt_Property($node) . "\n";
     }
 
     protected function pStmt_ClassMethod(\PhpParser\Node\Stmt\ClassMethod $node): string
@@ -75,15 +75,15 @@ COMMENT;
         }
 
         $this->indent();
-        $classMethod = \str_replace(["{\n" . ($nl = \strrev($this->nl)), $nl], ["{\n", \PHP_EOL], $classMethod);
+        $classMethod = \str_replace(["{\n" . ($nl = \strrev($this->nl)), $nl], ["{\n", "\n"], $classMethod);
         $this->outdent();
 
-        return $classMethod . \PHP_EOL; // prefer spaces instead of tab
+        return $classMethod . "\n"; // prefer spaces instead of tab
     }
 
     protected function pStmt_Class(\PhpParser\Node\Stmt\Class_ $node): string
     {
-        return \str_replace(\PHP_EOL . \strrev($this->nl) . '}', "\n}", parent::pStmt_Class($node));
+        return \str_replace("\n" . \strrev($this->nl) . '}', "\n}", parent::pStmt_Class($node));
     }
 
     protected function pScalar_String(\PhpParser\Node\Scalar\String_ $node): string
