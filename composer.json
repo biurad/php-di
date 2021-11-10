@@ -54,6 +54,11 @@
         "symfony/yaml": "For loading service definition from yaml files with the help of symfony/config",
         "nikic/php-parser": "For using container builder class with service builders"
     },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        }
+    },
     "scripts": {
         "phpcs": "phpcs -q",
         "phpstan": "phpstan analyse",
