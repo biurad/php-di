@@ -111,7 +111,7 @@ class ExtensionBuilder
      *
      * @return array<int|string,mixed>
      */
-    protected function process(ExtensionInterface $extension): array
+    protected function process(ExtensionInterface $extension, string $extraKey = null): array
     {
         if ($extension instanceof AliasedInterface) {
             $this->aliases[$aliasedId = $extension->getAlias()] = \get_class($extension);
@@ -119,6 +119,10 @@ class ExtensionBuilder
         }
 
         $configuration = $config ?? $this->configuration[\get_class($extension)] ?? [];
+
+        if (null !== $extraKey) {
+            $configuration = $configuration[$extraKey] ?? []; // Overridden by extra key
+        }
 
         if ($extension instanceof ConfigurationInterface) {
             $treeBuilder = $extension->getConfigTreeBuilder()->buildTree();
@@ -137,7 +141,7 @@ class ExtensionBuilder
      *
      * @return void
      */
-    private function bootExtensions(array $extensions, array &$afterLoading): void
+    private function bootExtensions(array $extensions, array &$afterLoading, string $extraKey = null): void
     {
         $container = $this->container;
 
@@ -162,10 +166,10 @@ class ExtensionBuilder
             }
 
             if ($resolved instanceof DependenciesInterface) {
-                $this->bootExtensions($resolved->dependencies(), $afterLoading);
+                $this->bootExtensions($resolved->dependencies(), $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
             }
 
-            $resolved->register($container, $this->process($this->extensions[$extension] = $resolved));
+            $resolved->register($container, $this->process($this->extensions[$extension] = $resolved, $extraKey));
 
             if ($resolved instanceof BootExtensionInterface) {
                 $afterLoading[] = $resolved;
