@@ -86,8 +86,6 @@ class AutowiringResolver extends NodeVisitorAbstract
             }
         }
 
-        $this->sameArgs = $this->replacement = []; // Save up some memory ...
-
         return parent::afterTraverse($nodes);
     }
 
