@@ -37,7 +37,7 @@ class ExtensionBuilder
     /** @var array<string,string> */
     private array $aliases = [];
 
-    /** @var array<int,ExtensionInterface> */
+    /** @var array<string,ExtensionInterface> */
     private array $extensions = [];
 
     /**
@@ -59,6 +59,8 @@ class ExtensionBuilder
 
     /**
      * Get all loaded extensions.
+     *
+     * @return array<string,ExtensionInterface>
      */
     public function getExtensions(): array
     {
