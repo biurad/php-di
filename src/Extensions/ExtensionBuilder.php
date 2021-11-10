@@ -29,7 +29,7 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileResource, Fil
  */
 class ExtensionBuilder
 {
-    private AbstractContainer $container;
+    protected AbstractContainer $container;
 
     /** @var \ArrayIterator<string,mixed> */
     private \ArrayIterator $configuration;
