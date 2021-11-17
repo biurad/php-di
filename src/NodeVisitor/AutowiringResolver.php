@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\NodeVisitor;
 
 use PhpParser\Node\Expr;
-use PhpParser\Node\Stmt\{Class_, ClassMethod, Expression};
+use PhpParser\Node\Stmt\{Class_, ClassMethod, Expression, Return_};
 use PhpParser\NodeVisitorAbstract;
 
 /**
@@ -35,8 +35,6 @@ use PhpParser\NodeVisitorAbstract;
  *
  * // A variable is created for $hello object, then mapped to receiving nodes.
  * ```
- *
- * @experimental if any bug found, create an issue at https://github.com/divineniiquaye/rade-di/issues/new
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -57,7 +55,8 @@ class AutowiringResolver extends NodeVisitorAbstract
             $nodeId = $node->name->toString();
 
             if (!isset($this->sameArgs[$nodeId])) {
-                $this->resolveStmt($node->stmts, $nodeId);
+                $methodsStmts = &$node->stmts;
+                $this->resolveStmt($methodsStmts, $nodeId);
             }
         }
 
@@ -76,10 +75,11 @@ class AutowiringResolver extends NodeVisitorAbstract
                         $nodeId = $methodNode->name->toString();
 
                         if (isset($this->replacement[$nodeId])) {
-                            $this->resolveStmt($methodNode->stmts, $nodeId, true);
+                            $methodsStmts = &$methodNode->stmts;
+                            $this->resolveStmt($methodsStmts, $nodeId, true);
 
                             $replacements = \array_map(fn (Expr\Assign $node) => new Expression($node), $this->replacement[$nodeId]);
-                            $methodNode->stmts = \array_merge(\array_values($replacements), $methodNode->stmts);
+                            $methodNode->stmts = \array_merge(\array_values($replacements), $methodsStmts);
                         }
                     }
                 }
@@ -90,66 +90,56 @@ class AutowiringResolver extends NodeVisitorAbstract
     }
 
     /**
-     * @param array<int,Expression> $expressions
+     * @param array<int,Expression|Return_|Expr> $expressions
      */
     private function resolveStmt(array $expressions, string $parentId, bool $leaveNodes = false): void
     {
-        foreach ($expressions as $expression) {
-            $expr = $expression->expr;
+        foreach ($expressions as &$expression) {
+            if ($expression instanceof Expression || $expression instanceof Return_) {
+                $expression = $expression->expr;
+                $fromStmt = true; // $expression is from stmt
 
-            if ($expr instanceof Expr\Assign) {
-                $expr = $expr->expr;
+                if ($expression instanceof Expr\Assign) {
+                    $expression = &$expression->expr;
+                }
+            } elseif (\property_exists($expression, 'value') && $expression->value instanceof \PhpParser\Node) {
+                $expression = &$expression->value;
             }
 
-            if (isset($expr->args)) {
-                $this->resolveNode($expr->args, $parentId, $leaveNodes);
-
-                continue;
+            if (\property_exists($expression, 'expr')) {
+                $expression = &$expression->expr;
             }
 
-            $exprNodes = $expr->items ?? [&$expr];
-            $this->resolveNode($exprNodes, $parentId, $leaveNodes);
-        }
-    }
+            if ($expression instanceof Expr\MethodCall) {
+                $exprVar = &$expression->var;
 
-    /**
-     * @param array<int,\PhpParser\Node\Expr> $nodes
-     */
-    private function resolveNode(array &$nodes, string $parentId, bool $leaveNodes): void
-    {
-        foreach ($nodes as &$node) {
-            if (\property_exists($node, 'value') && \is_object($node->value)) {
-                $nodeValue = &$node->value;
-            } else {
-                $nodeValue = $node;
+                if (!$expression instanceof Expr\Variable) {
+                    $this->doReplacement($exprVar, $parentId, $leaveNodes);
+                }
             }
 
-            if ($nodeValue instanceof Expr\Variable || $nodeValue instanceof Expr\Closure) {
-                continue; // @Todo: work in progress ...
+            if ($expression instanceof Expr\CallLike) {
+                $this->resolveStmt($expression->args, $parentId, $leaveNodes);
+
+                if (isset($fromStmt)) {
+                    continue;
+                }
             }
 
-            if (isset($nodeValue->expr)) {
-                $nodeValue = &$nodeValue->expr;
+            if ($expression instanceof Expr\Array_) {
+                $this->resolveStmt($expression->items, $parentId, $leaveNodes);
             }
 
-            if (\property_exists($nodeValue, 'items')) {
-                $nodeValues = &$nodeValue->items;
-            } elseif (\property_exists($nodeValue, 'args')) {
-                $nodeValues = &$nodeValue->args;
-            } elseif (\property_exists($nodeValue, 'stmts')) {
-                $nodeValues = &$nodeValue->stmts;
-            }
-
-            if (!empty($nodeValues ?? [])) {
-                $this->resolveNode($nodeValues, $parentId, $leaveNodes);
-            }
-
-            $this->doReplacement($nodeValue, $parentId, $leaveNodes);
+            $this->doReplacement($expression, $parentId, $leaveNodes);
         }
     }
 
     private function doReplacement(\PhpParser\Node &$nodeValue, string $parentId, bool $leaveNodes): void
     {
+        if ($nodeValue instanceof Expr\Variable || $nodeValue instanceof Expr\Closure) {
+            return; // @Todo: work in progress ...
+        }
+
         $nodeId = \spl_object_id($nodeValue);
 
         if ($leaveNodes) {
