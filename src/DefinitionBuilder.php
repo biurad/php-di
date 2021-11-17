@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\{ObjectHelpers, Validators};
+use Nette\Utils\{FileSystem, ObjectHelpers, Validators};
 use Rade\DI\Definitions\DefinitionInterface;
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
 
@@ -334,8 +334,9 @@ final class DefinitionBuilder
 
                     foreach ($paths as $path) {
                         $namespacePostfix = '/' . \substr($namespace, \strlen($prefix));
+                        $path = FileSystem::normalizePath($path . $namespacePostfix);
 
-                        if (\file_exists($path = $path . $namespacePostfix)) {
+                        if (\file_exists($path)) {
                             $this->directory = \dirname($path) . '/';
 
                             return $path;
