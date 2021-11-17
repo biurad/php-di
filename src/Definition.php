@@ -38,9 +38,6 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
     use Defined\AutowireTrait;
     use Defined\DefinitionAwareTrait;
 
-    /** Use in second parameter of bind method. */
-    public const EXTRA_BIND = '@code@';
-
     /** @var mixed The service entity */
     private $entity;
 

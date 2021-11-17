@@ -86,7 +86,11 @@ final class DefinitionBuilder
             $this->defaults[$id][] = [$name, $arguments];
         } else {
             try {
-                (!isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0])->{$name}(...$arguments);
+                $definition = (!isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0]);
+
+                if (\method_exists($definition, $name)) {
+                    $definition->{$name}(...$arguments);
+                }
             } catch (\Error $e) {
                 throw $this->createErrorException($name, $e);
             }
@@ -298,6 +302,10 @@ final class DefinitionBuilder
             }
 
             foreach ($defaultMethods as [$defaultMethod, $defaultArguments]) {
+                if (!\method_exists($definition, $defaultMethod)) {
+                    continue;
+                }
+
                 try {
                     $definition->{$defaultMethod}(...$defaultArguments);
                 } catch (\Error $e) {
