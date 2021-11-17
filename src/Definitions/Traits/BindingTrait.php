@@ -21,7 +21,6 @@ use Nette\Utils\Callback;
 use PhpParser\Builder\Method;
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\Assign;
-use Rade\DI\Definition;
 use Rade\DI\Definitions\Statement;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolvers\Resolver;
@@ -44,27 +43,35 @@ trait BindingTrait
     private array $extras = [];
 
     /**
-     * Set/Replace a method binding or php code binding to service definition.
+     * Set/Replace a method/property binding to service definition.
      *
-     * Features this bind methods supports:
-     * - Method Binding - Takes in the method's name and its value.
-     * - Property Binding - Takes in a property name prefixed $ and its value.
-     * - PHP code Binding - Takes in Definition::EXTRA_BIND as key and a string|statement class with code as value.
-     *
-     * @param string $nameOrMethod A parameter name, a method name, or self::EXTRA_BIND
+     * @param string $nameOrMethod A property name prefixed with a $, or a method name
      * @param mixed  $valueOrRef   The value, reference or statement to bind
      *
      * @return $this
      */
-    public function bind(string $nameOrMethod, $valueOrRef)
+    public function bind(string $nameOrMethod, $valueOrRef = null)
     {
         if ('$' === $nameOrMethod[0]) {
             $this->parameters[\substr($nameOrMethod, 1)] = $valueOrRef;
-        } elseif (Definition::EXTRA_BIND === $nameOrMethod) {
-            $this->extras[] = $valueOrRef;
         } else {
             $this->calls[] = [$nameOrMethod, $valueOrRef];
         }
+
+        return $this;
+    }
+
+    /**
+     * Sets a configurator to call after the service is fully initialized.
+     *
+     * @param mixed $configurator A PHP function, reference or an array containing a class/Reference and a method to call
+     * @param bool $extend If false, the initialized service will not be passed, but it will be resolved inline service.
+     *
+     * @return $this
+     */
+    public function call($configurator, bool $extend = true)
+    {
+        $this->extras[] = [$extend, $configurator];
 
         return $this;
     }
@@ -173,9 +180,8 @@ trait BindingTrait
         }
 
         if ([] !== $this->extras) {
-            foreach ($this->extras as $offset => $code) {
-                $code = $resolver->resolve($code);
-                $defNode->addStmt($code instanceof \PhpParser\Node\Stmt || \is_numeric($offset) ? $code : new Assign($builder->var($offset), $code));
+            foreach ($this->extras as [$extend, $code]) {
+                $defNode->addStmt($resolver->resolve($code, $extend ? [$createdDef->var] : []));
             }
         }
     }

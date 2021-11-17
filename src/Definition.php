@@ -125,30 +125,35 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
         return $defNode->addStmt(new Return_($createdDef));
     }
 
+    /**
+     * @return mixed
+     */
     protected function resolve(string $id, Resolver $resolver)
     {
-        if (is_callable($resolved = $this->entity)) {
-            $resolved = $resolver->resolveCallable($resolved);
-        } elseif (!\is_object($resolved)) {
-            $resolved = $resolver->resolve($this->entity, $this->arguments);
-        }
-
         if ($this->isDeprecated()) {
             $this->triggerDeprecation($id);
         }
 
-        if (\is_object($resolved) && $this->hasBinding()) {
-            foreach ($this->parameters as $property => $propertyValue) {
-                $resolved->{$property} = $resolver->resolve($propertyValue);
-            }
-
-            foreach ($this->calls as [$method, $methodValue]) {
-                $resolver->resolve([$resolved, $method], (array) $methodValue);
-            }
+        if (\is_object($resolved = $this->entity)) {
+            $resolved = !\is_callable($resolved) ? $resolved : $resolver->resolveCallable($resolved);
+        } else {
+            $resolved = $resolver->resolve($this->entity, $this->arguments);
         }
 
-        foreach ($this->extras as $code) {
-            $resolver->resolve($code);
+        if ($this->hasBinding()) {
+            if (\is_object($resolved)) {
+                foreach ($this->parameters as $property => $propertyValue) {
+                    $resolved->{$property} = $resolver->resolve($propertyValue);
+                }
+
+                foreach ($this->calls as [$method, $methodValue]) {
+                    $resolver->resolve([$resolved, $method], (array) $methodValue);
+                }
+            }
+
+            foreach ($this->extras as [$extend, $code]) {
+                $resolver->resolve($code, $extend ? [$resolved] : []);
+            }
         }
 
         return $resolved;
