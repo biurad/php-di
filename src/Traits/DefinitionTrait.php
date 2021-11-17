@@ -174,10 +174,7 @@ trait DefinitionTrait
     public function multiple(array $definitions): void
     {
         foreach ($definitions as $id => $definition) {
-            if (\is_int($id)) {
-                [$id, $definition] = [$definition, null];
-            }
-
+            [$id, $definition] = \is_int($id) ? [$definition, null] : [$id, $definition];
             $this->set($id, $definition);
         }
     }
@@ -223,12 +220,8 @@ trait DefinitionTrait
      */
     private function validateDefinition(string $id): void
     {
-        if (\array_key_exists($id, $this->services)) {
+        if (\array_key_exists($id, $this->services) || \array_key_exists($id, $this->privates)) {
             throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
-        }
-
-        if (\array_key_exists($id, $this->privates)) {
-            throw new FrozenServiceException(\sprintf('The "%s" service is private, and cannot be replaced.', $id));
         }
 
         if (ContainerInterface::SERVICE_CONTAINER === $id) {
