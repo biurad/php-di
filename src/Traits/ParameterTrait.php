@@ -47,7 +47,7 @@ trait ParameterTrait
         $res = [];
         $parts = \preg_split('#(%[^%\s]+%)#i', $value, -1, \PREG_SPLIT_DELIM_CAPTURE);
 
-        if (false === $parts || (3 == \count($parts) && $value === $parts[0])) {
+        if (false === $parts || (1 === \count($parts) && $value === $parts[0])) {
             return $value;
         }
 
@@ -58,7 +58,7 @@ trait ParameterTrait
                 $val = \substr($part, 1, -1);
 
                 if (!\array_key_exists($val, $this->parameters)) {
-                    throw new \RuntimeException(\sprintf('You have requested a non-existent parameter "%s".', $val));
+                    throw new \InvalidArgumentException(\sprintf('You have requested a non-existent parameter "%s".', $val));
                 }
 
                 $part = $this->parameters[$val];
