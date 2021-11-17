@@ -88,11 +88,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function definition(string $id)
     {
-        if ('?' === $id[0]) {
-            $id = \substr($id, 1);
-        } elseif (\array_key_exists($id, $this->services)) {
-            throw new FrozenServiceException(\sprintf('The "%s" service is already initialized.', $id));
-        } elseif (\array_key_exists($id, $this->privates) || isset($this->methodsMap[$id])) {
+        if (\array_key_exists($id, $this->privates) || isset($this->methodsMap[$id])) {
             throw new FrozenServiceException(\sprintf('The "%s" internal service is meant to be private and out of reach.', $id));
         }
 
