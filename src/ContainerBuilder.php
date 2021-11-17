@@ -62,6 +62,15 @@ class ContainerBuilder extends AbstractContainer
     /**
      * {@inheritdoc}
      */
+    public function set(string $id, ?object $definition = null): object
+    {
+        if ($definition instanceof \PhpParser\Node) {
+            $definition = new Definitions\ValueDefinition($definition);
+        }
+
+        return parent::set($id, $definition);
+    }
+
     /**
      * {@inheritdoc}
      */
