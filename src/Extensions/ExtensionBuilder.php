@@ -19,6 +19,8 @@ namespace Rade\DI\Extensions;
 
 use Rade\DI\{AbstractContainer, ContainerBuilder};
 use Rade\DI\Services\{AliasedInterface, DependenciesInterface};
+use Symfony\Component\Config\Builder\ConfigBuilderGenerator;
+use Symfony\Component\Config\Builder\ConfigBuilderGeneratorInterface;
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileResource, FileExistenceResource, ResourceInterface};
 
@@ -34,6 +36,8 @@ class ExtensionBuilder
     /** @var \ArrayIterator<string,mixed> */
     private \ArrayIterator $configuration;
 
+    private ?ConfigBuilderGeneratorInterface $configBuilder = null;
+
     /** @var array<string,string> */
     private array $aliases = [];
 
@@ -47,6 +51,16 @@ class ExtensionBuilder
     {
         $this->container = $container;
         $this->configuration = new \ArrayIterator($config);
+    }
+
+    /**
+     * Enable Generating ConfigBuilders to help create valid config.
+     *
+     * @param string $outputDir
+     */
+    public function setConfigBuilderGenerator(string $outputDir): void
+    {
+        $this->configBuilder = new ConfigBuilderGenerator($outputDir);
     }
 
     /**
@@ -115,16 +129,25 @@ class ExtensionBuilder
     {
         if ($extension instanceof AliasedInterface) {
             $this->aliases[$aliasedId = $extension->getAlias()] = \get_class($extension);
-            $config = $this->configuration[$aliasedId] ?? null;
         }
-
-        $configuration = $config ?? $this->configuration[\get_class($extension)] ?? [];
 
         if (null !== $extraKey) {
             $configuration = $configuration[$extraKey] ?? []; // Overridden by extra key
+        } else {
+            $configuration = $this->configuration[\get_class($extension)] ?? (isset($aliasedId) ? $this->configuration[$aliasedId] ?? [] : []);
         }
 
         if ($extension instanceof ConfigurationInterface) {
+            if (null !== $this->configBuilder && \is_string($configuration)) {
+                $configLoader = $this->configBuilder->build($extension)();
+
+                if (\file_exists($configuration = $this->container->parameter($configuration))) {
+                    (include $configuration)($configLoader);
+                }
+
+                return $configLoader->toArray();
+            }
+
             $treeBuilder = $extension->getConfigTreeBuilder()->buildTree();
 
             return (new Processor())->process($treeBuilder, [$treeBuilder->getName() => $configuration]);
