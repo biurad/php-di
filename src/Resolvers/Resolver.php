@@ -201,12 +201,8 @@ class Resolver
                 return $this->resolveClass($callback, $args);
             }
 
-            if (\function_exists($callback)) {
+            if (\is_callable($callback)) {
                 return $this->resolveCallable($callback, $args);
-            }
-
-            if (\str_contains($callback, '::') && \is_callable($callback)) {
-                return $this->resolveCallable(\explode('::', $callback, 2), $args);
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
             return $this->resolveCallable($callback, $args);
@@ -255,7 +251,9 @@ class Resolver
         }
 
         if ($ref->isStatic()) {
-            return null === $this->builder ? $ref->invokeArgs(null, $args) : $this->builder->staticCall($callback[0], $ref->getName(), $args);
+            $className = \is_array($callback) ? $callback[0] : $ref->getDeclaringClass()->getName();
+
+            return null === $this->builder ? $ref->invokeArgs(null, $args) : $this->builder->staticCall($className, $ref->getName(), $args);
         }
 
         return null === $this->builder ? $callback(...$args) : $this->builder->methodCall($callback[0], $ref->getName(), $args);
