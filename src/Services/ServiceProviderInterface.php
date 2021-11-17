@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI\Services;
 
-use Rade\DI\AbstractContainer;
 use Rade\DI\Extensions\ExtensionInterface;
 
 /**
@@ -29,8 +28,4 @@ use Rade\DI\Extensions\ExtensionInterface;
  */
 interface ServiceProviderInterface extends ExtensionInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function register(AbstractContainer $container, array $configs = []): void;
 }
