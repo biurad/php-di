@@ -40,12 +40,6 @@ interface ContainerInterface extends PsrContainerInterface
     /** Instead of throwing an exception, null will return if service not found */
     public const NULL_ON_INVALID_SERVICE = 2;
 
-    /** This prevents registered definition from being replaced, but can be shared */
-    public const IGNORE_SERVICE_FREEZING = 3;
-
-    /** This prevents registered definition from being cached, but definition replaced to an instantiated service */
-    public const IGNORE_SERVICE_INITIALIZING = 4;
-
     /**
      * Set a service definition.
      *

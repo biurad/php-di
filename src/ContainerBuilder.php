@@ -18,8 +18,9 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
+use PhpParser\Node\Stmt\{Declare_, DeclareDeclare, Expression};
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
+use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
 
 /**
@@ -31,7 +32,7 @@ use Symfony\Component\Config\Resource\ResourceInterface;
  */
 class ContainerBuilder extends AbstractContainer
 {
-    private const BUILD_SERVICE_DEFINITION = 5;
+    private const BUILD_SERVICE_DEFINITION = 3;
 
     /** @var array<string,ResourceInterface>|null */
     private ?array $resources;
@@ -61,6 +62,9 @@ class ContainerBuilder extends AbstractContainer
     /**
      * {@inheritdoc}
      */
+    /**
+     * {@inheritdoc}
+     */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
         if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
@@ -68,6 +72,8 @@ class ContainerBuilder extends AbstractContainer
         }
 
         return self::SERVICE_CONTAINER === $id ? $this->services[$id] = new Expr\Variable('this') : $this->doGet($id, $invalidBehavior);
+
+        return parent::get($id, $invalidBehavior);
     }
 
     /**
@@ -172,15 +178,20 @@ class ContainerBuilder extends AbstractContainer
     {
         $method = $this->resolver->getBuilder()->method($this->resolver->createMethod($id))->makeProtected();
 
-        if ($definition instanceof \stdClass) {
-            $method->setReturnType('object');
-            $definition = new Expr\Cast\Object_($this->resolver->getBuilder()->val($this->resolver->resolveArguments((array) $definition)));
-        } elseif ($definition instanceof \IteratorAggregate) {
-            $method->setReturnType('iterable');
-            $definition = $this->resolver->getBuilder()->new(\get_class($definition), [$this->resolver->resolveArguments(\iterator_to_array($definition))]);
-        } elseif (\is_object($definition) && !$definition instanceof \Closure) {
-            $method->setReturnType(\get_class($definition));
-            $definition = $this->resolver->getBuilder()->funcCall('\\unserialize', [new String_(\serialize($definition), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
+        if ($definition instanceof Expression) {
+            $definition = $definition->expr;
+        }
+
+        if ($definition instanceof \PhpParser\Node) {
+            if ($definition instanceof Expr\Array_) {
+                $method->setReturnType('array');
+            } elseif ($definition instanceof Expr\New_) {
+                $method->setReturnType($definition->class->toString());
+            }
+        } elseif (\is_object($definition)) {
+            if ($definition instanceof \Closure) {
+                throw new ServiceCreationException(\sprintf('Cannot dump closure for service "%s".', $id));
+            } elseif ($definition instanceof \stdClass) {
         }
 
         $cachedService = new Expr\ArrayDimFetch(new Expr\PropertyFetch(new Expr\Variable('this'), 'services'), new String_($id));

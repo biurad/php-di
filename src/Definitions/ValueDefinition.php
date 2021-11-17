@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions;
 
+use PhpParser\Node\Expr;
 use PhpParser\Node\Stmt\Return_;
 use Rade\DI\Exceptions\ServiceCreationException;
 use Rade\DI\Resolvers\Resolver;
@@ -56,6 +57,8 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
     {
         if ($value instanceof DefinitionInterface) {
             throw new ServiceCreationException(\sprintf('A definition entity must not be an instance of "%s".', DefinitionInterface::class));
+        } elseif ($value instanceof \PhpParser\Node && !$value instanceof Expr) {
+            throw new ServiceCreationException(\sprintf('A definition entity must be an instance of "%s".', Expr::class));
         }
 
         $this->value = $value;
@@ -84,14 +87,25 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
             return \is_array($value = $this->value) ? $resolver->resolveArguments($value) : $value;
         }
 
-        $defNode = $builder->method($resolver->createMethod($id))->makeProtected()->setReturnType(\get_debug_type($this->value));
+        $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
+
+        if ($this->value instanceof \PhpParser\Node) {
+            if ($this->value instanceof Expr\Array_) {
+                $defNode->setReturnType('array');
+            } elseif ($this->value instanceof Expr\New_) {
+                $defNode->setReturnType($this->value->class->toString());
+            }
+        } else {
+            $defNode->setReturnType(\get_debug_type($this->value));
+        }
 
         if ($this->isDeprecated()) {
             $defNode->addStmt($this->triggerDeprecation($id, $builder));
         }
 
-        if ($this->lazy && is_array($this->value)) {
-            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolveArguments', [$this->value]);
+        if ($this->lazy) {
+            $lazyMethod = \is_array($this->value) ? 'resolveArguments' : 'resolve';
+            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), $lazyMethod, [$this->value]);
         }
 
         if ($this->shared) {
