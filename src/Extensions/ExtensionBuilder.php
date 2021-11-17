@@ -114,7 +114,7 @@ class ExtensionBuilder
 
             $this->bootExtensions($extensions, $afterLoading);
 
-            foreach ($afterLoading as $bootable) {
+            foreach (\array_reverse($afterLoading) as $bootable) {
                 $bootable->boot($this->container);
             }
         });
