@@ -64,7 +64,28 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * {@inheritdoc}
      */
-    abstract public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1);
+    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
+    {
+        if (\array_key_exists($id, $this->loading)) {
+            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+        }
+
+        $this->loading[$id] = true; // Checking if circular reference exists ...
+
+        try {
+            if (isset($this->methodsMap, $this->methodsMap[$id])) {
+                return $this->{$this->methodsMap[$id]}();
+            }
+
+            if (true === $definition = $this->definitions[$id] ?? \array_key_exists($id, $this->types)) {
+                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+            }
+
+            return $this->doCreate($id, $definition, $invalidBehavior);
+        } finally {
+            unset($this->loading[$id]);
+        }
+    }
 
     /**
      * {@inheritdoc}
@@ -146,23 +167,15 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /**
      * Return a list of definitions belonging to a type or tag.
      *
-     * @return array<int,Definitions\DefinitionInterface|object>
+     * @return array<int,string> The list of service definitions ids
      */
-    public function findBy(string $typeOrTag): array
+    public function findBy(string $typeOrTag, callable $resolve = null): array
     {
-        $definitions = [];
-
-        if (isset($this->tags[$typeOrTag])) {
-            foreach (\array_keys($this->tags[$typeOrTag]) as $serviceId) {
-                $definitions[] = $this->definition($serviceId);
-            }
-        } elseif (isset($this->types[$typeOrTag])) {
-            foreach ($this->types[$typeOrTag] as $serviceId) {
-                $definitions[] = $this->definition($serviceId);
-            }
+        if (\array_key_exists($typeOrTag, $this->tags)) {
+            return null === $resolve ? \array_keys($this->tags[$typeOrTag]) : \array_map($resolve, \array_keys($this->tags[$typeOrTag]));
         }
 
-        return $definitions;
+        return null === $resolve ? $this->types[$typeOrTag] ?? [] : \array_map($resolve, $this->types[$typeOrTag] ?? []);
     }
 
     /**
@@ -189,30 +202,4 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      * @throws NotFoundServiceException
      */
     abstract protected function doCreate(string $id, $definition, int $invalidBehavior);
-
-    /**
-     * Build an entry of the container by its identifier.
-     *
-     * @throws CircularReferenceException|NotFoundServiceException
-     *
-     * @return mixed
-     */
-    protected function doGet(string $id, int $invalidBehavior)
-    {
-        if (\array_key_exists($id, $this->loading)) {
-            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
-        }
-
-        $this->loading[$id] = true; // Checking if circular reference exists ...
-
-        try {
-            if (true === $definition = $this->definitions[$id] ?? \array_key_exists($id, $this->types)) {
-                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-            }
-
-            return $this->doCreate($id, $definition, $invalidBehavior);
-        } finally {
-            unset($this->loading[$id]);
-        }
-    }
 }

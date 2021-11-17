@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\ContainerInterface;
-use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
+use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
 
 /**
  * A fully strict PSR-11 Container Implementation.
@@ -28,18 +28,16 @@ use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
  *
  * Again, all services declared, should be autowired. Lazy services are not supported.
  *
- * @property-read array<string,string> $aliases
- * @property-read array<string,mixed> $services
- * @property-read array<string,mixed> $privates
- * @property-read array<string,string> $methodsMap
- * @property-read array<string,array<int,string>> $types
- * @property-read array<string,array<int,string>> $tags
- *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 class SealedContainer implements ContainerInterface
 {
-    protected array $services = [], $privates = [], $methodsMap = [], $aliases = [], $types = [], $tags = [];
+    protected array $loading = [], $services = [], $privates = [], $methodsMap = [], $aliases = [], $types = [], $tags = [];
+
+    public function __construct()
+    {
+        $this->services[AbstractContainer::SERVICE_CONTAINER] = $this;
+    }
 
     /**
      * {@inheritdoc}
@@ -58,11 +56,29 @@ class SealedContainer implements ContainerInterface
             $id = \substr($id, 1);
         }
 
-        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
+        if (isset($this->services[$id])) {
             return $this->services[$id];
         }
 
-        return AbstractContainer::SERVICE_CONTAINER === $id ? $this : ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $nullOnInvalid);
+        if (\array_key_exists($id, $this->methodsMap)) {
+            if (isset($this->loading[$id])) {
+                throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+            }
+
+            $this->loading[$id] = true;
+
+            try {
+                return $this->{$this->methodsMap[$id]}();
+            } finally {
+                unset($this->loading[$id]);
+            }
+        }
+
+        if (\array_key_exists($id, $this->aliases)) {
+            return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
+        }
+
+        return $this->doGet($id, $nullOnInvalid);
     }
 
     /**
@@ -104,7 +120,7 @@ class SealedContainer implements ContainerInterface
         } elseif (!empty($autowired = $this->types[$id] ?? [])) {
             if (\count($autowired) > 1) {
                 \natsort($autowired);
-                $autowired = count($autowired) <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
+                $autowired = \count($autowired) <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
 
                 throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, $autowired));
             }

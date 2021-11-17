@@ -108,11 +108,15 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
+        if (isset($this->services[$id])) {
             return $this->services[$id];
         }
 
-        return self::SERVICE_CONTAINER === $id ? $this : ([$this, $this->methodsMap[$id] ?? 'doGet'])($id, $invalidBehavior);
+        if (\array_key_exists($id, $this->aliases)) {
+            return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
+        }
+
+        return self::SERVICE_CONTAINER === $id ? $this : parent::get($id, $invalidBehavior);
     }
 
     /**
@@ -145,7 +149,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         } elseif (!$definition) {
             try {
                 if ($id !== $anotherService = $this->resolver->resolve($id)) {
-                    return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $anotherService : $this->services[$id] = $anotherService;
+                    return $this->services[$id] = $anotherService;
                 }
             } catch (ContainerResolutionException $e) {
                 // Skip error throwing while resolving
@@ -156,14 +160,6 @@ class Container extends AbstractContainer implements \ArrayAccess
             }
 
             return null;
-        }
-
-        if (self::IGNORE_SERVICE_FREEZING === $invalidBehavior) {
-            return $this->services[$id] = $definition;
-        }
-
-        if (self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior) {
-            return $this->definitions[$id] = $definition;
         }
 
         return $this->definitions[$id] = $this->services[$id] = $definition;

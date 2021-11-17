@@ -76,11 +76,17 @@ class ContainerBuilder extends AbstractContainer
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if (\array_key_exists($id = $this->aliases[$id] ?? $id, $this->services)) {
+        if (isset($this->services[$id])) {
             return $this->services[$id];
         }
 
-        return self::SERVICE_CONTAINER === $id ? $this->services[$id] = new Expr\Variable('this') : $this->doGet($id, $invalidBehavior);
+        if (self::SERVICE_CONTAINER === $id) {
+            return $this->services[$id] = new Expr\Variable('this');
+        }
+
+        if (\array_key_exists($id, $this->aliases)) {
+            return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
+        }
 
         return parent::get($id, $invalidBehavior);
     }
@@ -201,6 +207,15 @@ class ContainerBuilder extends AbstractContainer
             if ($definition instanceof \Closure) {
                 throw new ServiceCreationException(\sprintf('Cannot dump closure for service "%s".', $id));
             } elseif ($definition instanceof \stdClass) {
+                $method->setReturnType('object');
+                $definition = new Expr\Cast\Object_($this->resolver->getBuilder()->val($this->resolver->resolveArguments((array) $definition)));
+            } elseif ($definition instanceof \IteratorAggregate) {
+                $method->setReturnType('iterable');
+                $definition = $this->resolver->getBuilder()->new(\get_class($definition), [$this->resolver->resolveArguments(\iterator_to_array($definition))]);
+            } else {
+                $method->setReturnType(\get_class($definition));
+                $definition = $this->resolver->getBuilder()->funcCall('\\unserialize', [new String_(\serialize($definition), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
+            }
         }
 
         $cachedService = new Expr\ArrayDimFetch(new Expr\PropertyFetch(new Expr\Variable('this'), 'services'), new String_($id));
@@ -227,19 +242,9 @@ class ContainerBuilder extends AbstractContainer
             return null;
         }
 
-        if (!$definition instanceof DefinitionInterface) {
-            if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
-                goto preconfigured_service;
-            }
-
-            return $this->dumpObject($id, $definition);
-        }
-
-        /** @var DefinitionInterface $definition */
-        $compiledDefinition = $definition->build($id, $this->resolver);
+        $compiledDefinition = $definition instanceof DefinitionInterface ? $definition->build($id, $this->resolver) : $this->dumpObject($id, $definition);
 
         if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
-            preconfigured_service:
             $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver->createMethod($id));
             $serviceType = 'services';
 
@@ -256,7 +261,7 @@ class ContainerBuilder extends AbstractContainer
             $service = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), $serviceType);
             $createdService = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($service, new String_($id)), $resolved);
 
-            return self::IGNORE_SERVICE_INITIALIZING === $invalidBehavior ? $createdService : $this->services[$id] = $createdService;
+            return $this->services[$id] = $createdService;
         }
 
         return $compiledDefinition;
