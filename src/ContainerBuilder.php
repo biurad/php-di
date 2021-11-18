@@ -82,12 +82,12 @@ class ContainerBuilder extends AbstractContainer
             return $this->services[$id];
         }
 
-        if (self::SERVICE_CONTAINER === $id) {
-            return $this->services[$id] = new Expr\Variable('this');
-        }
-
         if (\array_key_exists($id, $this->aliases)) {
             return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
+        }
+
+        if (self::SERVICE_CONTAINER === $id) {
+            return $this->services[$id] = new Expr\Variable('this');
         }
 
         return parent::get($id, $invalidBehavior);
