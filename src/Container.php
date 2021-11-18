@@ -30,6 +30,18 @@ class Container extends AbstractContainer implements \ArrayAccess
     /** @var array<string,string> internal cached services */
     protected array $methodsMap = [];
 
+    public function __construct()
+    {
+        if (empty($this->types)) {
+            $this->type(self::SERVICE_CONTAINER, [
+                ...\array_keys(\class_parents(__CLASS__, false) ?: []),
+                ...\array_keys(\class_implements(__CLASS__, false) ?: []),
+            ]);
+        }
+
+        parent::__construct();
+    }
+
     /**
      * Sets a new service to a unique identifier.
      *

@@ -18,8 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Traits;
 
 use Nette\Utils\Validators;
-use Psr\Container\ContainerInterface;
-use Rade\DI\{AbstractContainer, Definition, Definitions, Extensions, Services};
+use Rade\DI\{Definition, Definitions, Extensions, Services};
 use Rade\DI\Definitions\{DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Resolvers\Resolver;
@@ -35,7 +34,7 @@ trait TypesTrait
     protected Resolver $resolver;
 
     /** @var array<string,string[]> type => services */
-    protected array $types = [ContainerInterface::class => [AbstractContainer::SERVICE_CONTAINER]];
+    protected array $types = [];
 
     /** @var array<string,bool> of classes excluded from autowiring */
     protected array $excluded = [
