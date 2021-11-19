@@ -21,7 +21,7 @@ use Rade\DI\{AbstractContainer, ContainerBuilder};
 use Rade\DI\Services\{AliasedInterface, DependenciesInterface};
 use Symfony\Component\Config\Builder\{ConfigBuilderGenerator, ConfigBuilderGeneratorInterface};
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
-use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
+use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
 
 /**
  * Provides ability to load container extensions.
