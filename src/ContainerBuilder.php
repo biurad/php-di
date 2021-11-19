@@ -252,7 +252,7 @@ class ContainerBuilder extends AbstractContainer
 
             if ($definition instanceof ShareableDefinitionInterface) {
                 if (!$definition->isShared()) {
-                    return $resolved;
+                    return $this->services[$id] = $resolved;
                 }
 
                 if (!$definition->isPublic()) {
