@@ -33,10 +33,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function __construct()
     {
         if (empty($this->types)) {
-            $this->type(self::SERVICE_CONTAINER, [
-                ...\array_keys(\class_parents(__CLASS__, false) ?: []),
-                ...\array_keys(\class_implements(__CLASS__, false) ?: []),
-            ]);
+            $this->type(self::SERVICE_CONTAINER, Resolvers\Resolver::autowireService(static::class));
         }
 
         parent::__construct();
