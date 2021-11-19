@@ -19,10 +19,9 @@ namespace Rade\DI\Extensions;
 
 use Rade\DI\{AbstractContainer, ContainerBuilder};
 use Rade\DI\Services\{AliasedInterface, DependenciesInterface};
-use Symfony\Component\Config\Builder\ConfigBuilderGenerator;
-use Symfony\Component\Config\Builder\ConfigBuilderGeneratorInterface;
+use Symfony\Component\Config\Builder\{ConfigBuilderGenerator, ConfigBuilderGeneratorInterface};
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
-use Symfony\Component\Config\Resource\{ClassExistenceResource, FileResource, FileExistenceResource, ResourceInterface};
+use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
 
 /**
  * Provides ability to load container extensions.
@@ -41,7 +40,7 @@ class ExtensionBuilder
     /** @var array<string,string> */
     private array $aliases = [];
 
-    /** @var array<string,ExtensionInterface> */
+    /** @var array<string,ExtensionInterface|null> */
     private array $extensions = [];
 
     /**
@@ -50,7 +49,7 @@ class ExtensionBuilder
     public function __construct(AbstractContainer $container, array $config = [])
     {
         $this->container = $container;
-        $this->configuration = new \ArrayIterator($config);
+        $this->configuration = new \ArrayIterator(\array_filter($config));
     }
 
     /**
@@ -69,6 +68,14 @@ class ExtensionBuilder
     public function get(string $extensionName): ?ExtensionInterface
     {
         return $this->extensions[$this->aliases[$extensionName] ?? $extensionName] ?? null;
+    }
+
+    /**
+     * Checks if extension exists.
+     */
+    public function has(string $extensionName): bool
+    {
+        return \array_key_exists($this->aliases[$extensionName] ?? $extensionName, $this->extensions);
     }
 
     /**
@@ -128,13 +135,19 @@ class ExtensionBuilder
     protected function process(ExtensionInterface $extension, string $extraKey = null): array
     {
         if ($extension instanceof AliasedInterface) {
-            $this->aliases[$aliasedId = $extension->getAlias()] = \get_class($extension);
+            $aliasedId = $extension->getAlias();
+
+            if (isset($this->aliases[$aliasedId])) {
+                throw new \RuntimeException(\sprintf('The aliased id "%s" for %s extension class must be unqiue.', $aliasedId, \get_class($extension)));
+            }
+
+            $this->aliases[$aliasedId] = \get_class($extension);
         }
 
         if (null !== $extraKey) {
             $configuration = $configuration[$extraKey] ?? []; // Overridden by extra key
         } else {
-            $configuration = $this->configuration[\get_class($extension)] ?? (isset($aliasedId) ? $this->configuration[$aliasedId] ?? [] : []);
+            $configuration = $this->configuration[\get_class($extension)] ?? $this->configuration[$aliasedId ?? ''] ?? [];
         }
 
         if ($extension instanceof ConfigurationInterface) {
@@ -183,16 +196,19 @@ class ExtensionBuilder
                 }
 
                 $ref = $ref ?? new \ReflectionClass($extension);
-                $resolved = $ref->newInstanceArgs(\array_map(static fn ($value) => \is_string($value) && \str_contains($value, '%') ? $container->parameter($value) : $value, $args));
+                $resolved = $ref->newInstanceArgs(\array_map(static fn ($value) => \is_string($value) ? $container->parameter($value) : $value, $args));
             } else {
                 $resolved = $container->getResolver()->resolveClass($extension, $args);
             }
+
+            /** @var ExtensionInterface $resolved */
+            $this->extensions[$extension] = $resolved; // Add to stack before registering it ...
 
             if ($resolved instanceof DependenciesInterface) {
                 $this->bootExtensions($resolved->dependencies(), $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
             }
 
-            $resolved->register($container, $this->process($this->extensions[$extension] = $resolved, $extraKey));
+            $resolved->register($container, $this->process($resolved, $extraKey));
 
             if ($resolved instanceof BootExtensionInterface) {
                 $afterLoading[] = $resolved;
@@ -225,6 +241,7 @@ class ExtensionBuilder
             }
 
             $passes[$index][] = $extension;
+            $this->extensions[\is_array($extension) ? $extension[0] : $extension] = null;
         }
 
         \krsort($passes);
