@@ -163,10 +163,12 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     public function findBy(string $typeOrTag, callable $resolve = null): array
     {
         if (\array_key_exists($typeOrTag, $this->tags)) {
-            return null === $resolve ? \array_keys($this->tags[$typeOrTag]) : \array_map($resolve, \array_keys($this->tags[$typeOrTag]));
+            $tags = \array_keys($this->tags[$typeOrTag]);
         }
 
-        return null === $resolve ? $this->types[$typeOrTag] ?? [] : \array_map($resolve, $this->types[$typeOrTag] ?? []);
+        $definitions = $tags ?? $this->types[$typeOrTag] ?? [];
+
+        return null === $resolve ? $definitions : \array_map($resolve, $definitions);
     }
 
     /**
