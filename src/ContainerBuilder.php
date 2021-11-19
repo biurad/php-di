@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{Declare_, DeclareDeclare, Expression};
+use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression};
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
@@ -266,7 +266,7 @@ class ContainerBuilder extends AbstractContainer
             return $this->services[$id] = $createdService;
         }
 
-        return $compiledDefinition;
+        return $compiledDefinition->getNode();
     }
 
     /**
@@ -277,7 +277,6 @@ class ContainerBuilder extends AbstractContainer
     protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
         $methodsMap = $serviceMethods = $wiredTypes = [];
-        \ksort($definitions);
 
         foreach ($definitions as $id => $definition) {
             if ($this->tagged('container.remove_services', $id)) {
@@ -316,6 +315,12 @@ class ContainerBuilder extends AbstractContainer
             }
         }
 
+        \ksort($aliases);
+        \ksort($tags);
+        \ksort($methodsMap);
+        \usort($serviceMethods, fn (ClassMethod $a, ClassMethod $b): int => \strnatcmp($a->name->toString(), $b->name->toString()));
+        \usort($wiredTypes, fn (Expr\ArrayItem $a, Expr\ArrayItem $b): int => \strnatcmp($a->key->value, $b->key->value));
+
         return [$aliases, $methodsMap, $serviceMethods, $wiredTypes, $tags];
     }
 
@@ -330,6 +335,7 @@ class ContainerBuilder extends AbstractContainer
             return;
         }
 
+        \ksort($parameters);
         [$resolvedParameters, $dynamicParameters] = $this->resolveParameters($parameters);
 
         if (!empty($dynamicParameters)) {
