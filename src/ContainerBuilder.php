@@ -162,6 +162,7 @@ class ContainerBuilder extends AbstractContainer
         $this->compileParameters($this->parameters, $containerNode->setDocComment(Builder\CodePrinter::COMMENT));
 
         if (!empty($processedData[1])) {
+            unset($processedData[1][self::SERVICE_CONTAINER]);
             $containerNode->addStmt($this->resolver->getBuilder()->property('methodsMap')->makeProtected()->setType('array')->setDefault($processedData[1]));
         }
 
@@ -277,6 +278,10 @@ class ContainerBuilder extends AbstractContainer
     protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
         $methodsMap = $serviceMethods = $wiredTypes = [];
+
+        if (!isset($methodsMap[self::SERVICE_CONTAINER])) {
+            $methodsMap[self::SERVICE_CONTAINER] = true;
+        }
 
         foreach ($definitions as $id => $definition) {
             if ($this->tagged('container.remove_services', $id)) {
