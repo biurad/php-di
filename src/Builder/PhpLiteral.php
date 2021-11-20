@@ -59,7 +59,7 @@ class PhpLiteral
 
             if ([] !== $this->args) {
                 $traverser = new NodeTraverser();
-                $traverser->addVisitor(new PhpLiteralVisitor($resolver, $this->args));
+                $traverser->addVisitor(new PhpLiteralVisitor($resolver->resolveArguments($this->args)));
 
                 $astCode = $traverser->traverse($astCode);
             }

@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI\NodeVisitor;
 
+use PhpParser\BuilderHelpers;
 use PhpParser\Node\Scalar\String_;
-use Rade\DI\Resolvers\Resolver;
 
 /**
  * PhpLiteral Node Visitor.
@@ -27,8 +27,6 @@ use Rade\DI\Resolvers\Resolver;
  */
 final class PhpLiteralVisitor extends \PhpParser\NodeVisitorAbstract
 {
-    private Resolver $resolver;
-
     private int $offset = -1;
 
     private array $args;
@@ -36,10 +34,9 @@ final class PhpLiteralVisitor extends \PhpParser\NodeVisitorAbstract
     /**
      * @param array<int,mixed> $args
      */
-    public function __construct(Resolver $resolver, array $args)
+    public function __construct(array $args)
     {
         $this->args = $args;
-        $this->resolver = $resolver;
     }
 
     /**
@@ -48,13 +45,13 @@ final class PhpLiteralVisitor extends \PhpParser\NodeVisitorAbstract
     public function enterNode(\PhpParser\Node $node)
     {
         if ($node instanceof String_ && '??' === $node->value) {
-            $value = $this->args[++$this->offset];
+            $value = $this->args[++$this->offset] ?? null;
 
-            if (\is_array($value)) {
-                return $this->resolver->getBuilder()->val($this->resolver->resolveArguments($value));
+            if (null === $value) {
+                throw new \ParseError('Unable to parse syntax "??" as no value supplied for its string node expression.');
             }
 
-            return $this->resolver->resolve($value);
+            return BuilderHelpers::normalizeValue($value);
         }
 
         return parent::enterNode($node);
