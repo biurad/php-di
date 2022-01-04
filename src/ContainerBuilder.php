@@ -104,7 +104,7 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * Add a resource to to allow re-build of container.
+     * Add a resource to allow re-build of container.
      *
      * @return $this
      */

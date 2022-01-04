@@ -194,10 +194,8 @@ class ExtensionBuilder
     /**
      * Resolve extensions and register them.
      *
-     * @param mixed[] $extensions
+     * @param mixed[]                           $extensions
      * @param array<int,BootExtensionInterface> $afterLoading
-     *
-     * @return void
      */
     private function bootExtensions(array $extensions, array &$afterLoading, string $extraKey = null): void
     {

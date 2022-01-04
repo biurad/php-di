@@ -75,6 +75,8 @@ final class DefinitionBuilder
      * @param array<int,mixed> $arguments
      *
      * @return $this
+     *
+     * @throws \Throwable
      */
     public function __call(string $name, array $arguments)
     {
@@ -355,6 +357,8 @@ final class DefinitionBuilder
      * @param array<int,string> $excludePatterns
      *
      * @return array<int,string>
+     *
+     * @throws \ReflectionException
      */
     private function findClasses(string $namespace, string $pattern, array $excludePatterns): array
     {

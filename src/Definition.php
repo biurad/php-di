@@ -68,7 +68,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
      *
      * @return $this
      */
-    public function replace($entity, bool $if): self
+    public function replace($entity, bool $if)
     {
         if ($entity instanceof DefinitionInterface) {
             throw new ServiceCreationException(\sprintf('A definition entity must not be an instance of "%s".', DefinitionInterface::class));

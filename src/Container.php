@@ -47,7 +47,6 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      */
-    #[\ReturnTypeWillChange]
     public function offsetSet($offset, $value): void
     {
         $this->autowire($offset, $value);
@@ -73,7 +72,6 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for the service
      */
-    #[\ReturnTypeWillChange]
     public function offsetExists($offset): bool
     {
         return $this->has($offset);
@@ -84,7 +82,6 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for service definition
      */
-    #[\ReturnTypeWillChange]
     public function offsetUnset($offset): void
     {
         $this->removeDefinition($offset);
@@ -138,6 +135,8 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /**
      * {@inheritdoc}
+     *
+     * @throws \ReflectionException
      */
     protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
