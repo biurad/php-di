@@ -54,8 +54,6 @@ class ExtensionBuilder
 
     /**
      * Enable Generating ConfigBuilders to help create valid config.
-     *
-     * @param string $outputDir
      */
     public function setConfigBuilderGenerator(string $outputDir): void
     {
@@ -91,11 +89,33 @@ class ExtensionBuilder
     /**
      * Get all extensions configuration.
      *
-     * @return \ArrayIterator<string,mixed>
+     * @return \ArrayIterator<string,mixed>|array<string,mixed>
      */
-    public function getConfig(): \ArrayIterator
+    public function getConfig(string $extensionName = null)
     {
-        return $this->configuration;
+        if (null === $extensionName) {
+            return $this->configuration;
+        }
+
+        if (!(\array_key_exists($extensionName, $this->extensions) || \array_key_exists($extensionName, $this->aliases))) {
+            throw new \InvalidArgumentException(\sprintf('The extension name provided in not valid, must be an extension\'s class name or alias.', $extensionName));
+        }
+
+        return $this->configuration[$extensionName] ?? [];
+    }
+
+    /**
+     * Modify the default configuration for an extension.
+     *
+     * @param array<string,mixed> $configuration
+     */
+    public function modifyConfig(string $extensionName, array $configuration): void
+    {
+        $defaults = $this->getConfig($extensionName);
+
+        if (!empty($defaults)) {
+            $this->configuration[$extensionName] = \array_replace_recursive($defaults, $configuration);
+        }
     }
 
     /**
@@ -144,10 +164,12 @@ class ExtensionBuilder
             $this->aliases[$aliasedId] = \get_class($extension);
         }
 
-        if (null !== $extraKey) {
-            $configuration = $configuration[$extraKey] ?? []; // Overridden by extra key
+        $configuration = null !== $extraKey ? ($configuration[$extraKey] ?? $this->configuration) : $this->configuration;
+
+        if (isset($aliasedId, $configuration[$aliasedId])) {
+            $configuration = $configuration[$aliasedId] ?? [];
         } else {
-            $configuration = $this->configuration[\get_class($extension)] ?? $this->configuration[$aliasedId ?? ''] ?? [];
+            $configuration = $configuration[$aliasedId = \get_class($extension)] ?? [];
         }
 
         if ($extension instanceof ConfigurationInterface) {
@@ -158,7 +180,7 @@ class ExtensionBuilder
                     (include $configuration)($configLoader);
                 }
 
-                return $configLoader->toArray();
+                return $this->configuration[$aliasedId] = $configLoader->toArray();
             }
 
             $treeBuilder = $extension->getConfigTreeBuilder()->buildTree();
