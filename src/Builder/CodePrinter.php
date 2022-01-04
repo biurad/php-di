@@ -55,6 +55,18 @@ COMMENT;
         return parent::pStmt_Declare($node) . $this->nl;
     }
 
+    protected function pStmt_TraitUse(\PhpParser\Node\Stmt\TraitUse $node): string
+    {
+        if (\count($node->traits) > 5) {
+            return 'use ' . $this->pImplode($node->traits, ',' . $this->nl . '    ')
+             . (empty($node->adaptations)
+                ? ';'
+                : ' {' . $this->pStmts($node->adaptations) . $this->nl . '}') . "\n";
+        }
+
+        return parent::pStmt_TraitUse($node) . "\n";
+    }
+
     protected function pStmt_Property(\PhpParser\Node\Stmt\Property $node): string
     {
         if ('tags' === $node->props[0]->name->name) {
