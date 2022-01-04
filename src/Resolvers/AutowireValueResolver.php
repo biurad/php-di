@@ -104,7 +104,11 @@ class AutowireValueResolver
                             $attrName = \substr($attrName, 0, -2);
                         }
 
-                        return $getter($attrName, !$arrayLike);
+                        try {
+                            return $getter($attrName, !$arrayLike);
+                        } catch (NotFoundServiceException $e) {
+                            // Ignore this exception ...
+                        }
                     }
                 }
             }
@@ -115,12 +119,16 @@ class AutowireValueResolver
                 && ($itemType = Reflection::expandClassName($m[1], $method->getDeclaringClass()))
                 && (\class_exists($itemType) || \interface_exists($itemType))
             ) {
-                if (\in_array($typeName, ['array', 'iterable'], true)) {
-                    return $getter($itemType, false);
-                }
+                try {
+                    if (\in_array($typeName, ['array', 'iterable'], true)) {
+                        return $getter($itemType, false);
+                    }
 
-                if ('object' === $typeName || \is_subclass_of($itemType, $typeName)) {
-                    return $getter($itemType, true);
+                    if ('object' === $typeName || \is_subclass_of($itemType, $typeName)) {
+                        return $getter($itemType, true);
+                    }
+                } catch (NotFoundServiceException $e) {
+                    // Ignore this exception ...
                 }
             }
 
