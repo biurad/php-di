@@ -19,7 +19,7 @@ namespace Rade\DI;
 
 use Nette\Utils\{FileSystem, ObjectHelpers, Validators};
 use Rade\DI\Definitions\DefinitionInterface;
-use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
+use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
 
 /**
  * A builder specialized in creating homogeneous service definitions.
@@ -361,8 +361,8 @@ final class DefinitionBuilder
         $classNames = [];
         $container = $this->container;
 
-        foreach (\glob($pattern, \GLOB_BRACE) as $path) {
-            $directoryIterator = new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
+        foreach (\glob($pattern, \GLOB_BRACE) as $directory) {
+            $directoryIterator = new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
             $files = \iterator_to_array(new \RecursiveIteratorIterator($directoryIterator));
 
             \uksort($files, 'strnatcmp');
