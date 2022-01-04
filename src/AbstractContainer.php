@@ -31,6 +31,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     use Traits\DefinitionTrait;
     use Traits\TagsTrait;
     use Traits\TypesTrait;
+    use Traits\ExtensionTrait;
 
     /** @var array<string,bool> service name => bool */
     protected array $loading = [];
@@ -187,32 +188,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         }
 
         $this->services = $this->types = $this->tags = $this->aliases = [];
-    }
-
-    /**
-     * Get the registered extension from builder.
-     *
-     * @param string $extensionName The extension class name or its alias
-     */
-    public function getExtension(string $extensionName): ?Extensions\ExtensionInterface
-    {
-        /** @var Extensions\ExtensionBuilder|null $extensionBuilder */
-        $extensionBuilder = $this->definitions[Extensions\ExtensionInterface::BUILDER] ?? null;
-
-        return null !== $extensionBuilder ? $extensionBuilder->get($extensionName) : $extensionBuilder;
-    }
-
-    /**
-     * Checks if an extension is registered from builder.
-     *
-     * @param string $extensionName The extension class name or its alias
-     */
-    public function hasExtension(string $extensionName): bool
-    {
-        /** @var Extensions\ExtensionBuilder|null $extensionBuilder */
-        $extensionBuilder = $this->definitions[Extensions\ExtensionInterface::BUILDER] ?? null;
-
-        return null !== $extensionBuilder ? $extensionBuilder->has($extensionName) : false;
     }
 
     /**
