@@ -103,7 +103,7 @@ class SealedContainer implements ContainerInterface
      */
     protected function doGet(string $id, bool $nullOnInvalid)
     {
-        if (\preg_match('/\[(.*)\]$/', $id, $matches, \PREG_UNMATCHED_AS_NULL)) {
+        if (\preg_match('/\[(.*?)?\]$/', $id, $matches, \PREG_UNMATCHED_AS_NULL)) {
             $autowired = $this->types[\str_replace($matches[0], '', $oldId = $id)] ?? [];
 
             if (!empty($autowired)) {
