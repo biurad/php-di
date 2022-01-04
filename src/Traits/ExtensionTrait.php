@@ -46,11 +46,11 @@ trait ExtensionTrait
      *
      * @return array<string,mixed>
      */
-    public function getExtensionConfig(string $extensionName): array
+    public function getExtensionConfig(string $extensionName, string $parent = null): array
     {
         $extensionBuilder = $this->getExtensionBuilder();
 
-        return null !== $extensionBuilder ? $extensionBuilder->getConfig($extensionName) : $extensionBuilder;
+        return null !== $extensionBuilder ? $extensionBuilder->getConfig($extensionName, $parent) : [];
     }
 
     /**

@@ -83,7 +83,7 @@ class ExtensionBuilder
      */
     public function getExtensions(): array
     {
-        return $this->extensions;
+        return \array_filter($this->extensions);
     }
 
     /**
@@ -91,17 +91,31 @@ class ExtensionBuilder
      *
      * @return \ArrayIterator<string,mixed>|array<string,mixed>
      */
-    public function getConfig(string $extensionName = null)
+    public function getConfig(string $extensionName = null, string $parent = null, string &$key = null)
     {
+        $configuration = $this->configuration;
+
         if (null === $extensionName) {
-            return $this->configuration;
+            return $configuration;
         }
 
         if (!(\array_key_exists($extensionName, $this->extensions) || \array_key_exists($extensionName, $this->aliases))) {
             throw new \InvalidArgumentException(\sprintf('The extension name provided in not valid, must be an extension\'s class name or alias.', $extensionName));
         }
 
-        return $this->configuration[$extensionName] ?? [];
+        if (isset($parent, $configuration[$parent])) {
+            $configuration = $configuration[$parent];
+        }
+
+        if (isset($configuration[$extensionName])) {
+            $config = $configuration[$key = $extensionName];
+        } elseif (isset($this->aliases[$extensionName], $configuration[$this->aliases[$extensionName]])) {
+            $config = $configuration[$key = $this->aliases[$extensionName]];
+        } elseif ($searchedId = \array_search($extensionName, $this->aliases, true)) {
+            $config = $configuration[$key = $searchedId] ?? [];
+        }
+
+        return $config ?? [];
     }
 
     /**
@@ -109,12 +123,18 @@ class ExtensionBuilder
      *
      * @param array<string,mixed> $configuration
      */
-    public function modifyConfig(string $extensionName, array $configuration): void
+    public function modifyConfig(string $extensionName, array $configuration, string $parent = null): void
     {
-        $defaults = $this->getConfig($extensionName);
+        $defaults = $this->getConfig($extensionName, $parent, $extensionKey);
 
         if (!empty($defaults)) {
-            $this->configuration[$extensionName] = \array_replace_recursive($defaults, $configuration);
+            $values = \array_replace_recursive($defaults, $configuration);
+
+            if (isset($parent, $extensionKey, $this->configuration[$parent][$extensionKey])) {
+                $this->configuration[$parent][$extensionKey] = $values;
+            } else {
+                $this->configuration[$extensionKey] = $values;
+            }
         }
     }
 
@@ -154,6 +174,8 @@ class ExtensionBuilder
      */
     protected function process(ExtensionInterface $extension, string $extraKey = null): array
     {
+        $configuration = $this->configuration;
+
         if ($extension instanceof AliasedInterface) {
             $aliasedId = $extension->getAlias();
 
@@ -164,12 +186,14 @@ class ExtensionBuilder
             $this->aliases[$aliasedId] = \get_class($extension);
         }
 
-        $configuration = null !== $extraKey ? ($configuration[$extraKey] ?? $this->configuration) : $this->configuration;
+        if (isset($extraKey, $configuration[$extraKey])) {
+            $configuration = $configuration[$parent = $extraKey];
+        }
 
-        if (isset($aliasedId, $configuration[$aliasedId])) {
-            $configuration = $configuration[$aliasedId] ?? [];
+        if (isset($aliasedId, $configuration[$aliasedId]) || null !== ($configuration[$aliasedId = \get_class($extension)] ?? null)) {
+            $configuration = $configuration[$aliasedId];
         } else {
-            $configuration = $configuration[$aliasedId = \get_class($extension)] ?? [];
+            $configuration = [];
         }
 
         if ($extension instanceof ConfigurationInterface) {
@@ -179,8 +203,9 @@ class ExtensionBuilder
                 if (\file_exists($configuration = $this->container->parameter($configuration))) {
                     (include $configuration)($configLoader);
                 }
+                $config = $configLoader->toArray();
 
-                return $this->configuration[$aliasedId] = $configLoader->toArray();
+                return isset($parent) ? $this->configuration[$parent][$aliasedId] = $config : $this->configuration[$aliasedId] = $config;
             }
 
             $treeBuilder = $extension->getConfigTreeBuilder()->buildTree();
@@ -225,7 +250,7 @@ class ExtensionBuilder
             $this->extensions[$extension] = $resolved; // Add to stack before registering it ...
 
             if ($resolved instanceof DependenciesInterface) {
-                $this->bootExtensions($resolved->dependencies(), $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
+                $this->bootExtensions($resolved->dependencies(), $afterLoading, $extraKey = \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
             }
 
             $resolved->register($container, $this->process($resolved, $extraKey));
