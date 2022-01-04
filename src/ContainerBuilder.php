@@ -141,6 +141,7 @@ class ContainerBuilder extends AbstractContainer
      * - strictType => true,
      * - printToString => true,
      * - shortArraySyntax => true,
+     * - maxLineLength => 200,
      * - containerClass => CompiledContainer,
      *
      * @throws \ReflectionException
@@ -181,6 +182,8 @@ class ContainerBuilder extends AbstractContainer
         }
 
         if ($options['printToString']) {
+            unset($options['strictType'], $options['printToString'], $options['containerClass']);
+
             return Builder\CodePrinter::print($astNodes, $options);
         }
 

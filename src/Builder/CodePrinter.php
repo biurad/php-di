@@ -40,7 +40,7 @@ COMMENT;
      */
     public static function print(array $stmts, array $options = []): string
     {
-        $printer = new self(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
+        $printer = new self($options + ['maxLineLength' => 200, 'shortArraySyntax' => true]);
 
         return $printer->prettyPrintFile($stmts);
     }
@@ -110,9 +110,16 @@ COMMENT;
     protected function pMaybeMultiline(array $nodes, bool $trailingComma = false): string
     {
         if (\count($nodes) > 5 || (isset($nodes[0]) && $nodes[0]->getAttribute('multiline'))) {
+            resolve_multiline:
             return $this->pCommaSeparatedMultiline($nodes, $trailingComma) . $this->nl;
         }
 
-        return parent::pMaybeMultiline($nodes, $trailingComma);
+        $multilineCode = parent::pMaybeMultiline($nodes, $trailingComma);
+
+        if (\strlen($multilineCode) > $this->options['maxLineLength']) {
+            goto resolve_multiline;
+        }
+
+        return $multilineCode;
     }
 }
