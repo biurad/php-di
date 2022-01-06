@@ -19,7 +19,7 @@ namespace Rade\DI\Loader;
 
 use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
-use Rade\DI\Definitions\{ChildDefinition, Reference, Statement, ValueDefinition};
+use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
 
 /**
  * Marks a definition from being interpreted as a service.
@@ -62,14 +62,6 @@ function service($definition, array $args = []): Definition
 function reference(string $id): Reference
 {
     return new Reference($id);
-}
-
-/**
- * Represents a parent abstract definition to be extended into.
- */
-function parent(string $abstract): ChildDefinition
-{
-    return new ChildDefinition($abstract);
 }
 
 /**

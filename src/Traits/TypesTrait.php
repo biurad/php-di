@@ -65,7 +65,6 @@ trait TypesTrait
         Definitions\ShareableDefinitionInterface::class => true,
         Definitions\DepreciableDefinitionInterface::class => true,
         Definitions\DefinitionAwareInterface::class => true,
-        Definitions\ChildDefinition::class => true,
         Definitions\ValueDefinition::class => true,
         Definitions\Reference::class => true,
         Definitions\Statement::class => true,

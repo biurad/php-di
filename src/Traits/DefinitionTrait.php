@@ -20,7 +20,7 @@ namespace Rade\DI\Traits;
 use Nette\Utils\Helpers;
 use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\{ContainerInterface, Definition, Definitions};
-use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
+use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, ShareableDefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException, ServiceCreationException};
 
 /**
@@ -155,12 +155,14 @@ trait DefinitionTrait
 
                 $definition->bindWith($id, $this);
             }
-        } elseif ($definition instanceof Definitions\ChildDefinition) {
-            if (!\array_key_exists((string) $definition, $this->definitions)) {
-                throw new ServiceCreationException(\sprintf('Constructing a child service definition "%s" from a non-existing parent definition "%s", encountered an error.', $id, (string) $definition));
+        } elseif ($definition instanceof Definitions\Reference) {
+            $previousDef = $this->definitions[(string) $definition] ?? null;
+
+            if (null === $previousDef || !($previousDef instanceof ShareableDefinitionInterface && $previousDef->isAbstract())) {
+                throw new ServiceCreationException(\sprintf('Constructing a child service definition "%s" from a parent definition "%s", encountered an error.', $id, (string) $definition));
             }
 
-            $definition = clone $this->definitions[(string) $definition];
+            $definition = clone $previousDef->abstract(false);
         }
 
         return $this->definitions[$id] = $definition;
