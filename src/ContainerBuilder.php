@@ -293,8 +293,14 @@ class ContainerBuilder extends AbstractContainer
 
             $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
 
-            if ($definition instanceof ShareableDefinitionInterface && !$definition->isPublic()) {
-                continue;
+            if ($definition instanceof ShareableDefinitionInterface) {
+                if ($definition->isAbstract()) {
+                    \array_pop($serviceMethods);
+                }
+
+                if (!$definition->isPublic()) {
+                    continue;
+                }
             }
 
             $methodsMap[$id] = $this->resolver->createMethod($id);

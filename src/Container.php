@@ -142,6 +142,10 @@ class Container extends AbstractContainer implements \ArrayAccess
     {
         if ($definition instanceof DefinitionInterface) {
             if ($definition instanceof ShareableDefinitionInterface) {
+                if ($definition->isAbstract()) {
+                    throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not supported.', $id));
+                }
+
                 if (!$definition->isPublic()) {
                     $this->removeDefinition($id); // Definition service available once, else if shareable, accessed from cache.
                 }

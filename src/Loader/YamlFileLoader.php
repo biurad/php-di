@@ -61,6 +61,7 @@ class YamlFileLoader extends FileLoader
         'parent' => 'parent',
         'entity' => 'entity',
         'class' => 'entity', // backward compatibility for symfony devs, will be dropped in 2.0
+        'abstract' => 'abstract',
         'arguments' => 'arguments',
         'lazy' => 'lazy',
         'public' => 'public',
@@ -557,6 +558,10 @@ class YamlFileLoader extends FileLoader
 
         if (isset($service['shared'])) {
             $this->builder->shared($service['shared']);
+        }
+
+        if (isset($service['abstract'])) {
+            $this->builder->abstract($service['abstract']);
         }
 
         if (\array_key_exists('autowire', $service)) {

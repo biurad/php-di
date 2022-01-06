@@ -35,6 +35,8 @@ trait VisibilityTrait
 
     private bool $lazy = false;
 
+    private bool $abstract = false;
+
     /**
      * {@inheritdoc}
      */
@@ -68,6 +70,16 @@ trait VisibilityTrait
     /**
      * {@inheritdoc}
      */
+    public function abstract(bool $boolean = true)
+    {
+        $this->abstract = $boolean;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isPublic(): bool
     {
         return $this->public;
@@ -85,6 +97,14 @@ trait VisibilityTrait
      * {@inheritdoc}
      */
     public function isLazy(): bool
+    {
+        return $this->lazy;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isAbstract(): bool
     {
         return $this->lazy;
     }

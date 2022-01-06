@@ -46,6 +46,13 @@ interface ShareableDefinitionInterface
     public function lazy(bool $boolean = true);
 
     /**
+     * If true, service becomes reusable as a parent child definition.
+     *
+     * @return $this
+     */
+    public function abstract(bool $boolean = true);
+
+    /**
      * Whether this service is public.
      */
     public function isPublic(): bool;
@@ -59,4 +66,9 @@ interface ShareableDefinitionInterface
      * Whether this service is lazy.
      */
     public function isLazy(): bool;
+
+    /**
+     * Whether this service is abstract.
+     */
+    public function isAbstract(): bool;
 }
