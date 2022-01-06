@@ -314,7 +314,7 @@ class Resolver
                     $value = $this->container->parameter($value);
                 }
 
-                $resolved = null === $this->builder ? $value : new Scalar\String_($value);
+                $resolved = null === $this->builder ? $value : $this->builder->val($value);
             } else {
                 $resolved = $this->resolve($value);
             }
