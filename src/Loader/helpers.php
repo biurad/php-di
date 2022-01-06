@@ -59,7 +59,7 @@ function service($definition, array $args = []): Definition
  *
  * @param string $id service identifier
  */
-function referenced(string $id): Reference
+function reference(string $id): Reference
 {
     return new Reference($id);
 }
