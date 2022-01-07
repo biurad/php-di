@@ -163,7 +163,17 @@ class Resolver
     public function resolve($callback, array $args = [])
     {
         if ($callback instanceof Statement) {
-            $resolved = $this->resolve($callback->getValue(), $callback->getArguments());
+            if (ServiceLocator::class == ($value = $callback->getValue())) {
+                $services = [];
+
+                foreach (($callback->getArguments() ?: $args) as $name => $service) {
+                    $services += $this->resolveServiceSubscriber($name, (string) $service);
+                }
+
+                return null === $this->builder ? new ServiceLocator($services) : $this->builder->new('\\' . ServiceLocator::class, [$services]);
+            }
+
+            $resolved = $this->resolve($value, $callback->getArguments() ?: $args);
 
             if ($callback->isClosureWrappable()) {
                 $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
