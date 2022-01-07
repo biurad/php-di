@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
-use Rade\DI\Definitions\{ChildDefinition, DefinitionInterface, Reference, Statement};
+use Rade\DI\Definitions\{DefinitionInterface, Reference, Statement};
 use Rade\DI\{ContainerBuilder, Definition, DefinitionBuilder};
 use Rade\DI\Builder\PhpLiteral;
 use Symfony\Component\Config\Exception\LoaderLoadException;
@@ -519,7 +519,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('The value of the "parent" option for the "%s" service must be the id of the service without the "@" prefix (replace "%s" with "%s").', $id, $service['parent'], \substr($service['parent'], 1)));
             }
 
-            $definition = $this->builder->set($id, new ChildDefinition($service['parent']));
+            $definition = $this->builder->set($id, new Reference($service['parent']));
 
             if (!$definition instanceof DefinitionInterface) {
                 return;
