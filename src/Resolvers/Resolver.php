@@ -435,6 +435,10 @@ class Resolver
         };
 
         if (null !== $this->builder) {
+            if ((\class_exists($id) || \interface_exists($id)) && $this->container->has($value)) {
+                $value = $id;
+            }
+
             $service = new Expr\ArrowFunction(['expr' => $this->builder->val($service()), 'returnType' => '[]' !== \substr($value, -2) ? $value : 'array']);
         }
 
