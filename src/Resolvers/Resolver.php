@@ -366,6 +366,10 @@ class Resolver
             return $this->container->autowired($id, $single);
         }
 
+        if (null !== $resolvedType = $this->container->convert($id)) {
+            return $resolvedType;
+        }
+
         throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
     }
 

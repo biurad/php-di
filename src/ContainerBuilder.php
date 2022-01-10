@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression};
+use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression, Nop};
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
@@ -154,13 +154,21 @@ class ContainerBuilder extends AbstractContainer
         $astNodes = $options['strictType'] ? [new Declare_([new DeclareDeclare('strict_types', $this->resolver->getBuilder()->val(1))])] : [];
 
         $processedData = $this->doAnalyse($this->definitions);
-        $containerNode = $this->resolver->getBuilder()->class($options['containerClass'])->extend($this->containerParentClass);
+        $containerNode = $this->resolver->getBuilder()->class($options['containerClass'])->extend($this->containerParentClass)->setDocComment(Builder\CodePrinter::COMMENT);
 
         if (!empty($processedData[0])) {
             $containerNode->addStmt($this->resolver->getBuilder()->property('aliases')->makeProtected()->setType('array')->setDefault($processedData[0]));
         }
 
-        $this->compileParameters($this->parameters, $containerNode->setDocComment(Builder\CodePrinter::COMMENT));
+        if (!empty($parameters = $this->parameters)) {
+            ksort($parameters);
+            $this->compileToConstructor($this->resolveParameters($parameters), $containerNode, 'parameters');
+        }
+
+        if (!empty($resolvers = $this->resolvers)) {
+            \ksort($resolvers);
+            $this->compileToConstructor($this->resolveParameters($resolvers), $containerNode, 'resolvers');
+        }
 
         if (!empty($processedData[1])) {
             unset($processedData[1][self::SERVICE_CONTAINER]);
@@ -343,31 +351,35 @@ class ContainerBuilder extends AbstractContainer
      *
      * @param array<int,array<string,mixed>> $parameters
      */
-    protected function compileParameters(array $parameters, \PhpParser\Builder\Class_ $containerNode): void
+    protected function compileToConstructor(array $parameters, \PhpParser\Builder\Class_ &$containerNode, string $name): void
     {
-        if (0 === \count($parameters)) {
-            return;
-        }
-
-        \ksort($parameters);
-        [$resolvedParameters, $dynamicParameters] = $this->resolveParameters($parameters);
+        [$resolvedParameters, $dynamicParameters] = $parameters;
 
         if (!empty($dynamicParameters)) {
-            $constructorNode = $this->resolver->getBuilder()->method('__construct');
+            $resolver = $this->resolver;
+            $container = $this->containerParentClass;
+            $containerNode = \Closure::bind(function (\PhpParser\Builder\Class_ $node) use ($dynamicParameters, $resolver, $container, $name) {
+                $endMethod = \array_pop($node->methods);
+                $constructorNode = $resolver->getBuilder()->method('__construct');
 
-            if (\method_exists($this->containerParentClass, '__construct')) {
-                $constructorNode->addStmt($this->resolver->getBuilder()->staticCall(new Name('parent'), '__construct'));
-            }
+                if ($endMethod instanceof ClassMethod && '__construct' === $endMethod->name->name) {
+                    $constructorNode->addStmts(\array_merge($endMethod->stmts, [new Nop()]));
+                } elseif (\method_exists($container, '__construct')) {
+                    $constructorNode->addStmt($resolver->getBuilder()->staticCall(new Name('parent'), '__construct'));
+                }
 
-            foreach ($dynamicParameters as $offset => $value) {
-                $parameter = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), 'parameter');
-                $constructorNode->addStmt(new Expr\Assign(new Expr\ArrayDimFetch($parameter, new String_($offset)), $this->resolver->getBuilder()->val($value)));
-            }
+                foreach ($dynamicParameters as $offset => $value) {
+                    $parameter = $resolver->getBuilder()->propertyFetch($resolver->getBuilder()->var('this'), $name);
+                    $constructorNode->addStmt(new Expr\Assign(new Expr\ArrayDimFetch($parameter, new String_($offset)), $resolver->getBuilder()->val($value)));
+                }
 
-            $containerNode->addStmt($constructorNode->makePublic());
+                return $node->addStmt($constructorNode->makePublic());
+            }, $containerNode, $containerNode)($containerNode);
         }
 
-        $containerNode->addStmt($this->resolver->getBuilder()->property('parameters')->makePublic()->setType('array')->setDefault($resolvedParameters));
+        if (!empty($resolvedParameters)) {
+            $containerNode->addStmt($this->resolver->getBuilder()->property($name)->makePublic()->setType('array')->setDefault($resolvedParameters));
+        }
     }
 
     /**
