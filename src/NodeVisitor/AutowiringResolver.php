@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\NodeVisitor;
 
 use PhpParser\Node\Expr;
-use PhpParser\Node\Stmt\{Class_, ClassMethod, Expression, Return_};
+use PhpParser\Node\Stmt\{Class_, ClassMethod, Expression, Nop, Return_};
 use PhpParser\NodeVisitorAbstract;
 
 /**
@@ -79,7 +79,7 @@ class AutowiringResolver extends NodeVisitorAbstract
                             $this->resolveStmt($methodsStmts, $nodeId, true);
 
                             $replacements = \array_map(fn (Expr\Assign $node) => new Expression($node), $this->replacement[$nodeId]);
-                            $methodNode->stmts = \array_merge(\array_values($replacements), $methodsStmts);
+                            $methodNode->stmts = \array_merge(\array_values($replacements), [new Nop()], $methodsStmts);
                         }
                     }
                 }
