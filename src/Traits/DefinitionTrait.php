@@ -158,7 +158,11 @@ trait DefinitionTrait
         } elseif ($definition instanceof Definitions\Reference) {
             $previousDef = $this->definitions[(string) $definition] ?? null;
 
-            if (null === $previousDef || !($previousDef instanceof ShareableDefinitionInterface && $previousDef->isAbstract())) {
+            if (null === $previousDef) {
+                throw $this->createNotFound((string) $definition);
+            }
+
+            if (!$previousDef instanceof ShareableDefinitionInterface || !$previousDef->isAbstract()) {
                 throw new ServiceCreationException(\sprintf('Constructing a child service definition "%s" from a parent definition "%s", encountered an error.', $id, (string) $definition));
             }
 

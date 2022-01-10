@@ -106,7 +106,7 @@ trait VisibilityTrait
      */
     public function isAbstract(): bool
     {
-        return $this->lazy;
+        return $this->abstract;
     }
 
     /**
