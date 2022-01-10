@@ -33,6 +33,7 @@ trait TypesTrait
 {
     protected Resolver $resolver;
 
+    /** @var array<string,mixed> */
     protected array $resolvers = [];
 
     /** @var array<string,string[]> type => services */
@@ -212,13 +213,19 @@ trait TypesTrait
      *
      * @return mixed
      */
-    public function convert(string $typedName, $resolver = null)
+    public function convert(string $typedName, $resolver = null, bool $inline = false)
     {
         if (null === $resolver) {
-            return isset($this->resolvers[$typedName]) ? $this->resolver->resolve($this->resolvers[$typedName], [$typedName]) : null;
+            if (isset($this->resolvers[$typedName])) {
+                [$resolver, $inline] = $this->resolvers[$typedName];
+
+                return $this->resolver->resolve($resolver, $inline ? [$typedName] : []);
+            }
+
+            return $resolver;
         }
 
-        $this->resolvers[$typedName] = $resolver;
+        $this->resolvers[$typedName] = [$resolver, $inline];
     }
 
     /**
