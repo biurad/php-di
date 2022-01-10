@@ -181,6 +181,7 @@ class ExtensionBuilder
     protected function process(ExtensionInterface $extension, string $extraKey = null): array
     {
         $configuration = $this->configuration;
+        $id = \get_class($extension);
 
         if ($extension instanceof AliasedInterface) {
             $aliasedId = $extension->getAlias();
@@ -189,15 +190,15 @@ class ExtensionBuilder
                 throw new \RuntimeException(\sprintf('The aliased id "%s" for %s extension class must be unqiue.', $aliasedId, \get_class($extension)));
             }
 
-            $this->aliases[$aliasedId] = \get_class($extension);
+            $this->aliases[$aliasedId] = $id;
         }
 
         if (isset($extraKey, $configuration[$extraKey])) {
             $configuration = $configuration[$parent = $extraKey];
         }
 
-        if (isset($aliasedId, $configuration[$aliasedId]) || null !== ($configuration[$id = \get_class($extension)] ?? null)) {
-            $configuration = $configuration[$id ?? $aliasedId];
+        if (isset($aliasedId, $configuration[$aliasedId]) || $e = \array_key_exists($id, $configuration)) {
+            $configuration = $configuration[$aliasedId ?? $id];
         } else {
             $configuration = [];
         }
@@ -213,21 +214,19 @@ class ExtensionBuilder
                 $config = $configLoader->toArray();
             } else {
                 $treeBuilder = $extension->getConfigTreeBuilder()->buildTree();
-                $config = (new Processor())->process($treeBuilder, [($id = $treeBuilder->getName()) => $configuration]);
+                $config = (new Processor())->process($treeBuilder, [$treeBuilder->getName() => $configuration]);
             }
 
             if (isset($parent)) {
-                unset($this->configuration[$parent][$aliasedId], $this->configuration[$parent][$id]);
+                unset($this->configuration[$parent][isset($e) ? $id : $aliasedId]);
 
                 return $this->configuration[$parent][$id] = $config;
             }
-
-            unset($this->configuration[$aliasedId], $this->configuration[$id]);
-
-            return $this->configuration[$id ?? $aliasedId] = $config;
         }
 
-        return $configuration;
+        unset($this->configuration[isset($e) ? $id : $aliasedId]);
+
+        return $this->configuration[$id] = $config ?? $configuration;
     }
 
     /**
