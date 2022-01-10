@@ -402,7 +402,9 @@ class ContainerBuilder extends AbstractContainer
                 $arrayParameters = $this->resolveParameters($value, $recursive);
 
                 if (!empty($arrayParameters[1])) {
-                    $dynamicParameters[$parameter] = \array_merge(...$arrayParameters);
+                    $grouped = $arrayParameters[1] + $arrayParameters[0];
+                    uksort($grouped, fn ($a, $b) => (\is_int($a) && \is_int($b) ? $a <=> $b : 0));
+                    $dynamicParameters[$parameter] = $grouped;
                 } else {
                     $resolvedParameters[$parameter] = $arrayParameters[0];
                 }
