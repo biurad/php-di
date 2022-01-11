@@ -40,6 +40,9 @@ class Resolver
 
     private bool $strict = true;
 
+    /** @var array<string,\PhpParser\Node> */
+    private array $literalCache = [];
+
     public function __construct(AbstractContainer $container, BuilderFactory $builder = null)
     {
         $this->builder = $builder;
@@ -216,39 +219,26 @@ class Resolver
                     $services += $this->resolveServiceSubscriber($name, (string) $service);
                 }
 
-                return null === $this->builder ? new ServiceLocator($services) : $this->builder->new('\\' . ServiceLocator::class, [$services]);
+                $resolved = null === $this->builder ? new ServiceLocator($services) : $this->builder->new('\\' . ServiceLocator::class, [$services]);
+            } else {
+                $resolved = $this->resolve($value, $callback->getArguments() ?: $args);
+
+                if ($callback->isClosureWrappable()) {
+                    $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
+                }
             }
+        } elseif ($callback instanceof Reference) {
+            $resolved = $this->resolveReference((string) $callback);
 
-            $resolved = $this->resolve($value, $callback->getArguments() ?: $args);
-
-            if ($callback->isClosureWrappable()) {
-                $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
+            if (\is_callable($resolved) || (\is_array($resolved) && 2 === \count($resolved, \COUNT_RECURSIVE))) {
+                $resolved = $this->resolveCallable($resolved, $args);
             }
-
-            return $resolved;
-        }
-
-        if ($callback instanceof Reference) {
-            $callback = $this->resolveReference((string) $callback);
-
-            if (\is_callable($callback) || (\is_array($callback) && 2 === \count($callback, \COUNT_RECURSIVE))) {
-                return $this->resolveCallable($callback, $args);
-            }
-
-            return $callback; // Expected to be resolved.
-        }
-
-        if ($callback instanceof ValueDefinition) {
-            return $callback->getEntity();
-        }
-
-        if ($callback instanceof PhpLiteral) {
-            $expression = $callback->resolve($this)[0];
-
-            return $expression instanceof Stmt\Expression ? $expression->expr : $expression;
-        }
-
-        if (\is_string($callback)) {
+        } elseif ($callback instanceof ValueDefinition) {
+            $resolved = $callback->getEntity();
+        } elseif ($callback instanceof PhpLiteral) {
+            $expression = $this->literalCache[\spl_object_id($callback)] ??= $callback->resolve($this)[0];
+            $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
+        } elseif (\is_string($callback)) {
             if (\str_contains($callback, '%')) {
                 $callback = $this->container->parameter($callback);
             }
@@ -258,17 +248,15 @@ class Resolver
             }
 
             if (\is_callable($callback)) {
-                return $this->resolveCallable($callback, $args);
-            }
-
-            if (null !== $resolvedType = $this->container->convert($callback)) {
-                return $resolvedType;
+                $resolved = $this->resolveCallable($callback, $args);
+            } elseif (null !== $resolvedType = $this->container->convert($callback)) {
+                $resolved = $resolvedType;
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
-            return $this->resolveCallable($callback, $args);
+            $resolved = $this->resolveCallable($callback, $args);
         }
 
-        return null === $this->builder ? $callback : $this->builder->val($callback);
+        return $resolved ?? (null === $this->builder ? $callback : $this->builder->val($callback));
     }
 
     /**
