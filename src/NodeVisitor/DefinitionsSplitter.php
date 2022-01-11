@@ -134,7 +134,7 @@ class DefinitionsSplitter extends NodeVisitorAbstract
             }
 
             if (!empty($this->traits)) {
-                $node->stmts = \array_merge([$this->builder->useTrait(...\array_keys($this->traits))->getNode()], $nodeStmts);
+                $node->stmts = [$this->builder->useTrait(...\array_keys($this->traits))->getNode(), ...$nodeStmts];
             }
 
             $this->previousTrait = null;

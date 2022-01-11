@@ -106,7 +106,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function keys(): array
     {
-        return \array_merge(parent::keys(), \array_keys($this->methodsMap));
+        return [...parent::keys(), ...\array_keys($this->methodsMap)];
     }
 
     /**

@@ -321,7 +321,7 @@ class ContainerBuilder extends AbstractContainer
         if ($newDefinitions = \array_diff_key($this->definitions, $definitions)) {
             $processedData = $this->doAnalyse($newDefinitions, true);
             $methodsMap = \array_merge($methodsMap, $processedData[0]);
-            $serviceMethods = \array_merge($serviceMethods, $processedData[1]);
+            $serviceMethods = [...$serviceMethods, ...$processedData[1]];
         }
 
         $aliases = \array_filter($this->aliases, static fn (string $aliased): bool => isset($methodsMap[$aliased]));
@@ -337,9 +337,9 @@ class ContainerBuilder extends AbstractContainer
             }
         }
 
-        \ksort($aliases);
-        \ksort($tags);
-        \ksort($methodsMap);
+        \natsort($aliases);
+        \natsort($methodsMap);
+        \ksort($tags, \SORT_NATURAL);
         \usort($serviceMethods, fn (ClassMethod $a, ClassMethod $b): int => \strnatcmp($a->name->toString(), $b->name->toString()));
         \usort($wiredTypes, fn (Expr\ArrayItem $a, Expr\ArrayItem $b): int => \strnatcmp($a->key->value, $b->key->value));
 
@@ -363,7 +363,7 @@ class ContainerBuilder extends AbstractContainer
                 $constructorNode = $resolver->getBuilder()->method('__construct');
 
                 if ($endMethod instanceof ClassMethod && '__construct' === $endMethod->name->name) {
-                    $constructorNode->addStmts(\array_merge($endMethod->stmts, [new Nop()]));
+                    $constructorNode->addStmts([...$endMethod->stmts, new Nop()]);
                 } elseif (\method_exists($container, '__construct')) {
                     $constructorNode->addStmt($resolver->getBuilder()->staticCall(new Name('parent'), '__construct'));
                 }

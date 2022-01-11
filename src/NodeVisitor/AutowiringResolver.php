@@ -79,7 +79,7 @@ class AutowiringResolver extends NodeVisitorAbstract
                             $this->resolveStmt($methodsStmts, $nodeId, true);
 
                             $replacements = \array_map(fn (Expr\Assign $node) => new Expression($node), $this->replacement[$nodeId]);
-                            $methodNode->stmts = \array_merge(\array_values($replacements), [new Nop()], $methodsStmts);
+                            $methodNode->stmts = [...\array_values($replacements), new Nop(), ...$methodsStmts];
                         }
                     }
                 }
