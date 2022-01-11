@@ -43,7 +43,7 @@ class AutowiringResolver extends NodeVisitorAbstract
     /** @var array<string,array<int,Expr\Assign> */
     private array $replacement = [];
 
-    /** @var array<string,array<int,array<int,mixed>>> */
+    /** @var array<string,array<string,string>> */
     private array $sameArgs = [];
 
     /**
@@ -107,6 +107,12 @@ class AutowiringResolver extends NodeVisitorAbstract
             }
 
             if (\property_exists($expression, 'expr')) {
+                $this->doReplacement($expression, $parentId, $leaveNodes, $expR);
+
+                if ($expression instanceof Expr\Variable || $expR) {
+                    continue;
+                }
+
                 $expression = &$expression->expr;
             }
 
@@ -134,7 +140,7 @@ class AutowiringResolver extends NodeVisitorAbstract
         }
     }
 
-    private function doReplacement(\PhpParser\Node &$nodeValue, string $parentId, bool $leaveNodes): void
+    private function doReplacement(\PhpParser\Node &$nodeValue, string $parentId, bool $leaveNodes, ?bool &$replaced = false): void
     {
         if ($nodeValue instanceof Expr\Variable || $nodeValue instanceof Expr\Closure) {
             return; // @Todo: work in progress ...
@@ -146,17 +152,11 @@ class AutowiringResolver extends NodeVisitorAbstract
             if (isset($this->replacement[$parentId][$nodeId])) {
                 $nodeValue = $this->replacement[$parentId][$nodeId]->var;
             }
-
-            return;
+        } elseif (null === $varName = $this->sameArgs[$parentId][$nodeId] ?? null) {
+            $this->sameArgs[$parentId][$nodeId] = 'v_' . \substr(\hash('sha256', \serialize($nodeValue)), 0, 5);
+        } else {
+            $this->replacement[$parentId][$nodeId] = new Expr\Assign(new Expr\Variable($varName), $nodeValue);
+            $replaced = true;
         }
-
-        if (isset($this->sameArgs[$parentId][$nodeId])) {
-            [$varName, $varValue] = $this->sameArgs[$parentId][$nodeId];
-            $this->replacement[$parentId][$nodeId] = new Expr\Assign(new Expr\Variable($varName), $varValue);
-
-            return;
-        }
-
-        $this->sameArgs[$parentId][$nodeId] = ['v_' . \substr(\hash('sha256', \serialize($nodeValue)), 0, 5), $nodeValue];
     }
 }
