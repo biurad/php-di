@@ -17,11 +17,11 @@ declare(strict_types=1);
 
 namespace Rade\DI\Resolvers;
 
-use Nette\Utils\{Callback, Type};
+use Nette\Utils\{Callback, Reflection};
 use PhpParser\BuilderFactory;
 use PhpParser\Node\{Expr, Stmt, Scalar};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
-use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
+use Rade\DI\Definitions\{DefinitionInterface, Reference, Statement, ValueDefinition};
 use Rade\DI\{AbstractContainer, Services\ServiceLocator};
 use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Injector\{Injectable, InjectableInterface};
@@ -70,9 +70,40 @@ class Resolver
         $types = $autowired = [];
 
         if (\is_callable($definition)) {
-            $types = Type::fromReflection(Callback::toReflection($definition));
+            $definition = \Closure::fromCallable($definition);
+        }
+
+        if ($definition instanceof \Closure) {
+            $definition = Callback::unwrap($definition);
+            $types = self::getTypes(\is_array($definition) ? new \ReflectionMethod($definition[0], $definition[1]) : new \ReflectionFunction($definition));
         } elseif (\is_string($definition)) {
-            if (!\class_exists($definition)) {
+            if (!(\class_exists($definition) || \interface_exists($definition))) {
+                return $allTypes ? ['string'] : [];
+            }
+
+            $types[] = $definition;
+        } elseif (\is_array($definition)) {
+            if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
+                if ($definition[0] instanceof Reference) {
+                    $def = $container->definition((string) $definition[0]);
+                } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
+                    $def = $container->definition($definition[0]->left->dim->value);
+                }
+
+                if (isset($def)) {
+                    $types = self::getTypes(new \ReflectionMethod($def instanceof DefinitionInterface ? $def->getEntity() : $def, $definition[1]));
+
+                    goto resolve_types;
+                }
+            }
+
+            return $allTypes ? ['array'] : [];
+        }
+
+        if (\is_callable($definition)) {
+            $types = self::getTypes(Callback::toReflection($definition));
+        } elseif (\is_string($definition)) {
+            if (!(\class_exists($definition) || \interface_exists($definition))) {
                 return $allTypes ? ['string'] : $types;
             }
 
@@ -86,19 +117,16 @@ class Resolver
         } elseif (\is_array($definition)) {
             if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
                 if ($definition[0] instanceof Reference) {
-                    $types = Type::fromReflection(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
+                    $types = self::getTypes(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
                 } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
-                    $types = Type::fromReflection(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
+                    $types = self::getTypes(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
                 }
             } else {
                 return $allTypes ? ['array'] : [];
             }
         }
 
-        if ($types instanceof Type) {
-            $types = $types->getNames();
-        }
-
+        resolve_types:
         foreach (($types ?? []) as $type) {
             $autowired[] = $type;
 
@@ -127,11 +155,30 @@ class Resolver
         $nullValuesFound = 0;
         $args = $this->resolveArguments($args); // Resolves provided arguments.
 
-        foreach ($function->getParameters() as $parameter) {
-            $resolved = AutowireValueResolver::resolve([$this, 'get'], $parameter, $args);
+        foreach ($function->getParameters() as $offset => $parameter) {
+            $position = 0 === $nullValuesFound ? $offset : $parameter->name;
+            $resolved = $args[$offset] ?? $args[$parameter->name] ?? null;
+            $types = self::getTypes($parameter);
 
-            if (null === $resolved && $parameter->isDefaultValueAvailable()) {
-                ++$nullValuesFound;
+            if (\PHP_VERSION_ID >= 80100 && (\count($types) > 1 && \is_subclass_of($enumType = $types[0], \BackedEnum::class))) {
+                if (null === ($resolved = $resolved ?? $providedParameters[$enumType] ?? null)) {
+                    throw new ContainerResolutionException(\sprintf('Missing parameter %s.', Reflection::toString($parameter)));
+                }
+                $resolvedParameters[$position] = $enumType::from($resolved);
+
+                continue;
+            }
+
+            if (null === ($resolved = $resolved ?? $this->autowireArgument($parameter, $types, $args))) {
+                if ($parameter->isDefaultValueAvailable()) {
+                    if (\PHP_MAJOR_VERSION < 8) {
+                        $resolvedParameters[$position] = Reflection::getParameterDefaultValue($parameter);
+                    } else {
+                        ++$nullValuesFound;
+                    }
+                } elseif (!$parameter->isVariadic()) {
+                    $resolvedParameters[$position] = self::getParameterDefaultValue($parameter, $types);
+                }
 
                 continue;
             }
@@ -142,7 +189,6 @@ class Resolver
                 continue;
             }
 
-            $position = \PHP_VERSION_ID >= 80000 && $nullValuesFound > 0 ? $parameter->getName() : $parameter->getPosition();
             $resolvedParameters[$position] = $resolved;
         }
 
@@ -213,6 +259,10 @@ class Resolver
 
             if (\is_callable($callback)) {
                 return $this->resolveCallable($callback, $args);
+            }
+
+            if (null !== $resolvedType = $this->container->convert($callback)) {
+                return $resolvedType;
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
             return $this->resolveCallable($callback, $args);
@@ -447,5 +497,165 @@ class Resolver
         }
 
         return [\is_int($id) ? \rtrim($value, '[]') : $id => $service];
+    }
+
+    /**
+     * Resolves missing argument using autowiring.
+     *
+     * @param array<int|string,mixed> $providedParameters
+     * @param array<int,string>       $types
+     *
+     * @throws ContainerResolutionException
+     *
+     * @return mixed
+     */
+    private function autowireArgument(\ReflectionParameter $parameter, array $types, array $providedParameters)
+    {
+        foreach ($types as $typeName) {
+            if (!Reflection::isBuiltinType($typeName)) {
+                try {
+                    return $providedParameters[$typeName] ?? $this->get($typeName, !$parameter->isVariadic());
+                } catch (NotFoundServiceException $e) {
+                    // Ignore this exception ...
+                } catch (ContainerResolutionException $e) {
+                    $errorException = new ContainerResolutionException(\sprintf("{$e->getMessage()} (needed by %s)", Reflection::toString($parameter)));
+                }
+
+                if (
+                    ServiceProviderInterface::class === $typeName &&
+                    null !== $class = $parameter->getDeclaringClass()
+                ) {
+                    if (!$class->implementsInterface(ServiceSubscriberInterface::class)) {
+                        throw new ContainerResolutionException(\sprintf(
+                            'Service of type %s needs parent class %s to implement %s.',
+                            $typeName,
+                            $class->getName(),
+                            ServiceSubscriberInterface::class
+                        ));
+                    }
+
+                    return $this->get($class->getName());
+                }
+            }
+
+            if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
+                foreach ($attributes as $attribute) {
+                    if (Inject::class === $attribute->getName()) {
+                        if (null === $attrName = $attribute->getArguments()[0] ?? null) {
+                            throw new ContainerResolutionException(\sprintf('Using the Inject attribute on parameter %s requires a value to be set.', $parameter->getName()));
+                        }
+
+                        if ($arrayLike = \str_ends_with($attrName, '[]')) {
+                            $attrName = \substr($attrName, 0, -2);
+                        }
+
+                        try {
+                            return $this->get($attrName, !$arrayLike);
+                        } catch (NotFoundServiceException $e) {
+                            // Ignore this exception ...
+                        }
+                    }
+                }
+            }
+
+            if (
+                ($method = $parameter->getDeclaringFunction()) instanceof \ReflectionMethod
+                && \preg_match('#@param[ \t]+([\w\\\\]+)(?:\[\])?[ \t]+\$' . $parameter->name . '#', (string) $method->getDocComment(), $m)
+                && ($itemType = Reflection::expandClassName($m[1], $method->getDeclaringClass()))
+                && (\class_exists($itemType) || \interface_exists($itemType))
+            ) {
+                try {
+                    if (\in_array($typeName, ['array', 'iterable'], true)) {
+                        return $this->get($itemType);
+                    }
+
+                    if ('object' === $typeName || \is_subclass_of($itemType, $typeName)) {
+                        return $this->get($itemType, true);
+                    }
+                } catch (NotFoundServiceException $e) {
+                    // Ignore this exception ...
+                }
+            }
+
+            if (isset($errorException)) {
+                throw $errorException;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns an associated type to the given parameter if available.
+     *
+     * @param \ReflectionParameter|\ReflectionFunctionAbstract $reflection
+     *
+     * @return array<int,string>
+     */
+    private static function getTypes(\Reflector $reflection): array
+    {
+        if ($reflection instanceof \ReflectionParameter) {
+            $type = $reflection->getType();
+        } elseif ($reflection instanceof \ReflectionFunctionAbstract) {
+			$type = $reflection->getReturnType() ?? (PHP_VERSION_ID >= 80100 ? $reflection->getTentativeReturnType() : null);
+		}
+
+        if (!isset($type)) {
+            return [];
+        }
+
+        $resolver = static function (\ReflectionNamedType $rName) use ($reflection): string {
+            $function = $reflection instanceof \ReflectionParameter ? $reflection->getDeclaringFunction() : $reflection;
+
+            if ($function instanceof \ReflectionMethod) {
+                $lcName = \strtolower($rName->getName());
+
+                if ('self' === $lcName || 'static' === $lcName) {
+                    return $function->getDeclaringClass()->name;
+                }
+
+                if ('parent' === $lcName) {
+                    return $function->getDeclaringClass()->getParentClass()->name;
+                }
+            }
+
+            return $rName->getName();
+        };
+
+        if (!$type instanceof \ReflectionNamedType) {
+            return \array_map($resolver, $type->getTypes());
+        }
+
+        return [$resolver($type)];
+    }
+
+    /**
+     * Get the parameter's allowed null else error.
+     *
+     * @throws \ReflectionException|ContainerResolutionException
+     *
+     * @return null
+     */
+    private static function getParameterDefaultValue(\ReflectionParameter $parameter, array $types)
+    {
+        if ($parameter->isOptional() || $parameter->allowsNull()) {
+            return null;
+        }
+
+        $errorDescription = 'Parameter ' . Reflection::toString($parameter);
+
+        if ('' === ($typedHint = \implode('|', $types))) {
+            $errorDescription .= ' has no type hint or default value.';
+        } elseif (\str_contains($typedHint, '|')) {
+            $errorDescription .= ' has multiple type-hints ("' . $typedHint . '").';
+        } elseif (\class_exists($typedHint)) {
+            $errorDescription .= ' has an unresolved class-based type-hint ("' . $typedHint . '").';
+        }  elseif (\interface_exists($typedHint)) {
+            $errorDescription .= ' has an unresolved interface-based type-hint ("' . $typedHint . '").';
+        } else {
+            $errorDescription .= ' has a type-hint ("' . $typedHint  . '") that cannot be resolved, perhaps a you forgot to set it up?';
+        }
+
+        throw new ContainerResolutionException($errorDescription);
     }
 }
