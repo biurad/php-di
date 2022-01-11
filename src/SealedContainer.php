@@ -32,7 +32,7 @@ use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException
  */
 class SealedContainer implements ContainerInterface
 {
-    protected array $loading = [], $services = [], $privates = [], $methodsMap = [], $aliases = [], $types = [], $tags = [];
+    protected array $loading = [], $services = [], $privates = [], $methodsMap = [], $resolvers = [], $aliases = [], $types = [], $tags = [];
 
     public function __construct()
     {
@@ -130,6 +130,10 @@ class SealedContainer implements ContainerInterface
             }
 
             return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
+        } elseif (\array_key_exists($id, $this->resolvers)) {
+            [$resolver, $inline] = $this->resolvers[$id];
+
+            return \call_user_func_array($resolver, $inline ? [$id] : []);
         } elseif ($nullOnInvalid) {
             return null;
         }
