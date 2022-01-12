@@ -197,8 +197,8 @@ class ExtensionBuilder
             $configuration = $configuration[$parent = $extraKey];
         }
 
-        if (isset($aliasedId, $configuration[$aliasedId]) || $e = \array_key_exists($id, $configuration)) {
-            $configuration = $configuration[$aliasedId ?? $id];
+        if (isset($aliasedId, $configuration[$aliasedId]) || \array_key_exists($id, $configuration)) {
+            $configuration = $configuration[$aliasedId ?? ($e = $id)] ?? [];
         } else {
             $configuration = [];
         }
@@ -218,13 +218,13 @@ class ExtensionBuilder
             }
 
             if (isset($parent)) {
-                unset($this->configuration[$parent][isset($e) ? $id : $aliasedId]);
+                unset($this->configuration[$parent][$aliasedId ?? $e ?? $id]);
 
                 return $this->configuration[$parent][$id] = $config;
             }
         }
 
-        unset($this->configuration[isset($e) ? $id : $aliasedId]);
+        unset($this->configuration[$aliasedId ?? $e ?? $id]);
 
         return $this->configuration[$id] = $config ?? $configuration;
     }
