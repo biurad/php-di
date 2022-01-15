@@ -477,11 +477,13 @@ class Resolver
         };
 
         if (null !== $this->builder) {
-            if ((\class_exists($id) || \interface_exists($id)) && $this->container->has($value)) {
-                $value = $id;
+            if ($this->container->has($value)) {
+                $returnType = $this->container->definition($value)->getTypes()[0] ?? (\class_exists($id) || \interface_exists($id) ? $id : null);
+            } elseif ('[]' !== \substr($value, -2)) {
+                $returnType = 'array';
             }
 
-            $service = new Expr\ArrowFunction(['expr' => $this->builder->val($service()), 'returnType' => '[]' !== \substr($value, -2) ? $value : 'array']);
+            $service = new Expr\ArrowFunction(['expr' => $this->builder->val($service()), 'returnType' => $returnType ?? null]);
         }
 
         return [\is_int($id) ? \rtrim($value, '[]') : $id => $service];
