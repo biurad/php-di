@@ -20,8 +20,8 @@ namespace Rade\DI\Traits;
 use Nette\Utils\Helpers;
 use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\{ContainerInterface, Definition, Definitions};
-use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, ShareableDefinitionInterface, TypedDefinitionInterface};
-use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException, ServiceCreationException};
+use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
+use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 
 /**
  * This trait adds definition's functionality to container.
@@ -162,11 +162,7 @@ trait DefinitionTrait
                 throw $this->createNotFound((string) $definition);
             }
 
-            if (!$previousDef instanceof ShareableDefinitionInterface || !$previousDef->isAbstract()) {
-                throw new ServiceCreationException(\sprintf('Constructing a child service definition "%s" from a parent definition "%s", encountered an error.', $id, (string) $definition));
-            }
-
-            $definition = clone $previousDef->abstract(false);
+            ($definition = clone $previousDef)->abstract(false);
         }
 
         return $this->definitions[$id] = $definition;
