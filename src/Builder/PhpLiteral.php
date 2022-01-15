@@ -19,7 +19,6 @@ namespace Rade\DI\Builder;
 
 use PhpParser\{NodeTraverser, ParserFactory};
 use Rade\DI\NodeVisitor\PhpLiteralVisitor;
-use Rade\DI\Resolvers\Resolver;
 
 /**
  * PHP literal value.
@@ -51,7 +50,7 @@ class PhpLiteral
         $this->value = $value;
     }
 
-    public function resolve(Resolver $resolver)
+    public function resolve(\Rade\DI\Resolver $resolver)
     {
         return (function () use ($resolver) {
             $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);

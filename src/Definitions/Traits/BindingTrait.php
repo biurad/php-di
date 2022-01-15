@@ -23,7 +23,7 @@ use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\Assign;
 use Rade\DI\Definitions\Statement;
 use Rade\DI\Exceptions\ContainerResolutionException;
-use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Resolver;
 
 /**
  * This trait adds method binding functionality to the service definition

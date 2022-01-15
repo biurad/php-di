@@ -42,7 +42,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             $builderFactory = new \PhpParser\BuilderFactory();
         }
 
-        $this->resolver = new Resolvers\Resolver($this, $builderFactory ?? null);
+        $this->resolver = new Resolver($this, $builderFactory ?? null);
     }
 
     /**

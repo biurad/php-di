@@ -21,7 +21,6 @@ use PhpParser\Node\Expr\{Assign, Variable};
 use PhpParser\Node\Stmt\Return_;
 use Rade\DI\Exceptions\ServiceCreationException;
 use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, DepreciableDefinitionInterface, ShareableDefinitionInterface, TypedDefinitionInterface};
-use Rade\DI\Resolvers\Resolver;
 use Rade\DI\Definitions\Traits as Defined;
 
 /**

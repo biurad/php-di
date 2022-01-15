@@ -21,7 +21,7 @@ use Nette\Utils\Validators;
 use Rade\DI\{Definition, Definitions, Extensions, Services};
 use Rade\DI\Definitions\{DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
-use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Resolver;
 use Symfony\Contracts\Service\{ResetInterface, ServiceSubscriberInterface};
 
 /**

@@ -24,7 +24,7 @@ use PhpParser\Node\Expr\{Assign, Variable};
 use Rade\DI\Attribute\Inject;
 use Rade\DI\Definitions\Reference;
 use Rade\DI\Exceptions\ContainerResolutionException;
-use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Resolver;
 
 /**
  * An injectable class used by service definitions.

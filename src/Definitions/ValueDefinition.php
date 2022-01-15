@@ -20,7 +20,7 @@ namespace Rade\DI\Definitions;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Stmt\Return_;
 use Rade\DI\Exceptions\ServiceCreationException;
-use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Resolver;
 
 /**
  * Represents a definition service that shouldn't be resolved.

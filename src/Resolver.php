@@ -15,17 +15,13 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Resolvers;
+namespace Rade\DI;
 
 use Nette\Utils\{Callback, Reflection};
 use PhpParser\BuilderFactory;
 use PhpParser\Node\{Expr, Stmt, Scalar};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
-use Rade\DI\Definitions\{DefinitionInterface, Reference, Statement, ValueDefinition};
-use Rade\DI\{AbstractContainer, Services\ServiceLocator};
-use Rade\DI\Builder\PhpLiteral;
-use Rade\DI\Injector\{Injectable, InjectableInterface};
-use Symfony\Contracts\Service\ServiceSubscriberInterface;
+use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
 /**
  * Class Resolver.
@@ -87,14 +83,14 @@ class Resolver
             $types[] = $definition;
         } elseif (\is_array($definition)) {
             if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
-                if ($definition[0] instanceof Reference) {
+                if ($definition[0] instanceof Definitions\Reference) {
                     $def = $container->definition((string) $definition[0]);
                 } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
                     $def = $container->definition($definition[0]->left->dim->value);
                 }
 
                 if (isset($def)) {
-                    $types = self::getTypes(new \ReflectionMethod($def instanceof DefinitionInterface ? $def->getEntity() : $def, $definition[1]));
+                    $types = self::getTypes(new \ReflectionMethod($def instanceof Definitions\DefinitionInterface ? $def->getEntity() : $def, $definition[1]));
 
                     goto resolve_types;
                 }
@@ -119,7 +115,7 @@ class Resolver
             $types[] = \get_class($definition);
         } elseif (\is_array($definition)) {
             if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
-                if ($definition[0] instanceof Reference) {
+                if ($definition[0] instanceof Definitions\Reference) {
                     $types = self::getTypes(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
                 } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
                     $types = self::getTypes(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
@@ -211,15 +207,15 @@ class Resolver
      */
     public function resolve($callback, array $args = [])
     {
-        if ($callback instanceof Statement) {
-            if (ServiceLocator::class == ($value = $callback->getValue())) {
+        if ($callback instanceof Definitions\Statement) {
+            if (Services\ServiceLocator::class == ($value = $callback->getValue())) {
                 $services = [];
 
                 foreach (($callback->getArguments() ?: $args) as $name => $service) {
                     $services += $this->resolveServiceSubscriber($name, (string) $service);
                 }
 
-                $resolved = null === $this->builder ? new ServiceLocator($services) : $this->builder->new('\\' . ServiceLocator::class, [$services]);
+                $resolved = null === $this->builder ? new Services\ServiceLocator($services) : $this->builder->new('\\' . Services\ServiceLocator::class, [$services]);
             } else {
                 $resolved = $this->resolve($value, $callback->getArguments() ?: $args);
 
@@ -227,15 +223,15 @@ class Resolver
                     $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
                 }
             }
-        } elseif ($callback instanceof Reference) {
+        } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->resolveReference((string) $callback);
 
             if (\is_callable($resolved) || (\is_array($resolved) && 2 === \count($resolved, \COUNT_RECURSIVE))) {
                 $resolved = $this->resolveCallable($resolved, $args);
             }
-        } elseif ($callback instanceof ValueDefinition) {
+        } elseif ($callback instanceof Definitions\ValueDefinition) {
             $resolved = $callback->getEntity();
-        } elseif ($callback instanceof PhpLiteral) {
+        } elseif ($callback instanceof Builder\PhpLiteral) {
             $expression = $this->literalCache[\spl_object_id($callback)] ??= $callback->resolve($this)[0];
             $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
         } elseif (\is_string($callback)) {
@@ -332,8 +328,8 @@ class Resolver
             $service = null === $this->builder ? $reflection->newInstanceArgs($args) : $this->builder->new($class, $args);
         }
 
-        if ($reflection->implementsInterface(InjectableInterface::class)) {
-            return Injectable::getProperties($this, $service, $reflection);
+        if ($reflection->implementsInterface(Injector\InjectableInterface::class)) {
+            return Injector\Injectable::getProperties($this, $service, $reflection);
         }
 
         return $service;
@@ -390,10 +386,10 @@ class Resolver
             }
 
             if (null === $builder = $this->builder) {
-                return new ServiceLocator($services);
+                return new Services\ServiceLocator($services);
             }
 
-            return $builder->new('\\' . ServiceLocator::class, [$services]);
+            return $builder->new('\\' . Services\ServiceLocator::class, [$services]);
         }
 
         if (!$this->strict) {
@@ -530,7 +526,7 @@ class Resolver
 
             if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
                 foreach ($attributes as $attribute) {
-                    if (Inject::class === $attribute->getName()) {
+                    if (Attribute\Inject::class === $attribute->getName()) {
                         if (null === $attrName = $attribute->getArguments()[0] ?? null) {
                             throw new ContainerResolutionException(\sprintf('Using the Inject attribute on parameter %s requires a value to be set.', $parameter->getName()));
                         }

@@ -58,7 +58,7 @@ class ContainerBuilder extends AbstractContainer
         $this->containerParentClass = $containerParentClass;
         $this->resources = \interface_exists(ResourceInterface::class) ? [] : null;
 
-        $this->type(self::SERVICE_CONTAINER, Resolvers\Resolver::autowireService($containerParentClass));
+        $this->type(self::SERVICE_CONTAINER, Resolver::autowireService($containerParentClass));
     }
 
     /**

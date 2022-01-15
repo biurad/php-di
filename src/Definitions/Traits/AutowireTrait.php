@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Definitions\Traits;
 
 use PhpParser\Node\{Name, UnionType};
-use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Resolver;
 
 /**
  * This trait adds a autowiring functionality to the service definition.

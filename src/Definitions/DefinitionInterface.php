@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Definitions;
 
 use PhpParser\Builder\Method;
-use Rade\DI\Resolvers\Resolver;
+use Rade\DI\Resolver;
 
 /**
  * Definition represents a service definition.
