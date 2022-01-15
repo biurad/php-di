@@ -583,8 +583,8 @@ class Resolver
         if ($reflection instanceof \ReflectionParameter) {
             $type = $reflection->getType();
         } elseif ($reflection instanceof \ReflectionFunctionAbstract) {
-			$type = $reflection->getReturnType() ?? (PHP_VERSION_ID >= 80100 ? $reflection->getTentativeReturnType() : null);
-		}
+            $type = $reflection->getReturnType() ?? (PHP_VERSION_ID >= 80100 ? $reflection->getTentativeReturnType() : null);
+        }
 
         if (!isset($type)) {
             return [];
@@ -636,7 +636,7 @@ class Resolver
             $errorDescription .= ' has multiple type-hints ("' . $typedHint . '").';
         } elseif (\class_exists($typedHint)) {
             $errorDescription .= ' has an unresolved class-based type-hint ("' . $typedHint . '").';
-        }  elseif (\interface_exists($typedHint)) {
+        } elseif (\interface_exists($typedHint)) {
             $errorDescription .= ' has an unresolved interface-based type-hint ("' . $typedHint . '").';
         } else {
             $errorDescription .= ' has a type-hint ("' . $typedHint  . '") that cannot be resolved, perhaps a you forgot to set it up?';
