@@ -79,11 +79,11 @@ class ExtensionBuilder
     /**
      * Get all loaded extensions.
      *
-     * @return array<string,ExtensionInterface>
+     * @return array<string,ExtensionInterface|null>
      */
     public function getExtensions(): array
     {
-        return \array_filter($this->extensions);
+        return $this->extensions;
     }
 
     /**

@@ -28,6 +28,18 @@ use Rade\DI\Extensions\ExtensionInterface;
 trait ExtensionTrait
 {
     /**
+     * Get the extension builder extensions.
+     *
+     * @return array<int,class-string<ExtensionInterface>>
+     */
+    public function getExtensions(): array
+    {
+        $extensionBuilder = $this->getExtensionBuilder();
+
+        return null !== $extensionBuilder ? \array_keys($extensionBuilder->getExtensions()) : [];
+    }
+
+    /**
      * Get the registered extension from builder.
      *
      * @param string $extensionName The extension class name or its alias
