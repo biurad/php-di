@@ -41,8 +41,9 @@ COMMENT;
     public static function print(array $stmts, array $options = []): string
     {
         $printer = new self($options + ['maxLineLength' => 200, 'shortArraySyntax' => true]);
+        $printerCode = $printer->prettyPrintFile($stmts);
 
-        return $printer->prettyPrintFile($stmts);
+        return \str_replace("\n\n\n", "\n\n", $printerCode);
     }
 
     protected function pStmt_Return(\PhpParser\Node\Stmt\Return_ $node): string
