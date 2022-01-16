@@ -262,7 +262,7 @@ class ExtensionBuilder
             $this->extensions[$extension] = $resolved; // Add to stack before registering it ...
 
             if ($resolved instanceof DependenciesInterface) {
-                $this->bootExtensions($resolved->dependencies(), $afterLoading, $extraKey = \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
+                $this->bootExtensions($resolved->dependencies(), $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
             }
 
             $resolved->register($container, $this->process($resolved, $extraKey));
