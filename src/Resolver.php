@@ -245,8 +245,6 @@ class Resolver
 
             if (\is_callable($callback)) {
                 $resolved = $this->resolveCallable($callback, $args);
-            } elseif (null !== $resolvedType = $this->container->convert($callback)) {
-                $resolved = $resolvedType;
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
             $resolved = $this->resolveCallable($callback, $args);
@@ -398,10 +396,6 @@ class Resolver
 
         if ($this->container->typed($id)) {
             return $this->container->autowired($id, $single);
-        }
-
-        if (null !== $resolvedType = $this->container->convert($id)) {
-            return $resolvedType;
         }
 
         throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));

@@ -165,11 +165,6 @@ class ContainerBuilder extends AbstractContainer
             $this->compileToConstructor($this->resolveParameters($parameters), $containerNode, 'parameters');
         }
 
-        if (!empty($resolvers = $this->resolvers)) {
-            \ksort($resolvers);
-            $this->compileToConstructor($this->resolveParameters($resolvers), $containerNode, 'resolvers');
-        }
-
         if (!empty($processedData[1])) {
             unset($processedData[1][self::SERVICE_CONTAINER]);
             $containerNode->addStmt($this->resolver->getBuilder()->property('methodsMap')->makeProtected()->setType('array')->setDefault($processedData[1]));

@@ -33,9 +33,6 @@ trait TypesTrait
 {
     protected Resolver $resolver;
 
-    /** @var array<string,mixed> */
-    protected array $resolvers = [];
-
     /** @var array<string,string[]> type => services */
     protected array $types = [];
 
@@ -203,29 +200,6 @@ trait TypesTrait
         }
 
         return \array_map(fn (string $id) => $this->services[$id] ?? $this->get($id), $autowired);
-    }
-
-    /**
-     * Set/Get a typed conversion support.
-     *
-     * @param string $typedName
-     * @param Definitions\Statement|callable $resolver
-     *
-     * @return mixed
-     */
-    public function convert(string $typedName, $resolver = null, bool $inline = false)
-    {
-        if (null === $resolver) {
-            if (isset($this->resolvers[$typedName])) {
-                [$resolver, $inline] = $this->resolvers[$typedName];
-
-                return $this->resolver->resolve($resolver, $inline ? [$typedName] : []);
-            }
-
-            return $resolver;
-        }
-
-        $this->resolvers[$typedName] = [$resolver, $inline];
     }
 
     /**
