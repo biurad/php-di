@@ -211,22 +211,21 @@ class ExtensionBuilder
                     (include $configuration)($configLoader);
                 }
 
-                $config = $configLoader->toArray();
+                $configuration = $configLoader->toArray();
             } else {
                 $treeBuilder = $extension->getConfigTreeBuilder()->buildTree();
-                $config = (new Processor())->process($treeBuilder, [$treeBuilder->getName() => $configuration]);
-            }
-
-            if (isset($parent)) {
-                unset($this->configuration[$parent][$aliasedId ?? $e ?? $id]);
-
-                return $this->configuration[$parent][$id] = $config;
+                $configuration = (new Processor())->process($treeBuilder, [$treeBuilder->getName() => $configuration]);
             }
         }
 
+        if (isset($parent)) {
+            unset($this->configuration[$parent][$aliasedId ?? $e ?? $id]);
+
+            return $this->configuration[$parent][$id] = $configuration;
+        }
         unset($this->configuration[$aliasedId ?? $e ?? $id]);
 
-        return $this->configuration[$id] = $config ?? $configuration;
+        return $this->configuration[$id] = $configuration;
     }
 
     /**
