@@ -33,7 +33,7 @@ class PhpFileLoader extends FileLoader
     /**
      * {@inheritdoc}
      */
-    public function load(mixed $resource, string $type = null): void
+    public function load($resource, string $type = null): void
     {
         $container = $this->builder->getContainer();
 
