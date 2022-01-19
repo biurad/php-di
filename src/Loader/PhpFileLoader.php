@@ -75,7 +75,7 @@ class PhpFileLoader extends FileLoader
     /**
      * {@inheritdoc}
      */
-    public function supports(mixed $resource, string $type = null): bool
+    public function supports($resource, string $type = null): bool
     {
         if (!\is_string($resource)) {
             return false;
