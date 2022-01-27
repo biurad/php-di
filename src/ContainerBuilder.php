@@ -294,19 +294,21 @@ class ContainerBuilder extends AbstractContainer
                 continue;
             }
 
-            $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
+            $methodsMap[$id] = $this->resolver->createMethod($id);
 
             if ($definition instanceof ShareableDefinitionInterface) {
-                if ($definition->isAbstract()) {
-                    \array_pop($serviceMethods);
+                if (!$definition->isPublic()) {
+                    unset($methodsMap[$id]);
                 }
 
-                if (!$definition->isPublic()) {
+                if ($definition->isAbstract()) {
+                    unset($methodsMap[$id]);
+
                     continue;
                 }
             }
 
-            $methodsMap[$id] = $this->resolver->createMethod($id);
+            $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
         }
 
         if ($onlyDefinitions) {
