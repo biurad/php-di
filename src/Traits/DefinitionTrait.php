@@ -20,7 +20,6 @@ namespace Rade\DI\Traits;
 use Nette\Utils\Helpers;
 use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\{ContainerInterface, Definition, Definitions};
-use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 
 /**
@@ -34,7 +33,7 @@ trait DefinitionTrait
 {
     use AliasTrait;
 
-    /** @var array<string,DefinitionInterface|object> service name => instance */
+    /** @var array<string,Definitions\DefinitionInterface|object> service name => instance */
     protected array $definitions = [];
 
     /** @var array<string,mixed> A list of already public loaded services (this act as a local cache) */
@@ -56,7 +55,7 @@ trait DefinitionTrait
     /**
      * Gets all service definitions.
      *
-     * @return array<string,DefinitionInterface|object>
+     * @return array<string,Definitions\DefinitionInterface|object>
      */
     public function definitions(): array
     {
@@ -112,7 +111,7 @@ trait DefinitionTrait
     /**
      * {@inheritdoc}
      *
-     * @param DefinitionInterface|object|null $definition
+     * @param Definitions\DefinitionInterface|object|null $definition
      *
      * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
@@ -140,12 +139,13 @@ trait DefinitionTrait
             }
 
             ($definition ?? $definition = new Definition($id))->bindWith($id, $this);
-        } elseif ($definition instanceof DefinitionInterface) {
-            if ($definition instanceof TypedDefinitionInterface) {
+        } elseif ($definition instanceof Definitions\DefinitionInterface) {
+            create_definition:
+            if ($definition instanceof Definitions\TypedDefinitionInterface) {
                 $definition->isTyped() && $this->type($id, $definition->getTypes());
             }
 
-            if ($definition instanceof DefinitionAwareInterface) {
+            if ($definition instanceof Definitions\DefinitionAwareInterface) {
                 /** @var \Rade\DI\Definitions\Traits\DefinitionAwareTrait $definition */
                 if ($definition->hasTags()) {
                     foreach ($definition->getTags() as $tag => $value) {
@@ -161,8 +161,9 @@ trait DefinitionTrait
             if (null === $previousDef) {
                 throw $this->createNotFound((string) $definition);
             }
-
             ($definition = clone $previousDef)->abstract(false);
+
+            goto create_definition;
         }
 
         return $this->definitions[$id] = $definition;
@@ -187,7 +188,7 @@ trait DefinitionTrait
      *
      * All decorated services under the tag: container.decorated_services
      *
-     * @param DefinitionInterface|object|null $definition
+     * @param Definitions\DefinitionInterface|object|null $definition
      *
      * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
