@@ -38,10 +38,10 @@ trait AutowireTrait
     public function autowire(array $types = [])
     {
         if ([] === $types) {
-            $types = Resolver::autowireService($this->getEntity(), false, isset($this->innerId) ? $this->container : null);
+            $types = Resolver::autowireService($this->getEntity(), false, $this->container ?? null);
         }
 
-        if (isset($this->innerId)) {
+        if (isset($this->container)) {
             $this->container->type($this->innerId, $types);
         }
 
@@ -108,7 +108,7 @@ trait AutowireTrait
             $defTyped = $this->types;
 
             if (empty($defTyped)) {
-                $this->types = Resolver::autowireService($this->getEntity(), true, isset($this->innerId) ? $this->container : null);
+                $this->types = Resolver::autowireService($this->getEntity(), true, $this->container ?? null);
 
                 if (!empty($this->types)) {
                     $this->triggerReturnType($defNode);
