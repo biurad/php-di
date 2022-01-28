@@ -231,6 +231,8 @@ class Resolver
             }
         } elseif ($callback instanceof Definitions\ValueDefinition) {
             $resolved = $callback->getEntity();
+        } elseif ($callback instanceof Definitions\TaggedLocator) {
+            $resolved = $this->resolve($callback->resolve($this->container));
         } elseif ($callback instanceof Builder\PhpLiteral) {
             $expression = $this->literalCache[\spl_object_id($callback)] ??= $callback->resolve($this)[0];
             $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;

@@ -19,7 +19,7 @@ namespace Rade\DI\Loader;
 
 use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
-use Rade\DI\Definitions\{Reference, Statement, ValueDefinition};
+use Rade\DI\Definitions\{Reference, Statement, TaggedLocator, ValueDefinition};
 
 /**
  * Marks a definition from being interpreted as a service.
@@ -62,6 +62,16 @@ function service($definition, array $args = []): Definition
 function reference(string $id): Reference
 {
     return new Reference($id);
+}
+
+/**
+ * Creates a lazy iterator by tag name.
+ *
+ * @param string,array<int,string> $exclude
+ */
+function tagged(string $tag, string $indexAttribute = null, $exclude = []): TaggedLocator
+{
+    return new TaggedLocator($tag, $indexAttribute, false, (array) $exclude);
 }
 
 /**
