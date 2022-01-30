@@ -228,6 +228,8 @@ class Resolver
 
             if (\is_callable($resolved) || (\is_array($resolved) && 2 === \count($resolved, \COUNT_RECURSIVE))) {
                 $resolved = $this->resolveCallable($resolved, $args);
+            } else {
+                $callback = $resolved;
             }
         } elseif ($callback instanceof Definitions\ValueDefinition) {
             $resolved = $callback->getEntity();
