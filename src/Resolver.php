@@ -90,7 +90,14 @@ class Resolver
                 }
 
                 if (isset($def)) {
-                    $types = self::getTypes(new \ReflectionMethod($def instanceof Definitions\DefinitionInterface ? $def->getEntity() : $def, $definition[1]));
+                    if ($def instanceof Definitions\DefinitionInterface) {
+                        $class = self::getDefinitionClass($def);
+
+                        if (null === $class) {
+                            return [];
+                        }
+                    }
+                    $types = self::getTypes(new \ReflectionMethod($class ?? $def, $definition[1]));
 
                     goto resolve_types;
                 }
@@ -274,7 +281,11 @@ class Resolver
                 $callback[0] = $this->resolve($callback[0]);
 
                 if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
-                    $type = [$this->container->definition($callback[0]->left->dim->value)->getEntity(), $callback[1]];
+                    $class = self::getDefinitionClass($this->container->definition($callback[0]->left->dim->value));
+
+                    if (null !== $class) {
+                        $type = [$class, $callback[1]];
+                    }
                 } elseif ($callback[0] instanceof Expr\New_) {
                     $type = [(string) $callback[0]->class, $callback[1]];
                 }
@@ -611,6 +622,23 @@ class Resolver
         }
 
         return [$resolver($type)];
+    }
+
+    private static function getDefinitionClass(Definitions\DefinitionInterface $def): ?string
+    {
+        if (!\class_exists($class = $def->getEntity())) {
+            if ($def instanceof Definitions\TypedDefinitionInterface) {
+                foreach ($def->getTypes() as $typed) {
+                    if (\class_exists($typed)) {
+                        return $typed;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        return $class;
     }
 
     /**
