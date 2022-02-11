@@ -54,8 +54,8 @@ trait BindingTrait
     {
         if ('$' === $nameOrMethod[0]) {
             $this->parameters[\substr($nameOrMethod, 1)] = $valueOrRef;
-        } else {
-            $this->calls[] = [$nameOrMethod, $valueOrRef];
+        } elseif (2 === \func_num_args()) {
+            $this->calls[] = [$nameOrMethod, \is_array($valueOrRef) ? $valueOrRef : [$valueOrRef]];
         }
 
         return $this;
@@ -102,10 +102,22 @@ trait BindingTrait
     public function unbind(string $parameterOrMethod)
     {
         foreach ($this->calls as $offset => [$method, $mCall]) {
-            if (\in_array($parameterOrMethod, [$offset . $method, $method], true)) {
+            if (\str_contains($parameterOrMethod, '.')) {
+                [$nName, $name] = \explode('.', $parameterOrMethod);
+
+                if ($method === $name && $offset === $nName) {
+                    unset($this->calls[$offset][$name]);
+
+                    goto get_instance;
+                }
+
+                continue;
+            }
+
+            if ($method === $parameterOrMethod) {
                 unset($this->calls[$offset]);
 
-                break;
+                goto get_instance;
             }
         }
 
@@ -113,6 +125,7 @@ trait BindingTrait
             unset($this->parameters[$parameterOrMethod]);
         }
 
+        get_instance:
         return $this;
     }
 
@@ -168,8 +181,6 @@ trait BindingTrait
         }
 
         foreach ($this->calls as [$method, $mCall]) {
-            $mCall = \is_array($mCall) ? $mCall : [$mCall];
-
             if (\is_string($this->entity) && \method_exists($this->entity, $method)) {
                 $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $method]), $mCall);
             } else {
