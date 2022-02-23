@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Extensions;
 
 use Rade\DI\{AbstractContainer, ContainerBuilder};
-use Rade\DI\Services\{AliasedInterface, DependenciesInterface};
+use Rade\DI\Exceptions\MissingPackageException;
 use Symfony\Component\Config\Builder\{ConfigBuilderGenerator, ConfigBuilderGeneratorInterface};
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
@@ -258,7 +258,10 @@ class ExtensionBuilder
                 $resolved = $container->getResolver()->resolveClass($extension, $args);
             }
 
-            /** @var ExtensionInterface $resolved */
+            if ($resolved instanceof RequiredPackagesInterface) {
+                $this->ensureRequiredPackagesAvailable($resolved);
+            }
+
             $this->extensions[$extension] = $resolved; // Add to stack before registering it ...
 
             if ($resolved instanceof DependenciesInterface) {
@@ -305,5 +308,22 @@ class ExtensionBuilder
 
         // Flatten the array
         return \array_merge(...$passes);
+    }
+
+    private function ensureRequiredPackagesAvailable(RequiredPackagesInterface $extension): void
+    {
+        $missingPackages = [];
+
+        foreach ($extension->getRequiredPackages() as $requiredClass => $packageName) {
+            if (!\class_exists($requiredClass)) {
+                $missingPackages[] = $packageName;
+            }
+        }
+
+        if (!$missingPackages) {
+            return;
+        }
+
+        throw new MissingPackageException(\sprintf('Missing package%s, to use the "%s" extension, run: composer require %s', \count($missingPackages) > 1 ? 's' : '', \get_class($extension), \implode(' ', $missingPackages)));
     }
 }
