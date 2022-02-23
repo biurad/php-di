@@ -15,7 +15,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
+namespace Rade\DI\Extensions;
 
 /**
  * Declares that service provider has other providers as dependencies.
@@ -27,7 +27,7 @@ interface DependenciesInterface
     /**
      * Return class names of service providers current provider depends on.
      *
-     * @return ServiceProviderInterface[]|string[]
+     * @return array<int,ExtensionInterface|string>
      */
     public function dependencies(): array;
 }

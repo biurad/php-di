@@ -15,19 +15,17 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Services;
-
-use Rade\DI\ContainerInterface;
+namespace Rade\DI\Extensions;
 
 /**
- * ContainerAwareInterface should be implemented by classes that depends on a Container.
+ * Set a unique aliased name for an extension.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface ContainerAwareInterface
+interface AliasedInterface
 {
     /**
-     * Sets the container.
+     * Return the alias of the extension.
      */
-    public function setContainer(ContainerInterface $container);
+    public function getAlias(): string;
 }
