@@ -17,11 +17,9 @@ declare(strict_types=1);
 
 namespace Rade\DI\Exceptions;
 
-use Psr\Container\ContainerExceptionInterface;
-
 /**
  * An attempt to modify a frozen service was made.
  */
-class FrozenServiceException extends \RuntimeException implements ContainerExceptionInterface
+class FrozenServiceException extends ServiceCreationException
 {
 }
