@@ -224,7 +224,7 @@ class Resolver
 
                 $resolved = null === $this->builder ? new Services\ServiceLocator($services) : $this->builder->new('\\' . Services\ServiceLocator::class, [$services]);
             } else {
-                $resolved = $this->resolve($value, $callback->getArguments() ?: $args);
+                $resolved = $this->resolve($value, $callback->getArguments() + $args);
 
                 if ($callback->isClosureWrappable()) {
                     $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
