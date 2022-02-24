@@ -101,6 +101,13 @@ trait BindingTrait
      */
     public function unbind(string $parameterOrMethod)
     {
+        if ('$' === $parameterOrMethod[0]) {
+            if (\array_key_exists($parameterOrMethod = \substr($parameterOrMethod, 1), $this->parameters)) {
+                unset($this->parameters[$parameterOrMethod]);
+            }
+            goto get_instance;
+        }
+
         foreach ($this->calls as $offset => [$method, $mCall]) {
             if (\str_contains($parameterOrMethod, '.')) {
                 [$nName, $name] = \explode('.', $parameterOrMethod);
@@ -108,21 +115,13 @@ trait BindingTrait
                 if ($method === $name && $offset === $nName) {
                     unset($this->calls[$offset][$name]);
 
-                    goto get_instance;
+                    break;
                 }
-
-                continue;
-            }
-
-            if ($method === $parameterOrMethod) {
+            } elseif ($method === $parameterOrMethod) {
                 unset($this->calls[$offset]);
 
-                goto get_instance;
+                break;
             }
-        }
-
-        if (\array_key_exists($parameterOrMethod, $this->parameters)) {
-            unset($this->parameters[$parameterOrMethod]);
         }
 
         get_instance:
