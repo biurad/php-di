@@ -65,11 +65,11 @@ trait BindingTrait
      * Sets a configurator to call after the service is fully initialized.
      *
      * @param mixed $configurator A PHP function, reference or an array containing a class/Reference and a method to call
-     * @param bool $extend If false, the initialized service will not be passed, but it will be resolved inline service.
+     * @param bool  $extend       If true, this service is passed as first argument into $configurator
      *
      * @return $this
      */
-    public function call($configurator, bool $extend = true)
+    public function call($configurator, bool $extend = false)
     {
         $this->extras[] = [$extend, $configurator];
 
