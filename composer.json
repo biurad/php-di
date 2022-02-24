@@ -27,16 +27,14 @@
         "symfony/service-contracts": "^2.4"
     },
     "require-dev": {
-        "composer/package-versions-deprecated": "^1.11",
         "divineniiquaye/php-invoker": "^0.9",
         "nikic/php-parser": "^4.13",
-        "phpstan/phpstan": "^0.12",
-        "phpstan/phpstan-strict-rules": "^0.12",
-        "phpunit/phpunit": "^8.5 || ^9.5",
+        "phpstan/phpstan": "^1.0",
+        "phpunit/phpunit": "^9.5",
         "squizlabs/php_codesniffer": "^3.6",
         "symfony/config": "^5.3 || ^6.0",
         "symfony/yaml": "^5.3 || ^6.0",
-        "vimeo/psalm": "^4.10"
+        "vimeo/psalm": "^4.21"
     },
     "autoload": {
         "psr-4": {
