@@ -100,26 +100,7 @@ use function Rade\DI\Loader\service;
 $container['session'] = service(new Session($container['session_storage']))->shared(false);
 ```
 
-With the example above, each call to `$container['session']` returns a new instance of the session.
-
-In some cases you may want to modify a service definition after it has been defined. You can use the ``extend()`` method to define additional code to be run on your service just after it is created:
-
-```php
-$container['session_storage'] = function (Container $container) {
-    return new $container['session_storage_class']($container['cookie_name']);
-};
-
-// By default container is passed unto second parameter, but can be omitted.
-$container->extend('session_storage', function ($storage) {
-    $storage->...();
-
-    return $storage;
-});
-```
-
-The first argument is the name of the service to extend, the second a function that gets access to the object instance and the container.
-
-Also Rade has aliasing and tagging support for services. If you want to add a different name to a registered service, use `alias` method.
+With the example above, each call to `$container['session']` returns a new instance of the session. Also Rade has aliasing and tagging support for services. If you want to add a different name to a registered service, use `alias` method.
 
 ```php
 $container['film'] = new Movie('S1', 'EP202');
