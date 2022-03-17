@@ -482,10 +482,16 @@ class Resolver
         };
 
         if (null !== $this->builder) {
-            if ($this->container->has($value)) {
-                $returnType = $this->container->definition($value)->getTypes()[0] ?? (\class_exists($id) || \interface_exists($id) ? $id : null);
-            } elseif ('[]' !== \substr($value, -2)) {
+            if ('[]' === \substr($value, -2)) {
                 $returnType = 'array';
+            } if ($this->container->has($value)) {
+                $returnType = $this->container->definition($value)->getTypes()[0] ?? (
+                    \class_exists($value) || \interface_exists($value)
+                    ? $value
+                    : (!\is_int($id) && (\class_exists($id) || \interface_exists($id)) ? $id : null)
+                );
+            } elseif (\class_exists($value) || \interface_exists($value)) {
+                $returnType = $value;
             }
 
             $service = new Expr\ArrowFunction(['expr' => $this->builder->val($service()), 'returnType' => $returnType ?? null]);
