@@ -49,7 +49,7 @@ class ExtensionBuilder
     public function __construct(AbstractContainer $container, array $config = [])
     {
         if (\array_key_exists('parameters', $config)) {
-            $this->container->parameters += $config['parameters'];
+            $container->parameters += $config['parameters'];
             unset($config['parameters']);
         }
 
