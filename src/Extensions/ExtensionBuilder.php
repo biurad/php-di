@@ -21,7 +21,7 @@ use Rade\DI\{AbstractContainer, ContainerBuilder};
 use Rade\DI\Exceptions\MissingPackageException;
 use Symfony\Component\Config\Builder\{ConfigBuilderGenerator, ConfigBuilderGeneratorInterface};
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
-use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
+use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
 
 /**
  * Provides ability to load container extensions.
@@ -48,6 +48,11 @@ class ExtensionBuilder
      */
     public function __construct(AbstractContainer $container, array $config = [])
     {
+        if (\array_key_exists('parameters', $config)) {
+            $this->container->parameters += $config['parameters'];
+            unset($config['parameters']);
+        }
+
         $this->container = $container;
         $this->configuration = $config;
     }
@@ -79,7 +84,7 @@ class ExtensionBuilder
     /**
      * Get all loaded extensions.
      *
-     * @return array<string,ExtensionInterface|null>
+     * @return array<string,ExtensionInterface>
      */
     public function getExtensions(): array
     {
@@ -122,8 +127,9 @@ class ExtensionBuilder
      * Modify the default configuration for an extension.
      *
      * @param array<string,mixed> $configuration
+     * @param bool $replace If true, integer keys values will be replaceable
      */
-    public function modifyConfig(string $extensionName, array $configuration, string $parent = null): void
+    public function modifyConfig(string $extensionName, array $configuration, string $parent = null, bool $replace = false): void
     {
         if (!\array_key_exists($extensionName, $this->extensions)) {
             throw new \InvalidArgumentException(\sprintf('The extension name provided in not valid, must be an extension\'s class name.', $extensionName));
@@ -132,7 +138,7 @@ class ExtensionBuilder
         $defaults = $this->getConfig($extensionName, $parent, $extensionKey);
 
         if (!empty($defaults)) {
-            $values = \array_replace_recursive($defaults, $configuration);
+            $values = $this->mergeConfig($defaults, $configuration, $replace);
 
             if (isset($parent, $extensionKey, $this->configuration[$parent][$extensionKey])) {
                 $this->configuration[$parent][$extensionKey] = $values;
@@ -238,31 +244,22 @@ class ExtensionBuilder
     {
         $container = $this->container;
 
-        foreach ($this->sortExtensions($extensions) as $extension) {
-            [$extension, $args] = \is_array($extension) ? $extension : [$extension, []];
-
-            if (\is_subclass_of($extension, DebugExtensionInterface::class) && $extension::inDevelopment() !== $container->parameters['debug']) {
+        foreach ($this->sortExtensions($extensions) as $resolved) {
+            if ($resolved instanceof DebugExtensionInterface && $resolved->inDevelopment() !== $container->parameters['debug']) {
                 continue;
             }
 
             if ($container instanceof ContainerBuilder) {
-                if (\interface_exists(ResourceInterface::class)) {
-                    $container->addResource(new ClassExistenceResource($extension, false));
-                    $container->addResource(new FileExistenceResource($rPath = ($ref = new \ReflectionClass($extension))->getFileName()));
-                    $container->addResource(new FileResource($rPath));
-                }
-
-                $ref = $ref ?? new \ReflectionClass($extension);
-                $resolved = $ref->newInstanceArgs(\array_map(static fn ($value) => \is_string($value) ? $container->parameter($value) : $value, $args));
-            } else {
-                $resolved = $container->getResolver()->resolveClass($extension, $args);
+                $container->addResource(new ClassExistenceResource(($ref = new \ReflectionClass($resolved))->getName(), false));
+                $container->addResource(new FileExistenceResource($rPath = $ref->getFileName()));
+                $container->addResource(new FileResource($rPath));
             }
 
             if ($resolved instanceof RequiredPackagesInterface) {
                 $this->ensureRequiredPackagesAvailable($resolved);
             }
 
-            $this->extensions[$extension] = $resolved; // Add to stack before registering it ...
+            $this->extensions[\get_class($resolved)] = $resolved; // Add to stack before registering it ...
 
             if ($resolved instanceof DependenciesInterface) {
                 $this->bootExtensions($resolved->dependencies(), $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
@@ -281,7 +278,7 @@ class ExtensionBuilder
      *
      * @param mixed[] $extensions container extensions with their priority as key
      *
-     * @return array<int,mixed>
+     * @return array<string,ExtensionInterface>
      */
     private function sortExtensions(array $extensions): array
     {
@@ -299,15 +296,19 @@ class ExtensionBuilder
             } elseif (\is_array($extension) && isset($extension[2])) {
                 $index = $extension[2];
             }
+            [$extension, $args] = \is_array($extension) ? $extension : [$extension, []];
 
-            $passes[$index][] = $extension;
-            $this->extensions[\is_array($extension) ? $extension[0] : $extension] = null;
+            if ($this->container instanceof ContainerBuilder) {
+                $resolved = new $extension(\array_map(fn ($v) => \is_string($v) ? $this->container->parameter($v) : $v, $args));
+            } else {
+                $resolved = $this->container->getResolver()->resolveClass($extension, $args);
+            }
+
+            $passes[$index][] = $this->extensions[$extension] = $resolved;
         }
-
         \krsort($passes);
 
-        // Flatten the array
-        return \array_merge(...$passes);
+        return \array_merge(...$passes); // Flatten the array
     }
 
     private function ensureRequiredPackagesAvailable(RequiredPackagesInterface $extension): void
@@ -325,5 +326,26 @@ class ExtensionBuilder
         }
 
         throw new MissingPackageException(\sprintf('Missing package%s, to use the "%s" extension, run: composer require %s', \count($missingPackages) > 1 ? 's' : '', \get_class($extension), \implode(' ', $missingPackages)));
+    }
+
+    /**
+     * Merges $b into $a.
+     */
+    private function mergeConfig(array $a, array $b, bool $replace): array
+    {
+        foreach ($b as $k => $v) {
+            if (\array_key_exists($k, $a)) {
+                if (!\is_array($v)) {
+                    $replace || \is_string($k) ? $a[$k] = $v : $a[] = $v;
+
+                    continue;
+                }
+                $a[$k] = $this->mergeConfig($a[$k], $v, $replace);
+            } else {
+                $a[$k] = $v;
+            }
+        }
+
+        return $a;
     }
 }

@@ -28,5 +28,5 @@ interface DebugExtensionInterface
     /**
      * Return true if this extension is for dev mode else false.
      */
-    public static function inDevelopment(): bool;
+    public function inDevelopment(): bool;
 }

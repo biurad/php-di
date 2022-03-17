@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI\Extensions;
 
 use Rade\DI\{AbstractContainer, Container};
-use Rade\DI\Services\AliasedInterface;
 
 /**
  * PHP directives definition.
