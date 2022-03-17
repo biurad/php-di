@@ -30,13 +30,13 @@ trait ExtensionTrait
     /**
      * Get the extension builder extensions.
      *
-     * @return array<int,class-string<ExtensionInterface>>
+     * @return array<int,ExtensionInterface>
      */
     public function getExtensions(): array
     {
         $extensionBuilder = $this->getExtensionBuilder();
 
-        return null !== $extensionBuilder ? \array_keys($extensionBuilder->getExtensions()) : [];
+        return null !== $extensionBuilder ? $extensionBuilder->getExtensions() : [];
     }
 
     /**
