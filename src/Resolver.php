@@ -598,7 +598,7 @@ class Resolver
         if ($reflection instanceof \ReflectionParameter) {
             $type = $reflection->getType();
         } elseif ($reflection instanceof \ReflectionFunctionAbstract) {
-            $type = $reflection->getReturnType() ?? (PHP_VERSION_ID >= 80100 ? $reflection->getTentativeReturnType() : null);
+            $type = $reflection->getReturnType() ?? (\PHP_VERSION_ID >= 80100 ? $reflection->getTentativeReturnType() : null);
         }
 
         if (!isset($type)) {
@@ -652,7 +652,7 @@ class Resolver
      *
      * @throws \ReflectionException|ContainerResolutionException
      *
-     * @return null
+     * @return null|void
      */
     private static function getParameterDefaultValue(\ReflectionParameter $parameter, array $types)
     {
@@ -671,7 +671,7 @@ class Resolver
         } elseif (\interface_exists($typedHint)) {
             $errorDescription .= ' has an unresolved interface-based type-hint ("' . $typedHint . '").';
         } else {
-            $errorDescription .= ' has a type-hint ("' . $typedHint  . '") that cannot be resolved, perhaps a you forgot to set it up?';
+            $errorDescription .= ' has a type-hint ("' . $typedHint . '") that cannot be resolved, perhaps a you forgot to set it up?';
         }
 
         throw new ContainerResolutionException($errorDescription);
