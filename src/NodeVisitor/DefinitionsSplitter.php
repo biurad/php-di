@@ -59,14 +59,20 @@ class DefinitionsSplitter extends NodeVisitorAbstract
     /**
      * Use this function to build generated traits into a cache directory
      * and return the file that requires all traits.
+     *
+     * @param array<int,string> $includePaths
      */
-    public function buildTraits(string $cacheDirectory, bool $debug = false): string
+    public function buildTraits(string $cacheDirectory, bool $debug = false, array $includePaths = []): string
     {
         $traitsDirectory = \rtrim($cacheDirectory, '/') . '/Definitions' . $this->traitHash($cacheDirectory);
         $autoLoadAst = [];
 
         if (null !== $this->strictDeclare) {
             $autoLoadAst[] = $this->strictDeclare;
+        }
+
+        foreach ($includePaths as $bPath) {
+            $autoLoadAst[] = new Expression(new Include_(new String_($bPath), Include_::TYPE_REQUIRE));
         }
 
         foreach ($this->traits as $traitName => $traitStmts) {
