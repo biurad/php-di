@@ -36,7 +36,7 @@ final class ContextContainer implements ContainerInterface, ResetInterface
      */
     public function get(string $id)
     {
-        if (ContainerInterface::class === $id || __CLASS__ === $id) {
+        if (\in_array($id, [ContainerInterface::class, __CLASS__, AbstractContainer::SERVICE_CONTAINER], true)) {
             return $this;
         }
 
