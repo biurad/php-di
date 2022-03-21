@@ -63,16 +63,6 @@ trait DefinitionTrait
     }
 
     /**
-     * Returns all defined value names.
-     *
-     * @return string[] An array of value names
-     */
-    public function keys(): array
-    {
-        return \array_keys($this->definitions);
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function initialized(string $id): bool
@@ -209,7 +199,7 @@ trait DefinitionTrait
      */
     protected function createNotFound(string $id): NotFoundServiceException
     {
-        if (null !== $suggest = Helpers::getSuggestion($this->keys(), $id)) {
+        if (null !== $suggest = Helpers::getSuggestion(\array_keys($this->definitions), $id)) {
             $suggest = " Did you mean: \"$suggest\"?";
         }
 

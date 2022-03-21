@@ -63,13 +63,6 @@ interface ContainerInterface extends PsrContainerInterface
     public function has(string $id): bool;
 
     /**
-     * Returns all defined service definitions identifiers.
-     *
-     * @return array<int,string>
-     */
-    public function keys(): array;
-
-    /**
      * Returns true if the given service has actually been initialized.
      *
      * @param string $id The service identifier

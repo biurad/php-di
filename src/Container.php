@@ -106,14 +106,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     /**
      * {@inheritdoc}
      */
-    public function keys(): array
-    {
-        return [...parent::keys(), ...\array_keys($this->methodsMap)];
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
         if (isset($this->services[$id])) {
