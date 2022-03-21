@@ -618,7 +618,7 @@ class YamlFileLoader extends FileLoader
             }
 
             if (\is_string($call) && $configure) {
-                $definition->call($call);
+                $definition->call($call, true);
 
                 continue;
             }
