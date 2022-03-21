@@ -53,12 +53,11 @@ class ContainerBuilder extends AbstractContainer
             throw new \RuntimeException('ContainerBuilder uses "nikic/php-parser" v4, do composer require the nikic/php-parser package.');
         }
 
-        parent::__construct();
-
-        $this->containerParentClass = $containerParentClass;
+        $this->containerParentClass = $c = $containerParentClass;
         $this->resources = \interface_exists(ResourceInterface::class) ? [] : null;
-
-        $this->type(self::SERVICE_CONTAINER, Resolver::autowireService($containerParentClass));
+        $this->resolver = new Resolver($this, new \PhpParser\BuilderFactory());
+        $this->services[self::SERVICE_CONTAINER] = new Expr\Variable('this');
+        $this->type(self::SERVICE_CONTAINER, \array_keys((\class_implements($c) ?: []) + (\class_parents($c) ?: []) + [$c => $c]));
     }
 
     /**

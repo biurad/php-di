@@ -36,15 +36,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array<string,bool> service name => bool */
     protected array $loading = [];
 
-    public function __construct()
-    {
-        if ($this instanceof ContainerBuilder) {
-            $builderFactory = new \PhpParser\BuilderFactory();
-        }
-
-        $this->resolver = new Resolver($this, $builderFactory ?? null);
-    }
-
     /**
      * Container can not be cloned.
      */
