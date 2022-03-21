@@ -299,7 +299,7 @@ class ExtensionBuilder
             [$extension, $args] = \is_array($extension) ? $extension : [$extension, []];
 
             if ($this->container instanceof ContainerBuilder) {
-                $resolved = new $extension(\array_map(fn ($v) => \is_string($v) ? $this->container->parameter($v) : $v, $args));
+                $resolved = (new \ReflectionClass($extension))->newInstanceArgs(\array_map(fn ($v) => \is_string($v) ? $this->container->parameter($v) : $v, $args));
             } else {
                 $resolved = $this->container->getResolver()->resolveClass($extension, $args);
             }
