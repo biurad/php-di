@@ -197,12 +197,12 @@ trait DefinitionTrait
     /**
      * Throw a PSR-11 not found exception.
      */
-    protected function createNotFound(string $id): NotFoundServiceException
+    protected function createNotFound(string $id, \Throwable $e = null): NotFoundServiceException
     {
         if (null !== $suggest = Helpers::getSuggestion(\array_keys($this->definitions), $id)) {
             $suggest = " Did you mean: \"$suggest\"?";
         }
 
-        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest, $id));
+        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest, $id), 0, $e);
     }
 }
