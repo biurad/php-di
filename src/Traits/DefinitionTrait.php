@@ -107,30 +107,39 @@ trait DefinitionTrait
      */
     public function set(string $id, object $definition = null): object
     {
-        $this->validateDefinition($id);
+        unset($this->aliases[$id]); // Incase new service definition exists in aliases.
 
-        if (\array_key_exists($id, $this->aliases)) {
-            unset($this->aliases[$id]); // Incase new service definition exists in aliases.
+        if (null !== ($this->services[$id] ?? $this->privates[$id] ?? null)) {
+            throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
         }
 
-        if (null === $definition || $definition instanceof Definitions\Statement) {
-            if (null !== $definition) {
-                if ($definition->isClosureWrappable()) {
-                    if ($this->resolver->getBuilder()) {
-                        $entity = new ArrowFunction(['expr' => $this->resolver->resolve($definition->getValue(), $definition->getArguments())]);
-                    } else {
-                        $entity = fn () => $this->resolver->resolve($definition->getValue(), $definition->getArguments());
-                    }
+        if (ContainerInterface::SERVICE_CONTAINER === $id) {
+            throw new FrozenServiceException(\sprintf('The "%s" service is reserved, and cannot be set or modified.', $id));
+        }
 
-                    return $this->definitions[$id] = $entity;
+        if (null === $definition) {
+            ($definition = new Definition($id))->bindWith($id, $this);
+        } elseif ($definition instanceof Definitions\Statement) {
+            if ($definition->isClosureWrappable()) {
+                if ($this->resolver->getBuilder()) {
+                    $entity = new ArrowFunction(['expr' => $this->resolver->resolve($definition->getValue(), $definition->getArguments())]);
                 }
-
+                $definition = $entity ?? fn () => $this->resolver->resolve($definition->getValue(), $definition->getArguments());
+            } else {
                 $definition = new Definition($definition->getValue(), $definition->getArguments());
             }
+        } elseif ($definition instanceof Definitions\Reference) {
+            if (null === $previousDef = $this->definitions[(string) $definition] ?? null) {
+                throw $this->createNotFound((string) $definition);
+            }
+            $definition = clone $previousDef;
 
-            ($definition ?? $definition = new Definition($id))->bindWith($id, $this);
-        } elseif ($definition instanceof Definitions\DefinitionInterface) {
-            create_definition:
+            if ($definition instanceof Definitions\ShareableDefinitionInterface) {
+                $definition->abstract(false);
+            }
+        }
+
+        if ($definition instanceof Definitions\DefinitionInterface) {
             if ($definition instanceof Definitions\TypedDefinitionInterface) {
                 $definition->isTyped() && $this->type($id, $definition->getTypes());
             }
@@ -145,15 +154,6 @@ trait DefinitionTrait
 
                 $definition->bindWith($id, $this);
             }
-        } elseif ($definition instanceof Definitions\Reference) {
-            $previousDef = $this->definitions[(string) $definition] ?? null;
-
-            if (null === $previousDef) {
-                throw $this->createNotFound((string) $definition);
-            }
-            ($definition = clone $previousDef)->abstract(false);
-
-            goto create_definition;
         }
 
         return $this->definitions[$id] = $definition;
@@ -204,21 +204,5 @@ trait DefinitionTrait
         }
 
         return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest, $id));
-    }
-
-    /**
-     * @param string $id The unique identifier for the service definition
-     *
-     * @throws FrozenServiceException
-     */
-    private function validateDefinition(string $id): void
-    {
-        if (\array_key_exists($id, $this->services) || \array_key_exists($id, $this->privates)) {
-            throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
-        }
-
-        if (ContainerInterface::SERVICE_CONTAINER === $id) {
-            throw new FrozenServiceException(\sprintf('The "%s" service is reserved, and cannot be set or modified.', $id));
-        }
     }
 }
