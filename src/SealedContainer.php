@@ -28,6 +28,7 @@ use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
  *
  * Again, all services declared, should be autowired. Lazy services are not supported.
  *
+ * @deprecated Performance gain over main container's class is soo little and will be removed before v1
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 class SealedContainer implements ContainerInterface
