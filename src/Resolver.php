@@ -69,12 +69,13 @@ class Resolver
         $types = $autowired = [];
 
         if (\is_callable($definition)) {
-            $definition = \Closure::fromCallable($definition);
-        }
+            $types = \array_filter(self::getTypes(Callback::toReflection($definition)), fn (string $v) => \class_exists($v) || \interface_exists($v) || $allTypes);
+        } elseif (\is_object($definition)) {
+            if ($definition instanceof \stdClass) {
+                return $allTypes ? ['object'] : $types;
+            }
 
-        if ($definition instanceof \Closure) {
-            $definition = Callback::unwrap($definition);
-            $types = self::getTypes(\is_array($definition) ? new \ReflectionMethod($definition[0], $definition[1]) : new \ReflectionFunction($definition));
+            $types[] = \get_class($definition);
         } elseif (\is_string($definition)) {
             if (!(\class_exists($definition) || \interface_exists($definition))) {
                 return $allTypes ? ['string'] : [];
@@ -106,34 +107,8 @@ class Resolver
             return $allTypes ? ['array'] : [];
         }
 
-        if (\is_callable($definition)) {
-            $types = self::getTypes(Callback::toReflection($definition));
-        } elseif (\is_string($definition)) {
-            if (!(\class_exists($definition) || \interface_exists($definition))) {
-                return $allTypes ? ['string'] : $types;
-            }
-
-            $types[] = $definition;
-        } elseif (\is_object($definition)) {
-            if ($definition instanceof \stdClass) {
-                return $allTypes ? ['object'] : $types;
-            }
-
-            $types[] = \get_class($definition);
-        } elseif (\is_array($definition)) {
-            if (null !== $container && 2 === \count($definition, \COUNT_RECURSIVE)) {
-                if ($definition[0] instanceof Definitions\Reference) {
-                    $types = self::getTypes(new \ReflectionMethod($container->definition((string) $definition[0])->getEntity(), $definition[1]));
-                } elseif ($definition[0] instanceof Expr\BinaryOp\Coalesce) {
-                    $types = self::getTypes(new \ReflectionMethod($container->definition($definition[0]->left->dim->value)->getEntity(), $definition[1]));
-                }
-            } else {
-                return $allTypes ? ['array'] : [];
-            }
-        }
-
         resolve_types:
-        foreach (($types ?? []) as $type) {
+        foreach ($types as $type) {
             $autowired[] = $type;
 
             foreach (\class_implements($type) ?: [] as $interface) {
