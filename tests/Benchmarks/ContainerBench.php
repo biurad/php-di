@@ -54,15 +54,18 @@ class ContainerBench
 
         yield 'Factory,Autowired' => ['factory_autowired'];
 
-        yield 'Shared,Typed,Autowired' => [0, Service::class];
+        yield 'Shared,Typed,Autowired' => [null, Service::class];
 
-        yield 'Factory,Typed,Autowired' => [0, ArgumentValueResolverInterface::class];
+        yield 'Factory,Typed,Autowired' => [null, ArgumentValueResolverInterface::class];
     }
 
     public static function clearCache(): void
     {
         self::tearDown();
-        \mkdir(self::CACHE_DIR);
+
+        if (!\is_dir(self::CACHE_DIR)) {
+            \mkdir(self::CACHE_DIR);
+        }
     }
 
     public static function tearDown(): void
@@ -229,11 +232,25 @@ class ContainerBench
     public function benchSealedGet(array $params): void
     {
         if (isset($params[1])) {
-            $this->container->get($params[1] . '[]');
+            $this->container->get($params[1], Container::IGNORE_MULTIPLE_SERVICE);
         } else {
             for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
                 $this->container->get($params[0] . $i);
             }
+        }
+    }
+
+    /**
+     * @BeforeMethods({"createSealed"})
+     * @ParamProviders({"provideDefinitions"})
+     */
+    public function benchSealedWithIntTypedGet(array $params): void
+    {
+        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+            if (isset($params[1])) {
+                [$params[0], $i] = [$params[1], '[' . $i . ']'];
+            }
+            $this->container->get($params[0] . $i);
         }
     }
 
@@ -267,7 +284,7 @@ class ContainerBench
     public function benchSealedLifecycle(array $params): void
     {
         $this->createSealed();
-        $this->container->get((isset($params[1]) ? $params[1] . '[]' : $params[0] . \rand(0, 199)));
+        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
     }
 
     /**
