@@ -156,7 +156,6 @@ class ContainerBuilder extends AbstractContainer
             unset($processedData[1][self::SERVICE_CONTAINER]);
             $this->compileHasGetMethod($processedData[1], $containerNode);
         }
-
         $astNodes[] = $containerNode->addStmts($processedData[2])->getNode();
 
         if (null !== $this->nodeTraverser) {
@@ -366,26 +365,29 @@ class ContainerBuilder extends AbstractContainer
             throw new ServiceCreationException(\sprintf('The %c class must have a "has" public method', $this->containerParentClass));
         }
 
-        if ($p8 = 80000 <= \PHP_VERSION_ID) {
+        $p8 = 80000 <= \PHP_VERSION_ID;
+        $s = $this->services[self::SERVICE_CONTAINER] ?? new Expr\Variable('this');
+        $getMethods['container'] = $p8 ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [new Return_($s)]);
+
+        if ($p8) {
             $getMethods[] = $md = new MatchArm([new Expr\ConstFetch(new Name('default'))], new Expr\ConstFetch(new Name('null')));
         }
         $getNode = ($b = $this->resolver->getBuilder())->method('get')->makePublic();
         $hasNode = $b->method('has')->makePublic()->setReturnType('bool');
         $ia = new Expr\Assign(
             $i = new Expr\Variable('id'),
-            $ii = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s = new Expr\Variable('this'), 'aliases'), $i), $i)
+            $ii = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'aliases'), $i), $i)
         );
         $sr = new Expr\ArrayDimFetch($ss = $b->propertyFetch($s, 'services'), $i);
         $hasNode->addParam($mi = new Param($i, null, 'string'));
         $getNode->addParams([$mi, new Param($ib = new Expr\Variable('invalidBehavior'), $b->val(1), 'int')]);
-        $getMethods['container'] = $p8 ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [new Return_($s)]);
         $getNode->addStmt(new If_(new Expr\Isset_([new Expr\ArrayDimFetch($ss, $ia)]), ['stmts' => [new Return_($sr)]]));
         $getNode->addStmt($p8 ? new Expr\Assign($sv = new Expr\Variable('s'), new Expr\Match_($i, $getMethods)) : new \PhpParser\Node\Stmt\Switch_($i, $getMethods));
         $sf = $b->methodCall($s, 'doLoad', [$i, $ib]);
         $hf = $b->staticCall('parent', 'has', [$i]);
 
         if ($p8) {
-            \array_pop($getMethods);
+            unset($getMethods[0]);
             $hasNode->addStmt(new Expr\Assign($sv, new Expr\Match_($i, [new MatchArm(\array_map([$b, 'val'], \array_keys($getMethods)), $b->val(true)), $md])));
             $hf = new Expr\BinaryOp\Coalesce($sv, $hf);
             $sf = new Expr\BinaryOp\Coalesce($sv, $sf);
