@@ -31,9 +31,7 @@ use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterf
 class Resolver
 {
     private AbstractContainer $container;
-
     private ?BuilderFactory $builder;
-
     private bool $strict = true;
 
     /** @var array<string,\PhpParser\Node> */
@@ -99,7 +97,6 @@ class Resolver
                         }
                     }
                     $types = self::getTypes(new \ReflectionMethod($class ?? $def, $definition[1]));
-
                     goto resolve_types;
                 }
             }
@@ -192,11 +189,11 @@ class Resolver
         if ($callback instanceof Definitions\Statement) {
             if (Services\ServiceLocator::class == ($value = $callback->getValue())) {
                 $services = [];
+                $args = \array_merge($args, $callback->getArguments());
 
-                foreach (($callback->getArguments() ?: $args) as $name => $service) {
+                foreach ($args as $name => $service) {
                     $services += $this->resolveServiceSubscriber($name, (string) $service);
                 }
-
                 $resolved = null === $this->builder ? new Services\ServiceLocator($services) : $this->builder->new('\\' . Services\ServiceLocator::class, [$services]);
             } else {
                 $resolved = $this->resolve($value, $callback->getArguments() + $args);

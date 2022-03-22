@@ -25,7 +25,7 @@ use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 /**
  * This trait adds definition's functionality to container.
  *
- * @property \Rade\DI\Resolvers\Resolver $resolver
+ * @property \Rade\DI\Resolver $resolver
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */

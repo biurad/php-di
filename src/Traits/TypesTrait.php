@@ -161,11 +161,9 @@ trait TypesTrait
             return $definition->autowire();
         }
 
-        if ($definition instanceof DefinitionInterface) {
-            return $definition;
+        if (!$definition instanceof DefinitionInterface) {
+            $this->type($id, Resolver::autowireService($definition, false, $this));
         }
-
-        $this->type($id, Resolver::autowireService($definition, false, $this));
 
         return $definition;
     }
@@ -182,14 +180,12 @@ trait TypesTrait
      */
     public function autowired(string $id, bool $single = false)
     {
-        $autowired = $this->types[$id] ?? [];
-
-        if ($single && 1 === \count($autowired)) {
-            return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
+        if (empty($autowired = $this->types[$id] ?? [])) {
+            throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
         }
 
-        if (empty($autowired)) {
-            throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
+        if (1 === \count($autowired)) {
+            return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
         }
 
         if ($single) {
