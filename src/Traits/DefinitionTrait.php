@@ -182,7 +182,7 @@ trait DefinitionTrait
      *
      * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
-    public function decorate(string $id, object $definition = null)
+    public function decorate(string $id, object $definition = null, string $newId = null)
     {
         if (null === $innerDefinition = $this->definitions[$id] ?? null) {
             throw $this->createNotFound($id);
@@ -191,7 +191,7 @@ trait DefinitionTrait
         $this->removeDefinition($id);
         $this->set($id . '.inner', $innerDefinition)->tag('container.decorated_services');
 
-        return $this->set($id, $definition);
+        return $this->set($newId ?? $id, $definition);
     }
 
     /**
