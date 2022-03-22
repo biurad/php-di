@@ -35,18 +35,14 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceReso
 final class DefinitionBuilder
 {
     private AbstractContainer $container;
+    private ?string $definition = null, $directory = null;
+    private bool $trackDefaults = false;
 
     /** @var array<string,array<int,mixed>> */
     private array $classes = [];
 
     /** @var array<string,array<int,array<int,mixed>>> */
     private array $defaults = [];
-
-    private ?string $definition = null;
-
-    private ?string $directory = null;
-
-    private bool $trackDefaults = false;
 
     public function __construct(AbstractContainer $container)
     {
