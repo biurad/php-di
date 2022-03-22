@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression, Nop};
+use PhpParser\Node\{Expr, MatchArm, Name, Param, Scalar, Scalar\String_};
+use PhpParser\Node\Stmt\{Case_, ClassMethod, Declare_, DeclareDeclare, Expression, If_, Nop, Return_};
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
@@ -63,33 +63,13 @@ class ContainerBuilder extends AbstractContainer
     /**
      * {@inheritdoc}
      */
-    public function set(string $id, ?object $definition = null): object
+    public function set(string $id, object $definition = null): object
     {
         if ($definition instanceof \PhpParser\Node) {
             $definition = new Definitions\ValueDefinition($definition);
         }
 
         return parent::set($id, $definition);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
-    {
-        if (isset($this->services[$id])) {
-            return $this->services[$id];
-        }
-
-        if (\array_key_exists($id, $this->aliases)) {
-            return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
-        }
-
-        if (self::SERVICE_CONTAINER === $id) {
-            return $this->services[$id] = new Expr\Variable('this');
-        }
-
-        return parent::get($id, $invalidBehavior);
     }
 
     /**
@@ -160,13 +140,8 @@ class ContainerBuilder extends AbstractContainer
         }
 
         if (!empty($parameters = $this->parameters)) {
-            ksort($parameters);
+            \ksort($parameters);
             $this->compileToConstructor($this->resolveParameters($parameters), $containerNode, 'parameters');
-        }
-
-        if (!empty($processedData[1])) {
-            unset($processedData[1][self::SERVICE_CONTAINER]);
-            $containerNode->addStmt($this->resolver->getBuilder()->property('methodsMap')->makeProtected()->setType('array')->setDefault($processedData[1]));
         }
 
         if (!empty($processedData[3])) {
@@ -175,6 +150,11 @@ class ContainerBuilder extends AbstractContainer
 
         if (!empty($processedData[4])) {
             $containerNode->addStmt($this->resolver->getBuilder()->property('tags')->makeProtected()->setType('array')->setDefault($processedData[4]));
+        }
+
+        if (!empty($processedData[1])) {
+            unset($processedData[1][self::SERVICE_CONTAINER]);
+            $this->compileHasGetMethod($processedData[1], $containerNode);
         }
 
         $astNodes[] = $containerNode->addStmts($processedData[2])->getNode();
@@ -199,7 +179,7 @@ class ContainerBuilder extends AbstractContainer
      */
     public function dumpObject(string $id, $definition)
     {
-        $method = $this->resolver->getBuilder()->method($this->resolver->createMethod($id))->makeProtected();
+        $method = $this->resolver->getBuilder()->method($this->resolver::createMethod($id))->makeProtected();
 
         if ($definition instanceof Expression) {
             $definition = $definition->expr;
@@ -214,7 +194,9 @@ class ContainerBuilder extends AbstractContainer
         } elseif (\is_object($definition)) {
             if ($definition instanceof \Closure) {
                 throw new ServiceCreationException(\sprintf('Cannot dump closure for service "%s".', $id));
-            } elseif ($definition instanceof \stdClass) {
+            }
+
+            if ($definition instanceof \stdClass) {
                 $method->setReturnType('object');
                 $definition = new Expr\Cast\Object_($this->resolver->getBuilder()->val($this->resolver->resolveArguments((array) $definition)));
             } elseif ($definition instanceof \IteratorAggregate) {
@@ -234,18 +216,10 @@ class ContainerBuilder extends AbstractContainer
     /**
      * {@inheritdoc}
      */
-    protected function doCreate(string $id, $definition, int $invalidBehavior)
+    protected function doCreate(string $id, object $definition, int $invalidBehavior)
     {
-        if (!$definition) {
-            $anotherService = $this->resolver->resolve($id);
-
-            if (!$anotherService instanceof String_) {
-                return $anotherService;
-            }
-
-            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
-                throw $this->createNotFound($id);
-            }
+        if ($definition instanceof String_ && $id === $definition->value) {
+            unset($this->services[$id]);
 
             return null;
         }
@@ -253,7 +227,7 @@ class ContainerBuilder extends AbstractContainer
         $compiledDefinition = $definition instanceof DefinitionInterface ? $definition->build($id, $this->resolver) : $this->dumpObject($id, $definition);
 
         if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
-            $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver->createMethod($id));
+            $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver::createMethod($id));
             $serviceType = 'services';
 
             if ($definition instanceof ShareableDefinitionInterface) {
@@ -293,7 +267,8 @@ class ContainerBuilder extends AbstractContainer
                 continue;
             }
 
-            $methodsMap[$id] = $this->resolver->createMethod($id);
+            $m = $this->resolver->getBuilder()->methodCall(new Expr\Variable('this'), $this->resolver::createMethod($id));
+            $methodsMap[$id] = 80000 <= \PHP_VERSION_ID ? new MatchArm([new String_($id)], $m) : new Case_(new String_($id), [new Return_($m)]);
 
             if ($definition instanceof ShareableDefinitionInterface) {
                 if (!$definition->isPublic()) {
@@ -334,7 +309,7 @@ class ContainerBuilder extends AbstractContainer
         }
 
         \natsort($aliases);
-        \natsort($methodsMap);
+        \ksort($methodsMap);
         \ksort($tags, \SORT_NATURAL);
         \usort($serviceMethods, fn (ClassMethod $a, ClassMethod $b): int => \strnatcmp($a->name->toString(), $b->name->toString()));
         \usort($wiredTypes, fn (Expr\ArrayItem $a, Expr\ArrayItem $b): int => \strnatcmp($a->key->value, $b->key->value));
@@ -379,6 +354,50 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * Build the container's get method.
+     */
+    protected function compileHasGetMethod(array $getMethods, \PhpParser\Builder\Class_ &$containerNode): void
+    {
+        if (!\method_exists($this->containerParentClass, 'doLoad')) {
+            throw new ServiceCreationException(\sprintf('The %c class must have a "doLoad" protected method', $this->containerParentClass));
+        }
+
+        if (!\method_exists($this->containerParentClass, 'has')) {
+            throw new ServiceCreationException(\sprintf('The %c class must have a "has" public method', $this->containerParentClass));
+        }
+
+        if ($p8 = 80000 <= \PHP_VERSION_ID) {
+            $getMethods[] = $md = new MatchArm([new Expr\ConstFetch(new Name('default'))], new Expr\ConstFetch(new Name('null')));
+        }
+        $getNode = ($b = $this->resolver->getBuilder())->method('get')->makePublic();
+        $hasNode = $b->method('has')->makePublic()->setReturnType('bool');
+        $ia = new Expr\Assign(
+            $i = new Expr\Variable('id'),
+            $ii = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s = new Expr\Variable('this'), 'aliases'), $i), $i)
+        );
+        $sr = new Expr\ArrayDimFetch($ss = $b->propertyFetch($s, 'services'), $i);
+        $hasNode->addParam($mi = new Param($i, null, 'string'));
+        $getNode->addParams([$mi, new Param($ib = new Expr\Variable('invalidBehavior'), $b->val(1), 'int')]);
+        $getMethods['container'] = $p8 ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [new Return_($s)]);
+        $getNode->addStmt(new If_(new Expr\Isset_([new Expr\ArrayDimFetch($ss, $ia)]), ['stmts' => [new Return_($sr)]]));
+        $getNode->addStmt($p8 ? new Expr\Assign($sv = new Expr\Variable('s'), new Expr\Match_($i, $getMethods)) : new \PhpParser\Node\Stmt\Switch_($i, $getMethods));
+        $sf = $b->methodCall($s, 'doLoad', [$i, $ib]);
+        $hf = $b->staticCall('parent', 'has', [$i]);
+
+        if ($p8) {
+            \array_pop($getMethods);
+            $hasNode->addStmt(new Expr\Assign($sv, new Expr\Match_($i, [new MatchArm(\array_map([$b, 'val'], \array_keys($getMethods)), $b->val(true)), $md])));
+            $hf = new Expr\BinaryOp\Coalesce($sv, $hf);
+            $sf = new Expr\BinaryOp\Coalesce($sv, $sf);
+        } else {
+            $hf = new Expr\BinaryOp\BooleanOr($b->funcCall('method_exists', [$s, $b->staticCall(Resolver::class, 'createMethod', [$ii])]), $hf);
+        }
+
+        $containerNode->addStmt($hasNode->addStmt(new Return_($hf)));
+        $containerNode->addStmt($getNode->addStmt(new Return_($sf)));
+    }
+
+    /**
      * Resolve parameter's and retrieve dynamic type parameter.
      *
      * @param array<string,mixed> $parameters
@@ -399,7 +418,7 @@ class ContainerBuilder extends AbstractContainer
 
                 if (!empty($arrayParameters[1])) {
                     $grouped = $arrayParameters[1] + $arrayParameters[0];
-                    uksort($grouped, fn ($a, $b) => (\is_int($a) && \is_int($b) ? $a <=> $b : 0));
+                    \uksort($grouped, fn ($a, $b) => (\is_int($a) && \is_int($b) ? $a <=> $b : 0));
                     $dynamicParameters[$parameter] = $grouped;
                 } else {
                     $resolvedParameters[$parameter] = $arrayParameters[0];

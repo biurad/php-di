@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\ContainerInterface;
-use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
+use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 
 /**
  * A fully strict PSR-11 Container Implementation.
@@ -32,7 +32,7 @@ use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException
  */
 class SealedContainer implements ContainerInterface
 {
-    protected array $loading = [], $services = [], $privates = [], $methodsMap = [], $aliases = [], $types = [], $tags = [];
+    protected array $loading = [], $services = [], $privates = [], $aliases = [], $types = [], $tags = [];
 
     public function __construct()
     {
@@ -44,41 +44,15 @@ class SealedContainer implements ContainerInterface
      */
     public function has(string $id): bool
     {
-        return \array_key_exists($id = $this->aliases[$id] ?? $id, $this->methodsMap) || isset($this->types[$id]);
+        return isset($this->types[$this->aliases[$id] ?? $id]);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function get(string $id)
+    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if ($nullOnInvalid = '?' === $id[0]) {
-            $id = \substr($id, 1);
-        }
-
-        if (isset($this->services[$id])) {
-            return $this->services[$id];
-        }
-
-        if (\array_key_exists($id, $this->methodsMap)) {
-            if (isset($this->loading[$id])) {
-                throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
-            }
-
-            $this->loading[$id] = true;
-
-            try {
-                return $this->{$this->methodsMap[$id]}();
-            } finally {
-                unset($this->loading[$id]);
-            }
-        }
-
-        if (\array_key_exists($id, $this->aliases)) {
-            return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
-        }
-
-        return $this->doGet($id, $nullOnInvalid);
+        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->doLoad($id, $invalidBehavior);
     }
 
     /**
@@ -101,36 +75,36 @@ class SealedContainer implements ContainerInterface
      *
      * @return mixed
      */
-    protected function doGet(string $id, bool $nullOnInvalid)
+    protected function doLoad(string $id, int $invalidBehavior)
     {
-        if (\preg_match('/\[(.*?)?\]$/', $id, $matches, \PREG_UNMATCHED_AS_NULL)) {
-            $autowired = $this->types[\str_replace($matches[0], '', $oldId = $id)] ?? [];
-
-            if (!empty($autowired)) {
-                if (isset($matches[1])) {
-                    return $this->services[$oldId] = \array_map([$this, 'get'], $autowired);
-                }
-
-                foreach ($autowired as $serviceId) {
-                    if ($serviceId === $matches[1]) {
-                        return $this->get($this->aliases[$oldId] = $serviceId);
-                    }
-                }
+        if (\array_key_exists($id, $this->types)) {
+            if (1 === \count($autowired = $this->types[$id])) {
+                return $this->get($autowired[1]);
             }
-        } elseif (!empty($autowired = $this->types[$id] ?? [])) {
-            if (\count($autowired) > 1) {
+
+            if (AbstractContainer::IGNORE_MULTIPLE_SERVICE !== $invalidBehavior && AbstractContainer::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior) {
                 \natsort($autowired);
                 $autowired = \count($autowired) <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
 
                 throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, $autowired));
             }
 
-            if (!isset($this->aliases[$id])) {
-                $this->aliases[$id] = $autowired[0];
-            }
+            return \array_map([$this, 'get'], $autowired);
+        }
 
-            return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
-        } elseif ($nullOnInvalid) {
+        if (\preg_match('/\[(.*?)?\]$/', $id, $matches, \PREG_UNMATCHED_AS_NULL)) {
+            $autowired = $this->types[\str_replace($matches[0], '', $id)] ?? [];
+
+            if (!empty($autowired)) {
+                if (\is_numeric($k = $matches[1])) {
+                    $k = $autowired[$k] ?? null;
+                }
+
+                return $k ? $this->get($k) : \array_map([$this, 'get'], $autowired);
+            }
+        }
+
+        if (AbstractContainer::NULL_ON_INVALID_SERVICE === $invalidBehavior) {
             return null;
         }
 

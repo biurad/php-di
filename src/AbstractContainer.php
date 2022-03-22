@@ -49,25 +49,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        if (\array_key_exists($id, $this->loading)) {
-            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
-        }
-
-        $this->loading[$id] = true; // Checking if circular reference exists ...
-
-        try {
-            if (isset($this->methodsMap, $this->methodsMap[$id])) {
-                return $this->{$this->methodsMap[$id]}();
-            }
-
-            if (true === $definition = $this->definitions[$id] ?? \array_key_exists($id, $this->types)) {
-                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-            }
-
-            return $this->doCreate($id, $definition, $invalidBehavior);
-        } finally {
-            unset($this->loading[$id]);
-        }
+        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->doLoad($id, $invalidBehavior);
     }
 
     /**
@@ -75,7 +57,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function has(string $id): bool
     {
-        return static::SERVICE_CONTAINER === $id || \array_key_exists($this->aliases[$id] ?? $id, $this->definitions);
+        return static::SERVICE_CONTAINER === ($id = $this->aliases[$id] ?? $id) || \array_key_exists($id, $this->definitions);
     }
 
     /**
@@ -114,18 +96,16 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     public function runScope(array $services, callable $scope)
     {
         $cleanup = [];
+        $ref = new \ReflectionFunction(\Closure::fromCallable($scope));
 
         foreach ($services as $serviceId => $definition) {
             if ($this->has($serviceId)) {
                 throw new ContainerResolutionException(\sprintf('Service with id "%s" exist in container and cannot be used using container\'s runScope method.', $serviceId));
             }
-
             $this->set($cleanup[] = $serviceId, $definition);
         }
 
         try {
-            $ref = new \ReflectionFunction($scope);
-
             return $ref->invokeArgs($this->resolver->autowireArguments($ref));
         } finally {
             foreach ($cleanup as $alias) {
@@ -157,7 +137,6 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         if (\array_key_exists($typeOrTag, $this->tags)) {
             $tags = \array_keys($this->tags[$typeOrTag]);
         }
-
         $definitions = $tags ?? $this->types[$typeOrTag] ?? [];
 
         return null === $resolve ? $definitions : \array_map($resolve, $definitions);
@@ -186,5 +165,54 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      *
      * @throws NotFoundServiceException
      */
-    abstract protected function doCreate(string $id, $definition, int $invalidBehavior);
+    abstract protected function doCreate(string $id, object $definition, int $invalidBehavior);
+
+    /**
+     * Load the service definition.
+     *
+     * @return mixed
+     */
+    protected function doLoad(string $id, int $invalidBehavior)
+    {
+        if ($definition = $this->definitions[$id] ?? false) {
+            if ($reference = &$this->loading[$id] ?? null) {
+                throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+            }
+            $reference = true; // Checking if circular reference exists ...
+
+            try {
+                if (is_callable($definition)) {
+                    $ref = new \ReflectionFunction(\Closure::fromCallable($definition));
+
+                    if (!empty($refP = $ref->getParameters())) {
+                        $refP = $this->resolver->autowireArguments($ref);
+                    }
+
+                    if (null === $this->resolver->getBuilder()) {
+                        return $this->definitions[$id] = $this->services[$id] = $ref->invokeArgs($refP);
+                    }
+                }
+
+                return $this->doCreate($id, $definition, $invalidBehavior);
+            } finally {
+                unset($this->loading[$id]);
+            }
+        } elseif (\array_key_exists($id, $this->types)) {
+            return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+        } elseif (\class_exists($id) || \function_exists($id)) {
+            try {
+                if ($id !== $r = $this->resolver->resolve($id)) {
+                    return $this->services[$id] = $r;
+                }
+            } catch (ContainerResolutionException $e) {
+                // Skip error throwing while resolving
+            }
+        }
+
+        if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
+            throw $this->createNotFound($id, $e ?? null);
+        }
+
+        return null;
+    }
 }

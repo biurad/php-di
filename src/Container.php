@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\{ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
 
 /**
@@ -27,9 +26,6 @@ use Rade\DI\Exceptions\{ContainerResolutionException, FrozenServiceException, No
  */
 class Container extends AbstractContainer implements \ArrayAccess
 {
-    /** @var array<string,string> internal cached services */
-    protected array $methodsMap = [];
-
     public function __construct()
     {
         if (empty($this->types)) {
@@ -105,69 +101,28 @@ class Container extends AbstractContainer implements \ArrayAccess
 
     /**
      * {@inheritdoc}
-     */
-    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
-    {
-        if (isset($this->services[$id])) {
-            return $this->services[$id];
-        }
-
-        if (\array_key_exists($id, $this->aliases)) {
-            return $this->services[$id = $this->aliases[$id]] ?? $this->get($id);
-        }
-
-        return self::SERVICE_CONTAINER === $id ? $this : parent::get($id, $invalidBehavior);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function has(string $id): bool
-    {
-        return parent::has($id) || \array_key_exists($this->aliases[$id] ?? $id, $this->methodsMap);
-    }
-
-    /**
-     * {@inheritdoc}
      *
      * @throws \ReflectionException
      */
-    protected function doCreate(string $id, $definition, int $invalidBehavior)
+    protected function doCreate(string $id, object $definition, int $invalidBehavior)
     {
-        if ($definition instanceof DefinitionInterface) {
-            if ($definition instanceof ShareableDefinitionInterface) {
+        if ($definition instanceof Definitions\DefinitionInterface) {
+            if ($definition instanceof Definitions\ShareableDefinitionInterface) {
                 if ($definition->isAbstract()) {
-                    throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not supported.', $id));
+                    throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $id));
                 }
 
                 if (!$definition->isPublic()) {
-                    $this->removeDefinition($id); // Definition service available once, else if shareable, accessed from cache.
+                    $this->removeDefinition($id);
                 }
 
-                if (!$definition->isShared()) {
-                    return $definition->build($id, $this->resolver);
+                if ($definition->isShared()) {
+                    $s = &$this->services[$id] ?? null;
                 }
             }
-
-            $definition = $definition->build($id, $this->resolver);
-        } elseif (\is_callable($definition)) {
-            $definition = $this->resolver->resolveCallable($definition);
-        } elseif (!$definition) {
-            try {
-                if ($id !== $anotherService = $this->resolver->resolve($id)) {
-                    return $this->services[$id] = $anotherService;
-                }
-            } catch (ContainerResolutionException $e) {
-                // Skip error throwing while resolving
-            }
-
-            if (self::NULL_ON_INVALID_SERVICE !== $invalidBehavior) {
-                throw $this->createNotFound($id);
-            }
-
-            return null;
+            $s = $definition->build($id, $this->resolver);
         }
 
-        return $this->definitions[$id] = $this->services[$id] = $definition;
+        return $this->definitions[$id] = ($this->services[$id] ??= $s ?? $definition);
     }
 }

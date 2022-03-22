@@ -44,19 +44,19 @@ class Resolver
     }
 
     /**
+     * The method name generated for a service definition.
+     */
+    public static function createMethod(string $id): string
+    {
+        return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
+    }
+
+    /**
      * If true, exception will be thrown on resolvable services with are not typed.
      */
     public function setStrictAutowiring(bool $boolean = true): void
     {
         $this->strict = $boolean;
-    }
-
-    /**
-     * The method name generated for a service definition.
-     */
-    public function createMethod(string $id): string
-    {
-        return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
     }
 
     /**
