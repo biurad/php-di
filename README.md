@@ -16,6 +16,8 @@
 
 **divineniiquaye/rade-di** is a HIGH performance smart tool for performing simple to complex dependency injection in your application for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenced to [Nette DI][nette-di] and [Pimple]. This library provides an advance way of resolving services for best performance to your application.
 
+Rade DI was born after frustration using [Symfony DI][symfony-di] and [Nette DI][nette-di] on several projects. Autowiring feature in Nette is much more simpler than that of symfony's. No doubt, they all great to use. But I wanted a DI which allows me focus on writing code than configuring the DI. Initially was a simple container, but over time managed to include most essential features.
+
 This project adheres to a [code of conduct](CODE_OF_CONDUCT.md). By participating in this project and its community, you are expected to uphold this code.
 
 ## 📦 Installation & Basic Usage
@@ -39,22 +41,18 @@ For registering services into container, a service must be a real valid PHP obje
 > Using Container without `ArrayAccess`
 
 ```php
-use function Rade\DI\Loader\wrap;
+use function Rade\DI\Loader\{service, wrap};
 
 // define some services
 $container->set('session_storage', new SessionStorage('SESSION_ID'));
 // or this for default autowiring typed support
 $container->autowire('session_storage', new SessionStorage('SESSION_ID'));
 
-$container->set(
-    'session', // The unique service id identifier
-    static fn(): Session => new Session($container['session_storage']),
-    $autowire
-);
+$container->set('session', static fn(): Session => new Session($container['session_storage']));
 // or
 $container->set('session', wrap(Session::class));
 // or further for autowiring
-$container->set('session', Session::class)->autowire();
+$container->set('session', service(Session::class))->autowire();
 ```
 
 > Using Container with `ArrayAccess`
@@ -84,7 +82,6 @@ $session = $container['session'];
 // or use it's service class name, parent classes or interfaces
 $session = $container->get(Session::class);
 
-
 // the above call is roughly equivalent to the following code:
 $storage = new SessionStorage('SESSION_ID');
 $session = new Session($storage);
@@ -95,9 +92,9 @@ Container supports reuseable service instance. This is means, a registered servi
 Rade DI also supports autowiring except a return type of a callable is not define or better still if you do not want autowiring at all, use the container's **set** method. By default, registering services with `ArrayAccess` implementation are all autowired.
 
 ```php
-use function Rade\DI\Loader\service;
+use function Rade\DI\Loader\{service, reference};
 
-$container['session'] = service(new Session($container['session_storage']))->shared(false);
+$container['session'] = service(Session::class, [reference('session_storage')])->shared(false);
 ```
 
 With the example above, each call to `$container['session']` returns a new instance of the session. Also Rade has aliasing and tagging support for services. If you want to add a different name to a registered service, use `alias` method.
@@ -132,8 +129,7 @@ foreach ($tags as $report => $attr) {
 
 $manager = new ReportAggregator($reports);
 
-// For the $attr var, this is useful if you need tag to have extra values
-// for tagging, eg:
+// For the $attr var, this is useful if you need tag to have extra values. eg:
 $container->tags(['process' => [BackupProcessor::class, MonitorProcessor::class, CacheProcessor::class => false]]);
 
 foreach ($container->tagged('process') as $process => $enabled) {
@@ -143,9 +139,9 @@ foreach ($container->tagged('process') as $process => $enabled) {
 }
 ```
 
-Container support services injection using a PHP 8 `#[Inject]` attribute for class object properties and methods. In order to use property injection, you have to attribute your public properties with `#[Inject]` and provide their type declaration, while with methods injection, you also have to attribute your injectable methods with `#[Inject]`. Container takes care of autowiring.
+Since PHP 8 release, container supports injecting services to public class properties and public class methods using an attribute named `#[Inject]`. If a value is not provided for the attribute it uses type declaration on either public class properties or public class methods typed parameter(s).
 
-This injection directive is enabled by default on all services using Definition class or calling a service with either `resolveClass`, `call` or resolver's class `resolve` method.
+For performance reasons, this feature is locked to classes implementing `Rade\DI\Injector\InjectableInterface`, and can be resolved using the container's call method or container resolver's resolveClass method.
 
 Eg: Dependency `Service1` will be passed by calling the `injectService1` method, dependency `Service2` will be assigned to the `$service2` property:
 
@@ -180,7 +176,7 @@ Rade Di has service provider support, which allows the container to be extensibl
 ```php
 use Rade\DI\Container;
 
-class FooProvider implements Rade\DI\ServiceProviderInterface
+class FooProvider implements Rade\DI\Extensions\ExtensionInterface
 {
     /**
      * {@inheritdoc}
@@ -316,6 +312,7 @@ The **divineniiquaye/rade-di** library is copyright © [Divine Niiquaye Ibok](ht
 [message]: https://projects.biurad.com/message
 [nette-di]: https://github.com/nette/di
 [symfony-config]: https://github.com/symfony/config
+[symfony-di]: https://github.com/symfony/dependency-injection
 [Pimple]: https://github.com/silexphp/pimple
 [PSR-11]: http://www.php-fig.org/psr/psr-11/
 [PSR-12]: http://www.php-fig.org/psr/psr-12/
