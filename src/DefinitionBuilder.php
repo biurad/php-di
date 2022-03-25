@@ -395,19 +395,17 @@ final class DefinitionBuilder
                 if (0 === $pathLength) {
                     $pathLength = \preg_match('/\w+\.php$/', $path, $l) ? \strpos($path, $l[0]) : 0;
                 }
-
                 $class = \str_replace('/', '\\', \substr($path, $pathLength, -\strlen($m[0])));
 
                 if (null === $class = $this->findClass($container, $namespace . $class, $path, $pattern)) {
                     continue;
                 }
-
                 $classNames[] = $class;
-            }
 
-            // track only for new & removed files
-            if ($container instanceof ContainerBuilder && \interface_exists(ResourceInterface::class)) {
-                $container->addResource(new FileExistenceResource($path));
+                // track only for new & removed files
+                if ($container instanceof ContainerBuilder && \interface_exists(ResourceInterface::class)) {
+                    $container->addResource(new FileExistenceResource($path));
+                }
             }
         }
 
