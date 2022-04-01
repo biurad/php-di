@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use PhpParser\Node\{Expr, MatchArm, Name, Param, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{Case_, ClassMethod, Declare_, DeclareDeclare, Expression, If_, Nop, Return_};
+use PhpParser\Node\Stmt\{Case_, ClassMethod, Declare_, DeclareDeclare, Expression, Nop, Return_};
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
@@ -153,7 +153,6 @@ class ContainerBuilder extends AbstractContainer
         }
 
         if (!empty($processedData[1])) {
-            unset($processedData[1][self::SERVICE_CONTAINER]);
             $this->compileHasGetMethod($processedData[1], $containerNode);
         }
         $astNodes[] = $containerNode->addStmts($processedData[2])->getNode();
@@ -256,9 +255,10 @@ class ContainerBuilder extends AbstractContainer
     protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
         $methodsMap = $serviceMethods = $wiredTypes = [];
+        $s = $this->services[self::SERVICE_CONTAINER] ?? new Expr\Variable('this');
 
         if (!isset($methodsMap[self::SERVICE_CONTAINER])) {
-            $methodsMap[self::SERVICE_CONTAINER] = true;
+            $methodsMap[self::SERVICE_CONTAINER] = 80000 <= \PHP_VERSION_ID ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [$s]);
         }
 
         foreach ($definitions as $id => $definition) {
@@ -266,17 +266,20 @@ class ContainerBuilder extends AbstractContainer
                 continue;
             }
 
-            $m = $this->resolver->getBuilder()->methodCall(new Expr\Variable('this'), $this->resolver::createMethod($id));
-            $methodsMap[$id] = 80000 <= \PHP_VERSION_ID ? new MatchArm([new String_($id)], $m) : new Case_(new String_($id), [new Return_($m)]);
+            $m = ($b= $this->resolver->getBuilder())->methodCall($s, $this->resolver::createMethod($id));
+            $methodsMap[$id] = 80000 <= \PHP_VERSION_ID ? new MatchArm([$si = new String_($id)], $m) : new Case_($si = new String_($id), [new Return_($m)]);
 
             if ($definition instanceof ShareableDefinitionInterface) {
                 if (!$definition->isPublic()) {
                     unset($methodsMap[$id]);
+                } elseif ($definition->isShared()) {
+                    $sr = new Expr\ArrayDimFetch($b->propertyFetch($s, 'services'), $si);
+                    $sb = &$methodsMap[$id];
+                    $sb instanceof MatchArm ? $sb->body = new Expr\BinaryOp\Coalesce($sr, $sb->body) : $sb->stmts[0]->expr = new Expr\BinaryOp\Coalesce($sr, $sb->stmts[0]->expr);
                 }
 
                 if ($definition->isAbstract()) {
                     unset($methodsMap[$id]);
-
                     continue;
                 }
             }
@@ -367,7 +370,6 @@ class ContainerBuilder extends AbstractContainer
 
         $p8 = 80000 <= \PHP_VERSION_ID;
         $s = $this->services[self::SERVICE_CONTAINER] ?? new Expr\Variable('this');
-        $getMethods['container'] = $p8 ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [new Return_($s)]);
 
         if ($p8) {
             $getMethods[] = $md = new MatchArm([new Expr\ConstFetch(new Name('default'))], new Expr\ConstFetch(new Name('null')));
@@ -378,12 +380,10 @@ class ContainerBuilder extends AbstractContainer
             $i = new Expr\Variable('id'),
             $ii = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'aliases'), $i), $i)
         );
-        $sr = new Expr\ArrayDimFetch($ss = $b->propertyFetch($s, 'services'), $i);
         $hasNode->addParam($mi = new Param($i, null, 'string'));
         $getNode->addParams([$mi, new Param($ib = new Expr\Variable('invalidBehavior'), $b->val(1), 'int')]);
-        $getNode->addStmt(new If_(new Expr\Isset_([new Expr\ArrayDimFetch($ss, $ia)]), ['stmts' => [new Return_($sr)]]));
-        $getNode->addStmt($p8 ? new Expr\Assign($sv = new Expr\Variable('s'), new Expr\Match_($i, $getMethods)) : new \PhpParser\Node\Stmt\Switch_($i, $getMethods));
-        $sf = $b->methodCall($s, 'doLoad', [$i, $ib]);
+        $getNode->addStmt($p8 ? new Expr\Assign($sv = new Expr\Variable('s'), new Expr\Match_($ia, $getMethods)) : new \PhpParser\Node\Stmt\Switch_($ia, $getMethods));
+        $sf = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'services'), $i), $b->methodCall($s, 'doLoad', [$i, $ib]));
         $hf = $b->staticCall('parent', 'has', [$i]);
 
         if ($p8) {
