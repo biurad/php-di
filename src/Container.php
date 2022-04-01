@@ -29,12 +29,10 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function __construct()
     {
         if (empty($this->types)) {
-            $this->type(
-                self::SERVICE_CONTAINER,
-                \array_keys(\class_implements($c = static::class) + \class_parents($c) + [$c => $c])
-            );
+            $this->services[self::SERVICE_CONTAINER] = $c = $this;
+            $this->type(self::SERVICE_CONTAINER, \array_keys(\class_implements($c) + \class_parents($c) + [static::class => static::class]));
         }
-        $this->resolver = new Resolver($this->services[self::SERVICE_CONTAINER] = $this);
+        $this->resolver = new Resolver($s ?? $this);
     }
 
     /**
@@ -92,7 +90,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function definition(string $id)
     {
-        if (\array_key_exists($id, $this->privates) || isset($this->methodsMap[$id])) {
+        if (\array_key_exists($id, $this->privates)) {
             throw new FrozenServiceException(\sprintf('The "%s" internal service is meant to be private and out of reach.', $id));
         }
 
