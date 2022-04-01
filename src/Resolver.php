@@ -187,20 +187,10 @@ class Resolver
     public function resolve($callback, array $args = [])
     {
         if ($callback instanceof Definitions\Statement) {
-            if (Services\ServiceLocator::class == ($value = $callback->getValue())) {
-                $services = [];
-                $args = \array_merge($args, $callback->getArguments());
+            $resolved = $this->resolve($callback->getValue(), $callback->getArguments() + $args);
 
-                foreach ($args as $name => $service) {
-                    $services += $this->resolveServiceSubscriber($name, (string) $service);
-                }
-                $resolved = null === $this->builder ? new Services\ServiceLocator($services) : $this->builder->new('\\' . Services\ServiceLocator::class, [$services]);
-            } else {
-                $resolved = $this->resolve($value, $callback->getArguments() + $args);
-
-                if ($callback->isClosureWrappable()) {
-                    $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
-                }
+            if ($callback->isClosureWrappable()) {
+                $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
             }
         } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->resolveReference((string) $callback);
@@ -217,6 +207,13 @@ class Resolver
         } elseif ($callback instanceof Builder\PhpLiteral) {
             $expression = $this->literalCache[\spl_object_id($callback)] ??= $callback->resolve($this)[0];
             $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
+        } elseif (Services\ServiceLocator::class === $callback) {
+            $services = [];
+
+            foreach ($args as $name => $service) {
+                $services += $this->resolveServiceSubscriber($name, (string) $service);
+            }
+            $resolved = null === $this->builder ? new Services\ServiceLocator($services) : $this->builder->new('\\' . Services\ServiceLocator::class, [$services]);
         } elseif (\is_string($callback)) {
             if (\str_contains($callback, '%')) {
                 $callback = $this->container->parameter($callback);
@@ -456,8 +453,8 @@ class Resolver
         if (null !== $this->builder) {
             if ('[]' === \substr($value, -2)) {
                 $returnType = 'array';
-            } if ($this->container->has($value)) {
-                $returnType = $this->container->definition($value)->getTypes()[0] ?? (
+            } elseif ($this->container->has($value) && ($def = $this->container->definition($value)) instanceof Definitions\TypedDefinitionInterface) {
+                $returnType = $def->getTypes()[0] ?? (
                     \class_exists($value) || \interface_exists($value)
                     ? $value
                     : (!\is_int($id) && (\class_exists($id) || \interface_exists($id)) ? $id : null)
