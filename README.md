@@ -171,7 +171,7 @@ class FooClass implements InjectableInterface
 
 > **NB:** Property injection uses the declared typed name, while methods uses same, this types declared must be found in container else exception is thrown. I prefer this type of injection in my controllers, but nowhere else.
 
-Rade Di has service provider support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so much. Using service providers in your project, saves you alot.
+Rade Di has extensions support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so much. Using service providers in your project, saves you alot.
 
 ```php
 use Rade\DI\Container;
@@ -224,11 +224,8 @@ class MyService implements ServiceSubscriberInterface
      * "logger" must be an instance of Psr\Log\LoggerInterface
      * "event_dispatcher" must be an instance of Symfony\Component\EventDispatcher\EventDispatcherInterface
      */
-    private ?ContainerInterface $container;
-
-    public function __construct(ServiceProviderInterface $provider = null)
+    public function __construct(private ServiceProviderInterface $container = null)
     {
-        $this->container = $provider;
     }
 
     /**
