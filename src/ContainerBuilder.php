@@ -388,7 +388,7 @@ class ContainerBuilder extends AbstractContainer
 
         if ($p8) {
             unset($getMethods[0]);
-            $hasNode->addStmt(new Expr\Assign($sv, new Expr\Match_($i, [new MatchArm(\array_map([$b, 'val'], \array_keys($getMethods)), $b->val(true)), $md])));
+            $hasNode->addStmt(new Expr\Assign($sv, new Expr\Match_($ia, [new MatchArm(\array_map([$b, 'val'], \array_keys($getMethods)), $b->val(true)), $md])));
             $hf = new Expr\BinaryOp\Coalesce($sv, $hf);
             $sf = new Expr\BinaryOp\Coalesce($sv, $sf);
         } else {
