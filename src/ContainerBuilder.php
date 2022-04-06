@@ -376,10 +376,7 @@ class ContainerBuilder extends AbstractContainer
         }
         $getNode = ($b = $this->resolver->getBuilder())->method('get')->makePublic();
         $hasNode = $b->method('has')->makePublic()->setReturnType('bool');
-        $ia = new Expr\Assign(
-            $i = new Expr\Variable('id'),
-            $ii = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'aliases'), $i), $i)
-        );
+        $ia = new Expr\Assign($i = new Expr\Variable('id'), new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'aliases'), $i), $i));
         $hasNode->addParam($mi = new Param($i, null, 'string'));
         $getNode->addParams([$mi, new Param($ib = new Expr\Variable('invalidBehavior'), $b->val(1), 'int')]);
         $getNode->addStmt($p8 ? new Expr\Assign($sv = new Expr\Variable('s'), new Expr\Match_($ia, $getMethods)) : new \PhpParser\Node\Stmt\Switch_($ia, $getMethods));
@@ -392,7 +389,7 @@ class ContainerBuilder extends AbstractContainer
             $hf = new Expr\BinaryOp\Coalesce($sv, $hf);
             $sf = new Expr\BinaryOp\Coalesce($sv, $sf);
         } else {
-            $hf = new Expr\BinaryOp\BooleanOr($b->funcCall('method_exists', [$s, $b->staticCall(Resolver::class, 'createMethod', [$ii])]), $hf);
+            $hf = new Expr\BinaryOp\BooleanOr($b->funcCall('method_exists', [$s, $b->staticCall(Resolver::class, 'createMethod', [$i])]), $hf);
         }
 
         $containerNode->addStmt($hasNode->addStmt(new Return_($hf)));

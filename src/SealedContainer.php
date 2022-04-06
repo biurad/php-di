@@ -45,7 +45,7 @@ class SealedContainer implements ContainerInterface
      */
     public function has(string $id): bool
     {
-        return isset($this->types[$this->aliases[$id] ?? $id]);
+        return \array_key_exists($id, $this->aliases) || \array_key_exists($id, $this->types);
     }
 
     /**

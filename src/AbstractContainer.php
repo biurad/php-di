@@ -57,7 +57,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function has(string $id): bool
     {
-        return static::SERVICE_CONTAINER === ($id = $this->aliases[$id] ?? $id) || \array_key_exists($id, $this->definitions);
+        return static::SERVICE_CONTAINER === $id || \array_key_exists($id, $this->aliases) || \array_key_exists($id, $this->definitions);
     }
 
     /**
