@@ -35,7 +35,6 @@ use Rade\DI\NodeVisitor\PhpLiteralVisitor;
 class PhpLiteral
 {
     private string $value;
-
     private array $args;
 
     /**

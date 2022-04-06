@@ -28,7 +28,6 @@ use PhpParser\Node\Scalar\String_;
 final class PhpLiteralVisitor extends \PhpParser\NodeVisitorAbstract
 {
     private int $offset = -1;
-
     private array $args;
 
     /**

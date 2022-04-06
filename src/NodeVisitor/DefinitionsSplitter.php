@@ -33,15 +33,10 @@ use Symfony\Component\Config\ConfigCache;
 class DefinitionsSplitter extends NodeVisitorAbstract
 {
     private int $maxCount;
-
     private string $fileName;
-
     private array $traits = [];
-
     private ?string $previousTrait = null;
-
     private \PhpParser\BuilderFactory $builder;
-
     private ?Declare_ $strictDeclare = null;
 
     public function __construct(int $maxDefinitions = 500, string $fileName = 'definitions_autoload.php')
