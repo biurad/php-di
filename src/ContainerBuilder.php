@@ -258,7 +258,7 @@ class ContainerBuilder extends AbstractContainer
         $s = $this->services[self::SERVICE_CONTAINER] ?? new Expr\Variable('this');
 
         if (!isset($methodsMap[self::SERVICE_CONTAINER])) {
-            $methodsMap[self::SERVICE_CONTAINER] = 80000 <= \PHP_VERSION_ID ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [$s]);
+            $methodsMap[self::SERVICE_CONTAINER] = 80000 <= \PHP_VERSION_ID ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [new Return_($s)]);
         }
 
         foreach ($definitions as $id => $definition) {
