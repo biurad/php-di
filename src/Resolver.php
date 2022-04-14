@@ -570,7 +570,7 @@ class Resolver
         }
 
         if (!isset($type)) {
-            return ['null'];
+            return [];
         }
 
         $resolver = static function (\ReflectionNamedType $rName) use ($reflection): string {
