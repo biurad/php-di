@@ -22,21 +22,13 @@ namespace Rade\DI\Attribute;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::TARGET_PARAMETER)]
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::TARGET_FUNCTION | \Attribute::TARGET_PARAMETER)]
 final class Inject
 {
-    private ?string $value;
-
     /**
      * @param string|null $value Represents service id, may change in the future
      */
     public function __construct(?string $value = null)
     {
-        $this->value = $value;
-    }
-
-    public function getValue(): ?string
-    {
-        return $this->value;
     }
 }

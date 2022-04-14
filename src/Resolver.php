@@ -514,16 +514,8 @@ class Resolver
             if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
                 foreach ($attributes as $attribute) {
                     if (Attribute\Inject::class === $attribute->getName()) {
-                        if (null === $attrName = $attribute->getArguments()[0] ?? null) {
-                            throw new ContainerResolutionException(\sprintf('Using the Inject attribute on parameter %s requires a value to be set.', $parameter->getName()));
-                        }
-
-                        if ($arrayLike = \str_ends_with($attrName, '[]')) {
-                            $attrName = \substr($attrName, 0, -2);
-                        }
-
                         try {
-                            return $this->get($attrName, !$arrayLike);
+                            return $this->resolveReference($attribute->getArguments()[0] ?? $typeName);
                         } catch (NotFoundServiceException $e) {
                             // Ignore this exception ...
                         }

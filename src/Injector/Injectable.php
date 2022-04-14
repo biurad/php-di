@@ -17,12 +17,11 @@ declare(strict_types=1);
 
 namespace Rade\DI\Injector;
 
-use Nette\Utils\{Reflection, Type};
+use Nette\Utils\Reflection;
 use PhpParser\Builder\Method;
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\{Assign, Variable};
 use Rade\DI\Attribute\Inject;
-use Rade\DI\Definitions\Reference;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Resolver;
 
@@ -88,61 +87,46 @@ class Injectable
         }
 
         $properties = [];
-        self::doProperties($reflection, $resolver, $properties);
+
+        foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            if (empty($propertyAttributes = $property->getAttributes(Inject::class))) {
+                continue;
+            }
+
+            if (!empty($pValue = $propertyAttributes[0]->getArguments()[0] ?? null)) {
+                $properties[0][$property->getName()] = $resolver->resolveReference($pValue[0]);
+                continue;
+            }
+
+            foreach (Resolver::getTypes($property) as $pType) {
+                if (Reflection::isBuiltinType($pType)) {
+                    continue;
+                }
+
+                if (!empty($pValue = $resolver->resolveReference('?' . $pType))) {
+                    $properties[0][$property->getName()] = $pValue;
+                }
+            }
+        }
 
         foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if ([] === $methodAttributes = $method->getAttributes(Inject::class)) {
+            if (empty($methodAttributes = $method->getAttributes(Inject::class))) {
                 continue;
             }
 
-            if (null === $methodAttribute = $methodAttributes[0] ?? null) {
-                continue;
-            }
-
-            if ([] !== $methodAttribute->getArguments()) {
+            if (!empty($methodAttributes[0]->getArguments())) {
                 throw new ContainerResolutionException(\sprintf('Method with Inject attributes does not support having arguments.'));
             }
 
             $properties[1][$method->getName()] = $resolver->autowireArguments($method);
         }
 
-        if ([] === $properties) {
+        if (empty($properties)) {
             return $service;
         }
 
         $injected = new self($service, $properties);
 
         return null === $resolver->getBuilder() ? $injected->resolve() : $injected;
-    }
-
-    private static function doProperties(\ReflectionClass $reflection, Resolver $resolver, array &$properties): void
-    {
-        foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
-            if ([] === $propertyAttributes = $property->getAttributes(Inject::class)) {
-                continue;
-            }
-
-            if (null === $propertyAttribute = $propertyAttributes[0] ?? null) {
-                continue;
-            }
-
-            if ([] !== $pValue = $propertyAttribute->getArguments()) {
-                $properties[0][$property->getName()] = $resolver->resolve(new Reference($pValue[0]));
-
-                continue;
-            }
-
-            if (null === $pTypes = Type::fromReflection($property)) {
-                continue;
-            }
-
-            foreach ($pTypes->getNames() as $pType) {
-                if (Reflection::isBuiltinType($pType)) {
-                    continue;
-                }
-
-                $properties[0][$property->getName()] = $resolver->resolve(new Reference($pType));
-            }
-        }
     }
 }
