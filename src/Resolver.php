@@ -520,6 +520,10 @@ class Resolver
                             // Ignore this exception ...
                         }
                     }
+
+                    if (Attribute\Tagged::class === $attribute->getName()) {
+                        return $this->resolveArguments($attribute->newInstance()->getValues($this->container));
+                    }
                 }
             }
 
