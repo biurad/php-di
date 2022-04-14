@@ -566,7 +566,7 @@ class Resolver
         }
 
         if (!isset($type)) {
-            return [];
+            return ['null'];
         }
 
         $resolver = static function (\ReflectionNamedType $rName) use ($reflection): string {
