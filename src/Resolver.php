@@ -138,12 +138,16 @@ class Resolver
             $resolved = $args[$offset] ?? $args[$parameter->name] ?? null;
             $types = self::getTypes($parameter);
 
-            if (\PHP_VERSION_ID >= 80100 && (\count($types) > 1 && \is_subclass_of($enumType = $types[0], \BackedEnum::class))) {
-                if (null === ($resolved = $resolved ?? $providedParameters[$enumType] ?? null)) {
-                    throw new ContainerResolutionException(\sprintf('Missing parameter %s.', Reflection::toString($parameter)));
+            if (\PHP_VERSION_ID >= 80100 && (\count($types) >= 1 && \is_subclass_of($enumType = $types[0], \BackedEnum::class))) {
+                if (null === $resolved = ($resolved ?? $providedParameters[$enumType] ?? null)) {
+                    throw new ContainerResolutionException(\sprintf('Missing value for enum parameter %s.', Reflection::toString($parameter)));
                 }
-                $resolvedParameters[$position] = $enumType::from($resolved);
 
+                try {
+                    $resolvedParameters[$position] = $enumType::from($resolved);
+                } catch (\ValueError $e) {
+                    throw new ContainerResolutionException(\sprintf('The "%s" value could not be resolved for enum parameter %s.', $resolved, Reflection::toString($parameter)), 0, $e);
+                }
                 continue;
             }
 
@@ -163,7 +167,6 @@ class Resolver
 
             if ($parameter->isVariadic() && \is_array($resolved)) {
                 $resolvedParameters = \array_merge($resolvedParameters, $resolved);
-
                 continue;
             }
 
