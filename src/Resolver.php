@@ -399,7 +399,7 @@ class Resolver
     /**
      * @return mixed
      */
-    private function resolveReference(string $reference)
+    public function resolveReference(string $reference)
     {
         if ('?' === $reference[0]) {
             $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
@@ -431,7 +431,7 @@ class Resolver
      *
      * @return (\Closure|array|mixed|null)[]
      */
-    private function resolveServiceSubscriber($id, string $value): array
+    public function resolveServiceSubscriber($id, string $value): array
     {
         if ('?' === $value[0]) {
             $arrayLike = \str_ends_with($value = \substr($value, 1), '[]');
@@ -482,7 +482,7 @@ class Resolver
      *
      * @return mixed
      */
-    private function autowireArgument(\ReflectionParameter $parameter, array $types, array $providedParameters)
+    public function autowireArgument(\ReflectionParameter $parameter, array $types, array $providedParameters)
     {
         foreach ($types as $typeName) {
             if (!Reflection::isBuiltinType($typeName)) {
@@ -557,7 +557,7 @@ class Resolver
      *
      * @return array<int,string>
      */
-    private static function getTypes(\Reflector $reflection): array
+    public static function getTypes(\Reflector $reflection): array
     {
         if ($reflection instanceof \ReflectionParameter) {
             $type = $reflection->getType();
