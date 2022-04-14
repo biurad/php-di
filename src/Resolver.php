@@ -136,7 +136,7 @@ class Resolver
         foreach ($function->getParameters() as $offset => $parameter) {
             $position = 0 === $nullValuesFound ? $offset : $parameter->name;
             $resolved = $args[$offset] ?? $args[$parameter->name] ?? null;
-            $types = self::getTypes($parameter);
+            $types = self::getTypes($parameter) ?: ['null'];
 
             if (\PHP_VERSION_ID >= 80100 && (\count($types) >= 1 && \is_subclass_of($enumType = $types[0], \BackedEnum::class))) {
                 if (null === $resolved = ($resolved ?? $providedParameters[$enumType] ?? null)) {
