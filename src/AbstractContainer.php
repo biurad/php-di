@@ -61,15 +61,12 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
-     * Return true if service has been loaded for a possible circular reference error.
      *
      * @param string $id The service identifier
      *
      * @return bool if service has already been initialized, false otherwise
      */
-    public function created(string $id): bool
     {
-        return $this->loading[$id] ?? false;
     }
 
     /**
