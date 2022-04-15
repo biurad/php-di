@@ -93,11 +93,14 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      *
      * Example:
      * ```php
-     * $container->runScope(['actor' => new Actor()], function (ContainerInterface $container, Actor $actor) {
-     *    assert($container->get('actor') instanceof $actor);
+     * $container->runScope(
+     *    ['actor' => \Rade\DI\Loader\service(Actor::class)->autowire()],
+     *    function (ContainerInterface $container, Actor $actor) {
+     *        \assert($container->get('actor') instanceof $actor);
      *
-     *    return $actor;
-     * });
+     *        return $actor;
+     *    }
+     * );
      * ```
      *
      * This makes the service private and cannot be use elsewhere in codebase.
@@ -115,7 +118,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
 
         foreach ($services as $serviceId => $definition) {
             if ($this->has($serviceId)) {
-                throw new ContainerResolutionException(\sprintf('Service with id "%s" exist in container and cannot be used using container\'s runScope method.', $serviceId));
+                throw new ContainerResolutionException(\sprintf('Service with id "%s" exist in container and cannot be redeclared.', $serviceId));
             }
             $this->set($cleanup[] = $serviceId, $definition);
         }
