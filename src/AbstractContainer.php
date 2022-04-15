@@ -61,12 +61,30 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     }
 
     /**
+     * Extends a service definition by a callable scope having first parameter,
+     * as the service and second as the container instance.
      *
      * @param string $id The service identifier
      *
      * @return bool if service has already been initialized, false otherwise
      */
+    public function extend(string $id, callable $scope): void
     {
+        if (null === $definition = $this->definition($id)) {
+            throw $this->createNotFound($id);
+        }
+
+        if (\is_array($definition) || \is_callable($definition)) {
+            $ref = new \ReflectionFunction(\Closure::fromCallable($definition));
+
+            if (!empty($refP = $ref->getParameters())) {
+                $refP = $this->resolver->autowireArguments($ref);
+            }
+
+            $definition = $ref->invokeArgs($refP);
+        }
+
+        $this->definitions[$id] = $scope($definition, $this);
     }
 
     /**
