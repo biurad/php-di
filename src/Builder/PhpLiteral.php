@@ -26,7 +26,7 @@ use Rade\DI\NodeVisitor\PhpLiteralVisitor;
  * Example:
  *
  * ```php
- * $literal = new PhpLiteral('$hello = ['??' => '??'];', ['Hello', '344']);
+ * $literal = new PhpLiteral("$hello = ['%?' => '%?'];", ['Hello', '344']);
  * // Expected output when resolved is: $hello => ['Hello' => 344];
  * ```
  *

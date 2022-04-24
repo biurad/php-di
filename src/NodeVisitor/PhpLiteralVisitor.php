@@ -43,11 +43,11 @@ final class PhpLiteralVisitor extends \PhpParser\NodeVisitorAbstract
      */
     public function enterNode(\PhpParser\Node $node)
     {
-        if ($node instanceof String_ && '??' === $node->value) {
+        if ($node instanceof String_ && '%?' === $node->value) {
             $value = $this->args[++$this->offset] ?? null;
 
             if (null === $value) {
-                throw new \ParseError('Unable to parse syntax "??" as no value supplied for its string node expression.');
+                throw new \ParseError('Unable to parse syntax "%?" as no value supplied for its string node expression.');
             }
 
             return BuilderHelpers::normalizeValue($value);
