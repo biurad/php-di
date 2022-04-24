@@ -22,6 +22,7 @@ use PhpParser\Node\Stmt\Return_;
 use Rade\DI\Exceptions\ServiceCreationException;
 use Rade\DI\Definitions\{DefinitionAwareInterface, DefinitionInterface, DepreciableDefinitionInterface, ShareableDefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Definitions\Traits as Defined;
+use Rade\DI\Exceptions\ContainerResolutionException;
 
 /**
  * Represents definition of standard service.
@@ -89,6 +90,10 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
      */
     public function build(string $id, Resolver $resolver)
     {
+        if ($this->abstract) {
+            throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $id));
+        }
+
         if (null === $builder = $resolver->getBuilder()) {
             return $this->resolve($id, $resolver);
         }

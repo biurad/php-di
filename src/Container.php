@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Rade\DI\Exceptions\{ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
+use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 
 /**
  * Dependency injection container.
@@ -106,8 +106,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     {
         if ($definition instanceof Definitions\DefinitionInterface) {
             if ($definition instanceof Definitions\ShareableDefinitionInterface) {
-                if ($definition->isAbstract()) {
-                    throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $id));
                 }
 
                 if (!$definition->isPublic()) {
