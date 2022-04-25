@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Nette\Utils\{FileSystem, ObjectHelpers, Validators};
+use Nette\Utils\{FileSystem, Validators};
 use Rade\DI\Definitions\DefinitionInterface;
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
 
@@ -82,7 +82,7 @@ final class DefinitionBuilder
     public function __call(string $name, array $arguments)
     {
         if (!$id = $this->definition) {
-            throw $this->createInitializingError(__METHOD__);
+            throw $this->createInitializingError($name);
         }
 
         if ($this->trackDefaults) {
@@ -196,9 +196,9 @@ final class DefinitionBuilder
      *
      * @return Definition|$this
      */
-    public function decorate(string $id, object $definition = null)
+    public function decorate(string $id, object $definition = null, ?string $newId = null)
     {
-        $this->doCreate($this->container->decorate($this->definition = $id, $definition));
+        $this->doCreate($this->container->decorate($this->definition = $id, $definition, $newId));
 
         return $this;
     }
@@ -247,7 +247,6 @@ final class DefinitionBuilder
      * @param string|null          $resource  The directory to look for classes, glob-patterns allowed
      * @param string|string[]|null $exclude   A globbed path of files to exclude or an array of globbed paths of files to exclude
      *
-     * @return $this
      */
     public function namespaced(string $namespace, string $resource = null, $exclude = null)
     {
@@ -308,7 +307,7 @@ final class DefinitionBuilder
 
                 try {
                     $definition->{$defaultMethod}(...$defaultArguments);
-                } catch (\Error $e) {
+                } catch (\Throwable $e) {
                     throw $this->createErrorException($defaultMethod, $e);
                 }
             }
@@ -348,6 +347,7 @@ final class DefinitionBuilder
             }
         }
 
+        // This will probably never be reached ...
         throw new \RuntimeException('PSR-4 autoloader file can not be found!');
     }
 
@@ -428,7 +428,7 @@ final class DefinitionBuilder
             }
 
             if ($e instanceof \ReflectionException) {
-                throw new \InvalidArgumentException(\sprintf('Expected to find class "%s" in file "%s" while importing services from resource "%s", but it was not found! Check the namespace prefix used with the resource.', $class, $path, $pattern), 0, $e);
+                $e = new \InvalidArgumentException(\sprintf('Expected to find class "%s" in file "%s" while importing services from resource "%s", but it was not found! Check the namespace prefix used with the resource.', $class, $path, $pattern), 0, $e);
             }
 
             throw $e;
@@ -463,6 +463,6 @@ final class DefinitionBuilder
 
     private function createInitializingError(string $name): \LogicException
     {
-        return new \LogicException(\sprintf('Did you forgot to register a service via "set", "autowire", or "namespaced" methods\' before calling %s::%s().', __CLASS__, $name));
+        return new \LogicException(\sprintf('Did you forget to register a service via "set", "autowire", or "namespaced" methods\' before calling the %s() method.', $name));
     }
 }
