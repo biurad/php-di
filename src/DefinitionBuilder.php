@@ -90,11 +90,8 @@ final class DefinitionBuilder
         } else {
             try {
                 $definition = (!isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0]);
-
-                if (\method_exists($definition, $name)) {
-                    $definition->{$name}(...$arguments);
-                }
-            } catch (\Error $e) {
+                \call_user_func_array([$definition, $name], $arguments);
+            } catch (\Throwable $e) {
                 throw $this->createErrorException($name, $e);
             }
         }
@@ -450,18 +447,18 @@ final class DefinitionBuilder
         return null;
     }
 
-    private function createErrorException(string $name, \Throwable $e): \BadMethodCallException
+    private function createErrorException(string $name, \Throwable $e): \Throwable
     {
-        if (!\str_starts_with($e->getMessage(), 'Call to undefined method')) {
-            throw $e;
+        if (\str_starts_with($e->getMessage(), 'call_user_func_array(): Argument #1')) {
+            $e = new \BadMethodCallException(\sprintf(
+                'Call to undefined method %s() method must either belong to an instance of %s or the %s class',
+                $name,
+                Definitions\DefinitionInterface::class,
+                __CLASS__,
+            ), 0, $e);
         }
 
-        $hint = ObjectHelpers::getSuggestion(\array_merge(
-            \get_class_methods($this),
-            \get_class_methods(Definition::class),
-        ), $name);
-
-        return new \BadMethodCallException(\sprintf('Call to undefined method %s::%s()' . ($hint ? ", did you mean $hint()?" : '.'), __CLASS__, $name), 0, $e);
+        return $e;
     }
 
     private function createInitializingError(string $name): \LogicException
