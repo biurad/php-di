@@ -104,7 +104,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
             $defNode->addStmt($this->triggerDeprecation($id, $builder));
         }
 
-        if ($this->lazy) {
+        if ($this->isLazy()) {
             $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$this->entity, $resolver->resolveArguments($this->arguments)]);
         } else {
             $createdDef = $resolver->resolve($this->entity, $this->arguments);
@@ -122,7 +122,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
             $this->resolveBinding($defNode, $createdDef, $resolver, $builder);
         }
 
-        if ($this->shared) {
+        if ($this->isShared()) {
             $createdDef = $this->triggerSharedBuild($id, $createdDef instanceof Assign ? $createdDef->var : $createdDef, $builder);
         }
 
@@ -134,27 +134,25 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
      */
     protected function resolve(string $id, Resolver $resolver)
     {
-        if ($this->isDeprecated()) {
+        if (!empty($this->deprecation)) {
             $this->triggerDeprecation($id);
         }
 
-        if (\is_object($resolved = $this->entity)) {
-            $resolved = !\is_callable($resolved) ? $resolved : $resolver->resolveCallable($resolved);
-        } else {
-            $resolved = $resolver->resolve($this->entity, $this->arguments);
+        if (\is_callable($resolved = $this->entity)) {
+            $resolved = $resolved->resolveCallable($resolved);
+        } elseif (!\is_object($resolved)) {
+            $resolved = $resolver->resolve($resolved, $this->arguments);
         }
 
-        if ($this->hasBinding()) {
-            if (\is_object($resolved)) {
-                foreach ($this->parameters as $property => $propertyValue) {
-                    $resolved->{$property} = $resolver->resolve($propertyValue);
-                }
-
-                foreach ($this->calls as [$method, $methodValue]) {
-                    $resolver->resolve([$resolved, $method], (array) $methodValue);
-                }
+        if ($this->hasBindings) {
+            foreach ($this->parameters as $property => $propertyValue) {
+                $resolved->{$property} = $resolver->resolve($propertyValue);
             }
-
+    
+            foreach ($this->calls as [$method, $methodValue]) {
+                $resolver->resolve([$resolved, $method], $methodValue ?? []);
+            }
+    
             foreach ($this->extras as [$extend, $code]) {
                 $resolver->resolve($code, $extend ? [$resolved] : []);
             }
