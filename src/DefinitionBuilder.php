@@ -20,6 +20,7 @@ namespace Rade\DI;
 use Nette\Utils\{FileSystem, Validators};
 use Rade\DI\Definitions\DefinitionInterface;
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * A builder specialized in creating homogeneous service definitions.
@@ -32,7 +33,7 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceReso
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-final class DefinitionBuilder
+class DefinitionBuilder implements ResetInterface
 {
     private AbstractContainer $container;
     private ?string $definition = null, $directory = null;
@@ -111,6 +112,21 @@ final class DefinitionBuilder
 
         return $this;
     }
+
+    /**
+     * Resets the builder to initial state.
+     *
+     * @return $this
+     */
+    public function reset()
+    {
+        $this->definition = $this->directory =  null;
+        $this->classes = $this->defaults = [];
+        $this->trackDefaults = false;
+
+        return $this;
+    }
+
     /**
      * Set a config into container's parameter.
      *
