@@ -100,6 +100,18 @@ final class DefinitionBuilder
     }
 
     /**
+     * This method calls the __destruct() method as a way of
+     * loading namespaced service definitions into container if exist.
+     *
+     * @return $this
+     */
+    final public function load(): self
+    {
+        $this->__destruct();
+
+        return $this;
+    }
+    /**
      * Set a config into container's parameter.
      *
      * @param mixed $value
