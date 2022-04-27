@@ -73,6 +73,19 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function reset(): void
+    {
+        parent::reset();
+        $this->nodeTraverser = null;
+
+        if (isset($this->resources)) {
+            $this->resources = [];
+        }
+    }
+
+    /**
      * Returns an array of resources loaded to build this configuration.
      *
      * @return ResourceInterface[] An array of resources
