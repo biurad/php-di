@@ -275,6 +275,7 @@ class DefinitionBuilder implements ResetInterface
      * @param string|null          $resource  The directory to look for classes, glob-patterns allowed
      * @param string|string[]|null $exclude   A globbed path of files to exclude or an array of globbed paths of files to exclude
      *
+     * @return Definition|$this
      */
     public function namespaced(string $namespace, string $resource = null, $exclude = null)
     {
@@ -285,14 +286,22 @@ class DefinitionBuilder implements ResetInterface
         if (!\preg_match('/^(?:[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+\\\\)++$/', $namespace)) {
             throw new \InvalidArgumentException(\sprintf('Namespace is not a valid PSR-4 prefix: "%s".', $namespace));
         }
+        $oldDir = $this->directory;
 
         if (null !== $resource) {
-            $resource = $this->container->parameter($this->directory . $resource);
+            if ($oldDir && !\is_dir($resource)) {
+                $resource = $oldDir . \ltrim($resource, '/\\');
+            }
+
+            if (\is_dir($resource = $this->container->parameter($resource))) {
+                $this->directory = $resource;
+            }
         }
 
         $classes = $this->findClasses($namespace, $resource ?? $this->findResourcePath($namespace), (array) $exclude);
         $this->doCreate($definition = new Definition($this->definition = $namespace));
 
+        $this->directory = $oldDir;
         $this->classes[$namespace] = [$definition, $classes];
 
         return $this;
@@ -392,10 +401,13 @@ class DefinitionBuilder implements ResetInterface
         $container = $this->container;
 
         foreach (\glob($pattern, \GLOB_BRACE) as $directory) {
-            $directoryIterator = new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
-            $files = \iterator_to_array(new \RecursiveIteratorIterator($directoryIterator));
-
-            \uksort($files, 'strnatcmp');
+            if (\is_dir($directory)) {
+                $directoryIterator = new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
+                $files = \iterator_to_array(new \RecursiveIteratorIterator($directoryIterator));
+                \uksort($files, 'strnatcmp');
+            } else {
+                $files = [$directory => new \SplFileInfo($directory)];
+            }
 
             /** @var \SplFileInfo $info */
             foreach ($files as $path => $info) {
