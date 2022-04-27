@@ -183,7 +183,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      *
      * @throws NotFoundServiceException
      */
-    abstract protected function doCreate(string $id, object $definition, int $invalidBehavior);
+    abstract protected function doCreate(string $id, $definition, int $invalidBehavior);
 
     /**
      * Load the service definition.
@@ -199,15 +199,17 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             $reference = true; // Checking if circular reference exists ...
 
             try {
-                if (is_callable($definition)) {
+                if (\is_callable($definition)) {
                     $ref = new \ReflectionFunction(\Closure::fromCallable($definition));
 
                     if (!empty($refP = $ref->getParameters())) {
                         $refP = $this->resolver->autowireArguments($ref);
                     }
 
+                    $definition = $ref->invokeArgs($refP);
+
                     if (null === $this->resolver->getBuilder()) {
-                        return $this->definitions[$id] = $this->services[$id] = $ref->invokeArgs($refP);
+                        return $this->services[$id] = $definition;
                     }
                 }
 
@@ -215,9 +217,13 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             } finally {
                 unset($this->loading[$id]);
             }
-        } elseif (\array_key_exists($id, $this->types)) {
+        }
+
+        if (\array_key_exists($id, $this->types)) {
             return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-        } elseif (\class_exists($id) || \function_exists($id)) {
+        }
+
+        if (\class_exists($id) || \function_exists($id)) {
             try {
                 if ($id !== $r = $this->resolver->resolve($id)) {
                     return $this->services[$id] = $r;

@@ -178,6 +178,7 @@ class ContainerBuilder extends AbstractContainer
     public function dumpObject(string $id, $definition)
     {
         $method = $this->resolver->getBuilder()->method($this->resolver::createMethod($id))->makeProtected();
+        $cachedService = new Expr\ArrayDimFetch(new Expr\PropertyFetch(new Expr\Variable('this'), 'services'), new String_($id));
 
         if ($definition instanceof Expression) {
             $definition = $definition->expr;
@@ -206,15 +207,13 @@ class ContainerBuilder extends AbstractContainer
             }
         }
 
-        $cachedService = new Expr\ArrayDimFetch(new Expr\PropertyFetch(new Expr\Variable('this'), 'services'), new String_($id));
-
         return $method->addStmt(new \PhpParser\Node\Stmt\Return_(new Expr\Assign($cachedService, $this->resolver->getBuilder()->val($definition))));
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function doCreate(string $id, object $definition, int $invalidBehavior)
+    protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
         if ($definition instanceof String_ && $id === $definition->value) {
             unset($this->services[$id]);

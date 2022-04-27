@@ -102,23 +102,22 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @throws \ReflectionException
      */
-    protected function doCreate(string $id, object $definition, int $invalidBehavior)
+    protected function doCreate(string $id, $definition, int $invalidBehavior)
     {
         if ($definition instanceof Definitions\DefinitionInterface) {
-            if ($definition instanceof Definitions\ShareableDefinitionInterface) {
-                }
+            $service = $definition->build($id, $this->resolver);
 
+            if ($definition instanceof Definitions\ShareableDefinitionInterface) {
                 if (!$definition->isPublic()) {
                     $this->removeDefinition($id);
                 }
 
-                if ($definition->isShared()) {
-                    $s = &$this->services[$id] ?? null;
+                if (!$definition->isShared()) {
+                    return $service;
                 }
             }
-            $s = $definition->build($id, $this->resolver);
         }
 
-        return $this->definitions[$id] = ($this->services[$id] ??= $s ?? $definition);
+        return $this->services[$id] = $service ?? $definition;
     }
 }
