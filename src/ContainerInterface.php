@@ -63,13 +63,11 @@ interface ContainerInterface extends PsrContainerInterface
     public function has(string $id): bool;
 
     /**
-     * Returns true if the given service has actually been initialized.
+     * Returns true if the given shared service has actually been initialized.
      *
      * @param string $id The service identifier
-     *
-     * @return bool true if service has already been initialized, false otherwise
      */
-    public function initialized(string $id): bool;
+    public function shared(string $id): bool;
 
     /**
      * Sets multiple definitions at once into the container.
