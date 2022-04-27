@@ -32,7 +32,7 @@ use Symfony\Component\Config\Resource\ResourceInterface;
  */
 class ContainerBuilder extends AbstractContainer
 {
-    private const BUILD_SERVICE_DEFINITION = 3;
+    public const BUILD_SERVICE_DEFINITION = 3;
 
     /** @var array<string,ResourceInterface>|null */
     private ?array $resources;
