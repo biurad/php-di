@@ -28,11 +28,10 @@ class Container extends AbstractContainer implements \ArrayAccess
 {
     public function __construct()
     {
-        if (empty($this->types)) {
-            $this->services[self::SERVICE_CONTAINER] = $c = $this;
-            $this->type(self::SERVICE_CONTAINER, \array_keys(\class_implements($c) + \class_parents($c) + [static::class => static::class]));
+        if (!isset($this->types[$cl = static::class])) {
+            $this->type(self::SERVICE_CONTAINER, \array_keys(\class_implements($c = $this) + \class_parents($c) + [$cl => $cl]));
         }
-        $this->resolver = new Resolver($s ?? $this);
+        $this->resolver = new Resolver($this->services[self::SERVICE_CONTAINER] = $c?? $this);
     }
 
     /**
@@ -81,20 +80,6 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function offsetUnset($offset): void
     {
         $this->removeDefinition($offset);
-    }
-
-    /**
-     * {@inheritdoc}
-     *
-     * @throws FrozenServiceException if definition has been initialized
-     */
-    public function definition(string $id)
-    {
-        if (\array_key_exists($id, $this->privates)) {
-            throw new FrozenServiceException(\sprintf('The "%s" internal service is meant to be private and out of reach.', $id));
-        }
-
-        return parent::definition($id);
     }
 
     /**
