@@ -139,7 +139,7 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
         }
 
         if (\is_callable($resolved = $this->entity)) {
-            $resolved = $resolved->resolveCallable($resolved);
+            $resolved = $resolver->resolveCallable($resolved);
         } elseif (!\is_object($resolved)) {
             $resolved = $resolver->resolve($resolved, $this->arguments);
         }
