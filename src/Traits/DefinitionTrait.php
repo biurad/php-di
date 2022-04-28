@@ -96,6 +96,16 @@ trait DefinitionTrait
                 }
             }
         }
+
+        if (isset($this->tags)) {
+            foreach ($this->tags as $tag => &$attr) {
+                if (!isset($attr[$id])) {
+                    continue;
+                }
+
+                unset($attr[$id]);
+            }
+        }
     }
 
     /**
