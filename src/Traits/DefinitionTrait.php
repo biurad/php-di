@@ -19,13 +19,11 @@ namespace Rade\DI\Traits;
 
 use Nette\Utils\Helpers;
 use PhpParser\Node\Expr\ArrowFunction;
-use Rade\DI\{ContainerInterface, Definition, Definitions};
+use Rade\DI\{Definition, Definitions};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 
 /**
  * This trait adds definition's functionality to container.
- *
- * @property \Rade\DI\Resolver $resolver
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -195,7 +193,11 @@ trait DefinitionTrait
         }
 
         $this->removeDefinition($id);
-        $this->set($id . '.inner', $innerDefinition)->tag('container.decorated_services');
+        $this->set($i = $id . '.inner', $innerDefinition);
+
+        if (\method_exists($this, 'tag')) {
+            $this->tag($i, 'container.decorated_services');
+        }
 
         return $this->set($newId ?? $id, $definition);
     }
