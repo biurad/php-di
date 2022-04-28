@@ -600,7 +600,11 @@ class Resolver
 
     private static function getDefinitionClass(Definitions\DefinitionInterface $def): ?string
     {
-        if (!\class_exists($class = $def->getEntity())) {
+        if (!\is_string($class = $def->getEntity())) {
+            return null;
+        }
+
+        if (!\class_exists($class)) {
             if ($def instanceof Definitions\TypedDefinitionInterface) {
                 foreach ($def->getTypes() as $typed) {
                     if (\class_exists($typed)) {
