@@ -37,14 +37,8 @@ trait DeprecationTrait
         $this->deprecation['package'] = $package;
         $this->deprecation['version'] = $version ?? '';
 
-        if (!empty($message)) {
-            if (\preg_match('#[\r\n]|\*/#', $message)) {
-                throw new \InvalidArgumentException('Invalid characters found in deprecation template.');
-            }
-
-            if (!\str_contains($message, '%service_id%')) {
-                throw new \InvalidArgumentException('The deprecation template must contain the "%service_id%" placeholder.');
-            }
+        if (!empty($message) && !\str_contains($message, '%service_id%')) {
+            throw new \InvalidArgumentException('The deprecation template must contain the "%service_id%" placeholder.');
         }
 
         $this->deprecation['message'] = $message ?? 'The "%service_id%" service is deprecated. avoid using it, as it will be removed in the future.';
@@ -63,10 +57,10 @@ trait DeprecationTrait
     /**
      * {@inheritdoc}
      */
-    public function getDeprecation(string $id): array
+    public function getDeprecation(string $id = null): array
     {
         if (isset($this->deprecation['message'])) {
-            $this->deprecation['message'] = \str_replace('%service_id%', $id, $this->deprecation['message']);
+            $this->deprecation['message'] = \str_replace('%service_id%', $id ?? $this->innerId ?? 'definition', $this->deprecation['message']);
         }
 
         return $this->deprecation;

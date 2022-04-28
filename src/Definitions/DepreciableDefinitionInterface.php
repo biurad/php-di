@@ -43,9 +43,9 @@ interface DepreciableDefinitionInterface
     /**
      * Return a non-empty array if definition is deprecated.
      *
-     * @param string $id Service id relying on this definition
+     * @param string|null $id Service id relying on this definition
      *
      * @return array<string,string>
      */
-    public function getDeprecation(string $id): array;
+    public function getDeprecation(string $id = null): array;
 }
