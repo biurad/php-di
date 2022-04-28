@@ -65,7 +65,7 @@ trait DefinitionTrait
     /**
      * {@inheritdoc}
      */
-    public function initialized(string $id): bool
+    public function shared(string $id): bool
     {
         return \array_key_exists($this->aliases[$id] ?? $id, $this->services);
     }
