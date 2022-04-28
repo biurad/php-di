@@ -110,7 +110,7 @@ class ExtensionBuilder
         $configuration = &$this->configuration;
 
         if (!(\array_key_exists($extensionName, $this->extensions) || \array_key_exists($extensionName, $this->aliases))) {
-            throw new \InvalidArgumentException(\sprintf('The extension name provided in not valid, must be an extension\'s class name or alias.', $extensionName));
+            throw new \InvalidArgumentException(\sprintf('The extension "%s" provided in not valid, must be an extension\'s class name or alias.', $extensionName));
         }
 
         if ($hasParent = isset($parent, $configuration[$parent])) {
@@ -141,7 +141,7 @@ class ExtensionBuilder
     public function modifyConfig(string $extensionName, array $configuration, string $parent = null, bool $replace = false): void
     {
         if (!\array_key_exists($extensionName, $this->extensions)) {
-            throw new \InvalidArgumentException(\sprintf('The extension name provided in not valid, must be an extension\'s class name.', $extensionName));
+            throw new \InvalidArgumentException(\sprintf('The extension "%s" provided in not valid, must be an extension\'s class name.', $extensionName));
         }
 
         if (!empty($defaults = $this->getConfig($extensionName, $parent))) {
