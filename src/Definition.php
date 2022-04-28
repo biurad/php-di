@@ -90,24 +90,51 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
      */
     public function build(string $id, Resolver $resolver)
     {
+        $builder = $resolver->getBuilder();
+        $resolved = $this->entity;
+
         if ($this->abstract) {
             throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $id));
         }
 
-        if (null === $builder = $resolver->getBuilder()) {
-            return $this->resolve($id, $resolver);
+        if (!empty($this->deprecation)) {
+            $deprecation = $this->triggerDeprecation($id, $builder);
+        }
+
+        if (null === $builder) {
+            if (\is_callable($resolved)) {
+                $resolved = $resolver->resolveCallable($resolved, $this->arguments);
+            } elseif (!\is_object($resolved)) {
+                $resolved = $resolver->resolve($resolved, $this->arguments);
+            }
+    
+            if ($this->hasBindings) {
+                foreach ($this->parameters as $property => $propertyValue) {
+                    $resolved->{$property} = $resolver->resolve($propertyValue);
+                }
+        
+                foreach ($this->calls as [$method, $methodValue]) {
+                    $resolver->resolve([$resolved, $method], $methodValue ?? []);
+                }
+        
+                foreach ($this->extras as [$extend, $code]) {
+                    $resolver->resolve($code, $extend ? [$resolved] : []);
+                }
+            }
+    
+            return $resolved;
         }
 
         $this->triggerReturnType($defNode = $builder->method($resolver->createMethod($id))->makeProtected());
 
-        if ($this->isDeprecated()) {
-            $defNode->addStmt($this->triggerDeprecation($id, $builder));
+        if (isset($deprecation)) {
+            $defNode->addStmt($deprecation);
         }
 
         if ($this->isLazy()) {
-            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$this->entity, $resolver->resolveArguments($this->arguments)]);
+            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$resolved, $resolver->resolveArguments($this->arguments)]);
         } else {
-            $createdDef = $resolver->resolve($this->entity, $this->arguments);
+            $createdDef = $resolver->resolve($resolved, $this->arguments);
 
             if ($createdDef instanceof Injector\Injectable) {
                 $createdDef = $createdDef->build($defNode, $builder->var('service'), $builder);
@@ -127,37 +154,5 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
         }
 
         return $defNode->addStmt(new Return_($createdDef));
-    }
-
-    /**
-     * @return mixed
-     */
-    protected function resolve(string $id, Resolver $resolver)
-    {
-        if (!empty($this->deprecation)) {
-            $this->triggerDeprecation($id);
-        }
-
-        if (\is_callable($resolved = $this->entity)) {
-            $resolved = $resolver->resolveCallable($resolved);
-        } elseif (!\is_object($resolved)) {
-            $resolved = $resolver->resolve($resolved, $this->arguments);
-        }
-
-        if ($this->hasBindings) {
-            foreach ($this->parameters as $property => $propertyValue) {
-                $resolved->{$property} = $resolver->resolve($propertyValue);
-            }
-    
-            foreach ($this->calls as [$method, $methodValue]) {
-                $resolver->resolve([$resolved, $method], $methodValue ?? []);
-            }
-    
-            foreach ($this->extras as [$extend, $code]) {
-                $resolver->resolve($code, $extend ? [$resolved] : []);
-            }
-        }
-
-        return $resolved;
     }
 }
