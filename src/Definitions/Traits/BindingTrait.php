@@ -42,6 +42,8 @@ trait BindingTrait
     /** @var array<int,Statement|string> */
     private array $extras = [];
 
+    private bool $hasBindings = false;
+
     /**
      * Set/Replace a method/property binding to service definition.
      *
@@ -52,10 +54,16 @@ trait BindingTrait
      */
     public function bind(string $nameOrMethod, $valueOrRef = null)
     {
+        $this->hasBindings = true;
+
         if ('$' === $nameOrMethod[0]) {
             $this->parameters[\substr($nameOrMethod, 1)] = $valueOrRef;
-        } elseif (2 === \func_num_args()) {
-            $this->calls[] = [$nameOrMethod, \is_array($valueOrRef) ? $valueOrRef : [$valueOrRef]];
+        } else {
+            if (2 === \func_num_args()) {
+                $valueOrRef = \is_array($valueOrRef) ? $valueOrRef : [$valueOrRef];
+            }
+
+            $this->calls[] = [$nameOrMethod, $valueOrRef];
         }
 
         return $this;
@@ -71,6 +79,7 @@ trait BindingTrait
      */
     public function call($configurator, bool $extend = false)
     {
+        $this->hasBindings = true;
         $this->extras[] = [$extend, $configurator];
 
         return $this;
@@ -102,29 +111,25 @@ trait BindingTrait
     public function unbind(string $parameterOrMethod)
     {
         if ('$' === $parameterOrMethod[0]) {
-            if (\array_key_exists($parameterOrMethod = \substr($parameterOrMethod, 1), $this->parameters)) {
+            $parameterOrMethod = \substr($parameterOrMethod, 1);
+
+            if (\array_key_exists($parameterOrMethod, $this->parameters)) {
                 unset($this->parameters[$parameterOrMethod]);
             }
-            goto get_instance;
-        }
+        } elseif (\str_contains($parameterOrMethod, '.')) {
+            [$offset, $method] = \explode('.', $parameterOrMethod);
 
-        foreach ($this->calls as $offset => [$method, $mCall]) {
-            if (\str_contains($parameterOrMethod, '.')) {
-                [$nName, $name] = \explode('.', $parameterOrMethod);
-
-                if ($method === $name && $offset === $nName) {
-                    unset($this->calls[$offset][$name]);
-
-                    break;
-                }
-            } elseif ($method === $parameterOrMethod) {
+            if (isset($this->calls[$offset]) && $method === $this->calls[$offset][0]) {
                 unset($this->calls[$offset]);
-
-                break;
+            }
+        } else {
+            foreach ($this->calls as $offset => [$method, $mCall]) {
+                if ($method === $parameterOrMethod) {
+                    unset($this->calls[$offset]);
+                }
             }
         }
 
-        get_instance:
         return $this;
     }
 
@@ -133,7 +138,7 @@ trait BindingTrait
      */
     public function hasBinding(): bool
     {
-        return !empty($this->parameters) || !empty($this->calls) || !empty($this->extras);
+        return $this->hasBindings;
     }
 
     /**
@@ -181,9 +186,9 @@ trait BindingTrait
 
         foreach ($this->calls as [$method, $mCall]) {
             if (\is_string($this->entity) && \method_exists($this->entity, $method)) {
-                $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $method]), $mCall);
+                $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $method]), $mCall ?? []);
             } else {
-                $mCall = $resolver->resolveArguments($mCall);
+                $mCall = $resolver->resolveArguments($mCall ?? []);
             }
 
             $defNode->addStmt($builder->methodCall($createdDef->var, $method, $mCall));
