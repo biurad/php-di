@@ -314,7 +314,7 @@ class Resolver
         }
 
         if ($reflection->implementsInterface(Injector\InjectableInterface::class)) {
-            return Injector\Injectable::getProperties($this, $service, $reflection);
+            return Injector\Injectable::getResolved($this, $service, $reflection);
         }
 
         return $service;

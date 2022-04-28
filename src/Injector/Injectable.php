@@ -76,11 +76,31 @@ class Injectable
     }
 
     /**
+     * Return the properties with the #[Inject] attribute.
+     *
+     * @return array<string,mixed>
+     */
+    public function getProperties(): array
+    {
+        return $this->properties[0] ?? [];
+    }
+
+    /**
+     * Return the methods with the #[Inject] attribute.
+     *
+     * @return array<string,mixed>
+     */
+    public function getMethods(): array
+    {
+        return $this->properties[1] ?? [];
+    }
+
+    /**
      * Generates list of properties with #[Inject] attributes.
      *
      * @return array<string,array<string,mixed[]>>
      */
-    public static function getProperties(Resolver $resolver, object $service, \ReflectionClass $reflection): object
+    public static function getResolved(Resolver $resolver, object $service, \ReflectionClass $reflection): object
     {
         if (\PHP_VERSION_ID < 80000) {
             return $service;
@@ -94,7 +114,7 @@ class Injectable
             }
 
             if (!empty($pValue = $propertyAttributes[0]->getArguments()[0] ?? null)) {
-                $properties[0][$property->getName()] = $resolver->resolveReference($pValue[0]);
+                $properties[0][$property->getName()] = $resolver->resolveReference($pValue);
                 continue;
             }
 
@@ -121,12 +141,14 @@ class Injectable
             $properties[1][$method->getName()] = $resolver->autowireArguments($method);
         }
 
-        if (empty($properties)) {
-            return $service;
+        if (!empty($properties)) {
+            $service = new self($service, $properties);
+
+            if (null === $resolver->getBuilder()) {
+                $service = $service->resolve();
+            }
         }
 
-        $injected = new self($service, $properties);
-
-        return null === $resolver->getBuilder() ? $injected->resolve() : $injected;
+        return $service;
     }
 }
