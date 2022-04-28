@@ -563,7 +563,7 @@ class Resolver
      */
     public static function getTypes(\Reflector $reflection): array
     {
-        if ($reflection instanceof \ReflectionParameter) {
+        if ($reflection instanceof \ReflectionParameter || $reflection instanceof \ReflectionProperty) {
             $type = $reflection->getType();
         } elseif ($reflection instanceof \ReflectionFunctionAbstract) {
             $type = $reflection->getReturnType() ?? (\PHP_VERSION_ID >= 80100 ? $reflection->getTentativeReturnType() : null);
