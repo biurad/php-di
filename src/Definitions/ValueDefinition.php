@@ -19,6 +19,7 @@ namespace Rade\DI\Definitions;
 
 use PhpParser\Node\Expr;
 use PhpParser\Node\Stmt\Return_;
+use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\ServiceCreationException;
 use Rade\DI\Resolver;
 
@@ -79,39 +80,46 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
      */
     public function build(string $id, Resolver $resolver)
     {
-        if (null === $builder = $resolver->getBuilder()) {
-            if ($this->isDeprecated()) {
-                $this->triggerDeprecation($id);
-            }
+        $builder = $resolver->getBuilder();
+        $value = $this->value;
 
-            return \is_array($value = $this->value) ? $resolver->resolveArguments($value) : $value;
+        if ($this->abstract) {
+            throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $id));
+        }
+
+        if (!empty($this->deprecation)) {
+            $deprecation = $this->triggerDeprecation($id, $builder);
+        }
+
+        if (null === $builder) {
+            return \is_array($value) ? $resolver->resolveArguments($value) : (!$this->lazy ? $value : $resolver->resolve($value));
         }
 
         $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
 
-        if ($this->value instanceof \PhpParser\Node) {
-            if ($this->value instanceof Expr\Array_) {
+        if ($value instanceof \PhpParser\Node) {
+            if ($value instanceof Expr\Array_) {
                 $defNode->setReturnType('array');
-            } elseif ($this->value instanceof Expr\New_) {
-                $defNode->setReturnType($this->value->class->toString());
+            } elseif ($value instanceof Expr\New_) {
+                $defNode->setReturnType($value->class->toString());
             }
-        } else {
-            $defNode->setReturnType(\get_debug_type($this->value));
+        } elseif (\PHP_MAJOR_VERSION >= 8) {
+            $defNode->setReturnType('mixed');
         }
 
-        if ($this->isDeprecated()) {
-            $defNode->addStmt($this->triggerDeprecation($id, $builder));
+        if (isset($deprecation)) {
+            $defNode->addStmt($deprecation);
         }
 
         if ($this->lazy) {
-            $lazyMethod = \is_array($this->value) ? 'resolveArguments' : 'resolve';
-            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), $lazyMethod, [$this->value]);
+            $lazyMethod = \is_array($value) ? 'resolveArguments' : 'resolve';
+            $createdValue = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), $lazyMethod, [$value]);
         }
 
         if ($this->shared) {
-            $createdValue = $this->triggerSharedBuild($id, $createdValue ?? $builder->val($this->value), $builder);
+            $createdValue = $this->triggerSharedBuild($id, $createdValue ?? $builder->val($value), $builder);
         }
 
-        return $defNode->addStmt(new Return_($createdValue ?? $builder->val($this->value)));
+        return $defNode->addStmt(new Return_($createdValue ?? $builder->val($value)));
     }
 }
