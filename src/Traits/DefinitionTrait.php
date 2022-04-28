@@ -113,10 +113,6 @@ trait DefinitionTrait
             throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
         }
 
-        if (ContainerInterface::SERVICE_CONTAINER === $id) {
-            throw new FrozenServiceException(\sprintf('The "%s" service is reserved, and cannot be set or modified.', $id));
-        }
-
         if (null === $definition) {
             ($definition = new Definition($id))->bindWith($id, $this);
         } elseif ($definition instanceof Definitions\Statement) {
