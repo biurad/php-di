@@ -38,11 +38,14 @@ trait TagsTrait
     /**
      * Assign a set a tag to a service.
      *
+     * @param string|array<int,string> $tags
      * @param mixed $value
      */
-    public function tag(string $serviceId, string $tag, $value = true): void
+    public function tag(string $serviceId, $tags, $value = true): void
     {
-        $this->tags[$tag][$serviceId] = $value ?? true;
+        foreach ((array) $tags as $tag) {
+            $this->tags[$tag][$serviceId] = $value;
+        }
     }
 
     /**
