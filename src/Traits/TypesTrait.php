@@ -74,9 +74,17 @@ trait TypesTrait
     /**
      * Remove an aliased type set to service(s).
      */
-    final public function removeType(string $type): void
+    final public function removeType(string $type, string $serviceId = null): void
     {
-        unset($this->types[$type]);
+        if (null !== $serviceId) {
+            foreach ($this->types[$type] ?? [] as $offset => $typed) {
+                if ($serviceId === $typed) {
+                    unset($this->types[$type][$offset]);
+                }
+            }
+        } else {
+            unset($this->types[$type]);
+        }
     }
 
     /**
@@ -153,11 +161,7 @@ trait TypesTrait
     {
         $definition = $this->set($id, $definition);
 
-        if ($this->typed($id)) {
-            return $definition;
-        }
-
-        if ($definition instanceof TypedDefinitionInterface) {
+        if ($definition instanceof TypedDefinitionInterface && !$definition->isTyped()) {
             return $definition->autowire();
         }
 
@@ -184,13 +188,13 @@ trait TypesTrait
             throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
         }
 
-        if (1 === \count($autowired)) {
-            return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
-        }
-
         if ($single) {
+            if (1 === $c = \count($autowired)) {
+                return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
+            }
+
             \natsort($autowired);
-            $autowired = count($autowired) <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
+            $autowired = $c <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
 
             throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, $autowired));
         }
