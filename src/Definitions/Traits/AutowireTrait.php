@@ -42,6 +42,9 @@ trait AutowireTrait
         }
 
         if (isset($this->container)) {
+            foreach ($this->types as $typed) {
+                $this->container->removeType($typed, $this->innerId);
+            }
             $this->container->type($this->innerId, $types);
         }
 
