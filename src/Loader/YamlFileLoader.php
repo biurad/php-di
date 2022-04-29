@@ -288,6 +288,16 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('"!%s" tags only accept a non empty string or an array with a key "tag" in "%s".', $value->getTag(), $file));
             }
 
+            if ('tagged_locator' === $value->getTag()) {
+                if (\is_string($argument) && '' !== $argument) {
+                    $argument = ['tag' => $argument];
+                } elseif (!\is_array($argument)) {
+                    throw new \InvalidArgumentException(\sprintf('"!%s" tags only accept a non empty string or an array with a key "tag" in "%s".', $value->getTag(), $file));
+                }
+
+                return new TaggedLocator($argument['tag'], $argument['indexAttribute'] ?? null, $argument['needsIndexes'] ?? false, $argument['exlude'] ?? []);
+            }
+
             if ('statement' === $value->getTag()) {
                 if (\is_string($argument)) {
                     return new Statement($argument);
