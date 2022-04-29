@@ -405,20 +405,24 @@ class Resolver
             $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
             $reference = \substr($reference, 1);
 
-            if ($arrayLike = \str_ends_with('[]', $reference)) {
+            if ($arrayLike = \str_ends_with($reference, '[]')) {
                 $reference = \substr($reference, 0, -2);
                 $invalidBehavior = $this->container::IGNORE_MULTIPLE_SERVICE;
             }
 
             if ($this->container->has($reference) || $this->container->typed($reference)) {
-                return $this->container->get($reference, $invalidBehavior);
+                $service = $this->container->get($reference, $invalidBehavior);
+
+                return !$arrayLike ? $service : (\is_array($service) ? $service : [$service]);
             }
 
             return $arrayLike ? [] : null;
         }
 
         if ('[]' === \substr($reference, -2)) {
-            return $this->container->get(\substr($reference, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
+            $service = $this->container->get(\substr($reference, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
+
+            return \is_array($service) ? $service : [$service];
         }
 
         return $this->container->get($reference);
