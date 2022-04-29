@@ -437,43 +437,27 @@ class Resolver
      */
     public function resolveServiceSubscriber($id, string $value): array
     {
-        if ('?' === $value[0]) {
-            $arrayLike = \str_ends_with($value = \substr($value, 1), '[]');
-
-            if (\is_int($id)) {
-                $id = $arrayLike ? \substr($value, 0, -2) : $value;
-            }
-
-            return ($this->container->has($id) || $this->container->typed($id)) ? $this->resolveServiceSubscriber($id, $value) : [$id => $arrayLike ? [] : null];
-        }
-
-        $service = function () use ($value) {
-            if ('[]' === \substr($value, -2)) {
-                $service = $this->container->get(\substr($value, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
-
-                return \is_array($service) ? $service : [$service];
-            }
-
-            return $this->container->get($value);
-        };
+        $service = fn () => $this->resolveReference($value);
 
         if (null !== $this->builder) {
+            $type = \rtrim(\ltrim($value, '?'), '[]');
+    
             if ('[]' === \substr($value, -2)) {
                 $returnType = 'array';
-            } elseif ($this->container->has($value) && ($def = $this->container->definition($value)) instanceof Definitions\TypedDefinitionInterface) {
+            } elseif ($this->container->has($type) && ($def = $this->container->definition($type)) instanceof Definitions\TypedDefinitionInterface) {
                 $returnType = $def->getTypes()[0] ?? (
-                    \class_exists($value) || \interface_exists($value)
-                    ? $value
+                    \class_exists($type) || \interface_exists($type)
+                    ? $type
                     : (!\is_int($id) && (\class_exists($id) || \interface_exists($id)) ? $id : null)
                 );
-            } elseif (\class_exists($value) || \interface_exists($value)) {
-                $returnType = $value;
+            } elseif (\class_exists($type) || \interface_exists($type)) {
+                $returnType = $type;
             }
 
             $service = new Expr\ArrowFunction(['expr' => $this->builder->val($service()), 'returnType' => $returnType ?? null]);
         }
 
-        return [\is_int($id) ? \rtrim($value, '[]') : $id => $service];
+        return [\is_int($id) ? ($type ?? \rtrim(\ltrim($value, '?'), '[]')) : $id => $service];
     }
 
     /**
