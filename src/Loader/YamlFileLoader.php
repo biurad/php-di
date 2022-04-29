@@ -37,15 +37,6 @@ use Symfony\Component\Yaml\Yaml;
 class YamlFileLoader extends FileLoader
 {
     private const DEFAULTS_KEYWORDS = [
-        'public' => 'public',
-        'tags' => 'tags',
-        'autowire' => 'autowire',
-        'bind' => 'bind',
-        'calls' => 'bind',
-        'configure' => 'configure',
-    ];
-
-    private const INSTANCEOF_KEYWORDS = [
         'shared' => 'shared',
         'lazy' => 'lazy',
         'public' => 'public',
@@ -90,12 +81,9 @@ class YamlFileLoader extends FileLoader
         'bind' => 'bind',
         'calls' => 'bind',
         'configure' => 'configure',
-        'instanceOf' => 'instanceOf',
     ];
 
     private ?YamlParser $yamlParser = null;
-
-    private bool $isLoadingInstanceof = false;
 
     /**
      * {@inheritdoc}
@@ -377,7 +365,7 @@ class YamlFileLoader extends FileLoader
             throw new \InvalidArgumentException(\sprintf('The "services" key should contain an array in "%s". Check your YAML syntax.', $file));
         }
 
-        $hasInstance = $this->parseDefaults($content, $file, '_instanceof', [], '');
+        $hasInstance = $this->parseDefaults($content, $file, '_instanceof');
         $hasDefaults = $this->parseDefaults($content, $file);
 
         foreach ($content['services'] as $id => $service) {
@@ -418,8 +406,10 @@ class YamlFileLoader extends FileLoader
      *
      * @throws \InvalidArgumentException
      */
-    private function parseDefaults(array &$content, string $file, $name = '_defaults', $defaults = [], string $instanceof = null): bool
+    private function parseDefaults(array &$content, string $file, $name = '_defaults', $defaults = []): bool
     {
+        $instanceof = true;
+
         if (empty($defaults) && !\array_key_exists($name, $content['services'])) {
             return false;
         }
@@ -433,50 +423,40 @@ class YamlFileLoader extends FileLoader
             throw new \InvalidArgumentException(\sprintf('Service "%s" key must be an array, "%s" given in "%s".', $name, \get_debug_type($defaults), $file));
         }
 
-        if (!empty($instanceof)) {
-            $this->isLoadingInstanceof = true;
-            $this->checkDefinition($instanceof, $defaults, $file);
-
-            $this->builder->instanceOf($instanceof);
-        } else {
+        if ('_defaults' === $name) {
+            $instanceof = false;
+        } elseif ('_instanceof' === $name) {
             foreach ($defaults as $key => $default) {
-                if (!isset(self::DEFAULTS_KEYWORDS[$key])) {
-                    if (null !== $instanceof) {
-                        $this->isLoadingInstanceof = true;
-                        $this->checkDefinition($key, $default, $file);
-
-                        if ('' === $instanceof) {
-                            $this->parseDefaults($content, $file, $name, $default, $key);
-                        }
-
-                        continue;
-                    }
-
-                    throw new \InvalidArgumentException(\sprintf('The configuration key "%s" cannot be used to define a default value in "%s". Allowed keys are "%s".', $key, $file, \implode('", "', self::DEFAULTS_KEYWORDS)));
-                }
+                $key = $this->builder->getContainer()->parameter($key);
+                $this->parseDefaults($content, $file, $key, $default);
             }
 
-            $this->builder->defaults();
+            return true;
         }
 
+        $this->checkDefinition($name, $defaults, $file, true);
+        $definition = $instanceof ? $this->builder->instanceOf($name) : $this->builder->defaults();
+
         if (isset($defaults['public'])) {
-            $this->builder->public($defaults['public']);
+            $defintion->public($defaults['public']);
         }
 
         if (isset($defaults['lazy'])) {
-            $this->builder->lazy($defaults['lazy']);
+            $definition->lazy($defaults['lazy']);
         }
 
         if (isset($defaults['shared'])) {
-            $this->builder->shared($defaults['shared']);
+            $definition->shared($defaults['shared']);
         }
 
         if (\array_key_exists('autowire', $defaults)) {
-            if (!\is_array($autowired = $defaults['autowire'] ?? [])) {
+            if (\in_array($autowired = $defaults['autowire'] ?? [], [true, null], true)) {
+                $autowired = [];
+            } elseif (!\is_array($autowired)) {
                 throw new \InvalidArgumentException(\sprintf('Parameter "autowire" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $this->builder->autowire($autowired);
+            $definition->autowire($autowired);
         }
 
         if (isset($defaults['tags'])) {
@@ -484,7 +464,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Parameter "tags" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $this->builder->tags($this->parseDefinitionTags("in \"{$name}\"", $tags, $file));
+            $definition->tags($this->parseDefinitionTags("in \"{$name}\"", $tags, $file));
         }
 
         if (null !== $bindings = $defaults['bind'] ?? $default['calls'] ?? null) {
@@ -492,7 +472,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Parameter "bind" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $this->parseDefinitionBinds("in \"{$name}\"", $bindings, $file, $this->builder);
+            $this->parseDefinitionBinds("in \"{$name}\"", $bindings, $file, $definition);
         }
 
         if (isset($defaults['configure'])) {
@@ -500,7 +480,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Parameter "configure" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $this->parseDefinitionBinds("in \"{$name}\"", $configures, $file, $this->builder, true);
+            $this->parseDefinitionBinds("in \"{$name}\"", $configures, $file, $definition, true);
         }
 
         return true;
@@ -515,7 +495,7 @@ class YamlFileLoader extends FileLoader
      */
     private function parseDefinition(string $id, array $service, string $file): void
     {
-        $this->checkDefinition($id, $service, $file);
+        $this->checkDefinition($id, $service, $file, false);
 
         if (\array_key_exists('namespace', $service)) {
             if (!\is_string($service['resource'])) {
@@ -708,11 +688,10 @@ class YamlFileLoader extends FileLoader
      *
      * @param array<string,mixed> $definition
      */
-    private function checkDefinition(string $id, array $definition, string $file): void
+    private function checkDefinition(string $id, array $definition, string $file, bool $defaults): void
     {
-        if ($this->isLoadingInstanceof) {
-            $keywords = self::INSTANCEOF_KEYWORDS;
-            $this->isLoadingInstanceof = false;
+        if ($defaults) {
+            $keywords = self::DEFAULTS_KEYWORDS;
         } elseif (isset($definition['resource']) || isset($definition['namespace'])) {
             $keywords = self::PROTOTYPE_KEYWORDS;
         } else {
