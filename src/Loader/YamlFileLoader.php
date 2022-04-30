@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
-use Rade\DI\Definitions\{DefinitionInterface, Reference, Statement};
+use Rade\DI\Definitions\{Reference, Statement};
 use Rade\DI\{ContainerBuilder, Definition, DefinitionBuilder};
 use Rade\DI\Builder\PhpLiteral;
 use Symfony\Component\Config\Exception\LoaderLoadException;
@@ -26,6 +26,7 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Parser as YamlParser;
 use Symfony\Component\Yaml\Tag\TaggedValue;
 use Symfony\Component\Yaml\Yaml;
+use Rade\DI\Definitions\TaggedLocator;
 
 /**
  * YamlFileLoader loads YAML files service definitions.
@@ -51,7 +52,7 @@ class YamlFileLoader extends FileLoader
         'alias' => 'alias',
         'parent' => 'parent',
         'entity' => 'entity',
-        'class' => 'entity', // backward compatibility for symfony devs, will be dropped in 2.0
+        'class' => 'entity',
         'abstract' => 'abstract',
         'arguments' => 'arguments',
         'lazy' => 'lazy',
@@ -72,7 +73,6 @@ class YamlFileLoader extends FileLoader
         'exclude' => 'exclude',
         'lazy' => 'lazy',
         'public' => 'public',
-        'parent' => 'parent',
         'deprecated' => 'deprecated',
         'shared' => 'shared',
         'tags' => 'tags',
@@ -222,6 +222,7 @@ class YamlFileLoader extends FileLoader
 
         // load definitions
         $this->parseDefinitions($content, $path);
+        $this->builder->load();
     }
 
     /**
@@ -311,11 +312,11 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException(\sprintf('"!php_literal" tag only accepts list sequences in "%s".', $file));
                 }
 
-                if (2 !== \count($argument, \COUNT_RECURSIVE)) {
+                if (!\is_string($code = $argument['code'] ?? \key($argument))) {
                     throw new \InvalidArgumentException(\sprintf('"!%s" tag only accepts a one count map array in "%s", key as the string, and value as array.', $value->getTag(), $file));
                 }
 
-                return new PhpLiteral(\key($argument), $this->resolveServices(\current($argument), $file, $isParameter));
+                return new PhpLiteral($code, $this->resolveServices($argument['args'] ?? \current($argument), $file, $isParameter));
             }
 
             throw new \InvalidArgumentException(\sprintf('Unsupported tag "!%s".', $value->getTag()));
@@ -323,6 +324,9 @@ class YamlFileLoader extends FileLoader
 
         if (\is_array($value)) {
             foreach ($value as $k => $v) {
+                if ('deprecated' === $k) {
+                    continue;
+                }
                 $value[$k] = $this->resolveServices($v, $file, $isParameter);
             }
         } elseif (\is_string($value) && '@' === $value[0]) {
@@ -342,10 +346,14 @@ class YamlFileLoader extends FileLoader
                 }
             }
 
+            if ($isParameter && !$this->builder->getContainer() instanceof ContainerBuilder) {
+                return $this->builder->getContainer()->getResolver()->resolveReference($value);
+            }
+
             return new Reference($value);
         }
 
-        if (!\is_string($value)) {
+        if (!\is_string($value) || !\str_contains($value, '%')) {
             return $value;
         }
 
@@ -497,41 +505,28 @@ class YamlFileLoader extends FileLoader
     {
         $this->checkDefinition($id, $service, $file, false);
 
-        if (\array_key_exists('namespace', $service)) {
-            if (!\is_string($service['resource'])) {
+        if (\array_key_exists('namespace', $service) || isset($service['resource'])) {
+            if (isset($service['resource']) && !\is_string($service['resource'])) {
                 throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be of type string for service "%s" in "%s". Check your YAML syntax.', $id, $file));
             }
 
-            /** @var Definition $definition */
             $definition = $this->builder->namespaced($service['namespace'] ?? $id, $service['resource'] ?? null, $service['exclude'] ?? []);
         } elseif (isset($service['parent'])) {
-            if ('' !== $service['parent'] && '@' === $service['parent'][0]) {
-                throw new \InvalidArgumentException(\sprintf('The value of the "parent" option for the "%s" service must be the id of the service without the "@" prefix (replace "%s" with "%s").', $id, $service['parent'], \substr($service['parent'], 1)));
-            }
-
             $definition = $this->builder->set($id, new Reference($service['parent']));
 
-            if (!$definition instanceof DefinitionInterface) {
-                return;
-            }
-
-            if (null !== $entity = $service['entity'] ?? $service['class'] ?? null) {
+            if ($entity = $service['entity'] ?? $service['class'] ?? null) {
                 $definition->replace($entity, null !== $entity);
             }
-        } else {
-            $entity = $service['entity'] ?? $service['class'] ?? $id;
-
-            if ('@' === $id[0]) {
-                $definition = $this->builder->decorate(\substr($id, 1), new Definition(\ltrim($entity, '@')));
-            } elseif ($this->builder->getContainer()->has($id)) {
+        } elseif (\is_string($entity = $service['entity'] ?? $service['class'] ?? null)) {
+            if ($this->builder->getContainer()->has($id)) {
                 $definition = $this->builder->extend($id)->replace($entity, $id !== $entity);
+            } elseif ('@' === $entity[0]) {
+                $definition = $this->builder->decorate(\substr($id, 1), new Definition(\ltrim($entity, '@')));
             } else {
-                $definition = $this->builder->set($id, \is_object($entity) ? $entity : new Definition($entity));
+                $definition = $this->builder->set($id, new Definition($entity));
             }
-
-            if (!$definition instanceof DefinitionInterface) {
-                return;
-            }
+        } else {
+            $definition = $this->builder->set($id, \is_object($entity) ? $entity : new Definition($entity ?? $id));
         }
 
         if (isset($service['arguments'])) {
@@ -539,23 +534,23 @@ class YamlFileLoader extends FileLoader
         }
 
         if (isset($service['public'])) {
-            $this->builder->public($service['public']);
+            $definition->public($service['public']);
         }
 
         if (isset($service['lazy'])) {
-            $this->builder->lazy($service['lazy']);
+            $definition->lazy($service['lazy']);
         }
 
         if (isset($service['shared'])) {
-            $this->builder->shared($service['shared']);
+            $definition->shared($service['shared']);
         }
 
         if (isset($service['abstract'])) {
-            $this->builder->abstract($service['abstract']);
+            $definition->abstract($service['abstract']);
         }
 
-        if (\array_key_exists('autowire', $service)) {
-            $definition->autowire($service['autowire'] ?? []);
+        if (\array_key_exists('autowire', $service) && false !== $service['autowire']) {
+            $definition->autowire(\is_array($a = $service['autowire'] ?? []) ? $a : []);
         }
 
         if (isset($service['deprecated'])) {
@@ -607,13 +602,12 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Invalid bind call %s, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
             }
 
-            if (\is_string($call) && $configure) {
-                $definition->call($call, true);
-
+            if ((\is_string($call) || \is_object($call)) && $configure) {
+                $definition->call($call, false);
                 continue;
             }
 
-            if (!($call instanceof TaggedValue || \is_array($call))) {
+            if (!\is_array($call)) {
                 throw new \InvalidArgumentException(\sprintf('Invalid bind call %s: expected map or array, "%s" given in "%s".', $id, $call instanceof TaggedValue ? '!' . $call->getTag() : \get_debug_type($call), $file));
             }
 
@@ -633,7 +627,7 @@ class YamlFileLoader extends FileLoader
                 }
 
                 $method = $this->resolveServices($call[0], $file);
-                $args = $call[1] ?? true;
+                $args = $call[1] ?? false;
             } else {
                 if (!\is_string($call[0])) {
                     throw new \InvalidArgumentException(\sprintf('Invalid bind call %s: expected string in first index of array, "%s" given in "%s".', $id, \get_debug_type($call), $file));
