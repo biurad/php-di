@@ -66,7 +66,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      *
      * @param string $id The service identifier
      *
-     * @return bool if service has already been initialized, false otherwise
+     * @throws NotFoundServiceException
      */
     public function extend(string $id, callable $scope): void
     {
@@ -74,7 +74,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
             throw $this->createNotFound($id);
         }
 
-        if (\is_array($definition) || \is_callable($definition)) {
+        if (\is_callable($definition)) {
             $ref = new \ReflectionFunction(\Closure::fromCallable($definition));
 
             if (!empty($refP = $ref->getParameters())) {
