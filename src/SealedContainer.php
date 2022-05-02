@@ -33,7 +33,7 @@ use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
  */
 class SealedContainer implements ContainerInterface
 {
-    protected array $loading = [], $services = [], $privates = [], $aliases = [], $types = [], $tags = [];
+    protected array $methodsMap = [], $loading = [], $services = [], $privates = [], $aliases = [], $types = [], $tags = [];
 
     public function __construct()
     {
@@ -53,7 +53,7 @@ class SealedContainer implements ContainerInterface
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->doLoad($id, $invalidBehavior);
+        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->{$this->methodsMap[$id] ?? 'doLoad'}($id, $invalidBehavior);
     }
 
     /**

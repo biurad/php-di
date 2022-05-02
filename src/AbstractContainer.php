@@ -36,6 +36,9 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
     /** @var array<string,bool> service name => bool */
     protected array $loading = [];
 
+    /** @var array<string,string> service name => method name */
+    protected array $methodsMap = [];
+
     /**
      * Container can not be cloned.
      */
@@ -49,7 +52,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->doLoad($id, $invalidBehavior);
+        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->{$this->methodsMap[$id] ?? 'doLoad'}($id, $invalidBehavior);
     }
 
     /**
@@ -57,7 +60,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function has(string $id): bool
     {
-        return static::SERVICE_CONTAINER === $id || \array_key_exists($id, $this->aliases) || \array_key_exists($id, $this->definitions);
+        return static::SERVICE_CONTAINER === $id || ($this->aliases[$id] ?? $this->methodsMap[$id] ?? \array_key_exists($id, $this->definitions));
     }
 
     /**

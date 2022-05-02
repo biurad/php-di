@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr, MatchArm, Name, Param, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{Case_, ClassMethod, Declare_, DeclareDeclare, Expression, Nop, Return_};
+use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
+use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression, Nop};
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
@@ -157,6 +157,11 @@ class ContainerBuilder extends AbstractContainer
             $this->compileToConstructor($this->resolveParameters($parameters), $containerNode, 'parameters');
         }
 
+        if (!empty($processedData[1]) && count($processedData[1]) > 1) {
+            unset($processedData[1][self::SERVICE_CONTAINER]);
+            $containerNode->addStmt($this->resolver->getBuilder()->property('methodsMap')->makeProtected()->setType('array')->setDefault($processedData[1]));
+        }
+
         if (!empty($processedData[3])) {
             $containerNode->addStmt($this->resolver->getBuilder()->property('types')->makeProtected()->setType('array')->setDefault($processedData[3]));
         }
@@ -165,10 +170,11 @@ class ContainerBuilder extends AbstractContainer
             $containerNode->addStmt($this->resolver->getBuilder()->property('tags')->makeProtected()->setType('array')->setDefault($processedData[4]));
         }
 
-        if (!empty($processedData[1])) {
-            $this->compileHasGetMethod($processedData[1], $containerNode);
+        if (!empty($processedData[2])) {
+            $containerNode->addStmts($processedData[2]);
         }
-        $astNodes[] = $containerNode->addStmts($processedData[2])->getNode();
+
+        $astNodes[] = $containerNode->getNode(); // Build the container class
 
         if (null !== $this->nodeTraverser) {
             $astNodes = $this->nodeTraverser->traverse($astNodes);
@@ -267,10 +273,9 @@ class ContainerBuilder extends AbstractContainer
     protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
         $methodsMap = $serviceMethods = $wiredTypes = [];
-        $s = $this->services[self::SERVICE_CONTAINER] ?? new Expr\Variable('this');
 
         if (!isset($methodsMap[self::SERVICE_CONTAINER])) {
-            $methodsMap[self::SERVICE_CONTAINER] = 80000 <= \PHP_VERSION_ID ? new MatchArm([new String_(self::SERVICE_CONTAINER)], $s) : new Case_(new String_(self::SERVICE_CONTAINER), [new Return_($s)]);
+            $methodsMap[self::SERVICE_CONTAINER] = true;
         }
 
         foreach ($definitions as $id => $definition) {
@@ -278,16 +283,11 @@ class ContainerBuilder extends AbstractContainer
                 continue;
             }
 
-            $m = ($b= $this->resolver->getBuilder())->methodCall($s, $this->resolver::createMethod($id));
-            $methodsMap[$id] = 80000 <= \PHP_VERSION_ID ? new MatchArm([$si = new String_($id)], $m) : new Case_($si = new String_($id), [new Return_($m)]);
+            $methodsMap[$id] = $this->resolver::createMethod($id);
 
             if ($definition instanceof ShareableDefinitionInterface) {
                 if (!$definition->isPublic()) {
                     unset($methodsMap[$id]);
-                } elseif ($definition->isShared()) {
-                    $sr = new Expr\ArrayDimFetch($b->propertyFetch($s, 'services'), $si);
-                    $sb = &$methodsMap[$id];
-                    $sb instanceof MatchArm ? $sb->body = new Expr\BinaryOp\Coalesce($sr, $sb->body) : $sb->stmts[0]->expr = new Expr\BinaryOp\Coalesce($sr, $sb->stmts[0]->expr);
                 }
 
                 if ($definition->isAbstract()) {
@@ -365,47 +365,6 @@ class ContainerBuilder extends AbstractContainer
         if (!empty($resolvedParameters)) {
             $containerNode->addStmt($this->resolver->getBuilder()->property($name)->makePublic()->setType('array')->setDefault($resolvedParameters));
         }
-    }
-
-    /**
-     * Build the container's get method.
-     */
-    protected function compileHasGetMethod(array $getMethods, \PhpParser\Builder\Class_ &$containerNode): void
-    {
-        if (!\method_exists($this->containerParentClass, 'doLoad')) {
-            throw new ServiceCreationException(\sprintf('The %c class must have a "doLoad" protected method', $this->containerParentClass));
-        }
-
-        if (!\method_exists($this->containerParentClass, 'has')) {
-            throw new ServiceCreationException(\sprintf('The %c class must have a "has" public method', $this->containerParentClass));
-        }
-
-        $p8 = 80000 <= \PHP_VERSION_ID;
-        $s = $this->services[self::SERVICE_CONTAINER] ?? new Expr\Variable('this');
-
-        if ($p8) {
-            $getMethods[] = $md = new MatchArm([new Expr\ConstFetch(new Name('default'))], new Expr\ConstFetch(new Name('null')));
-        }
-        $getNode = ($b = $this->resolver->getBuilder())->method('get')->makePublic();
-        $hasNode = $b->method('has')->makePublic()->setReturnType('bool');
-        $ia = new Expr\Assign($i = new Expr\Variable('id'), new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'aliases'), $i), $i));
-        $hasNode->addParam($mi = new Param($i, null, 'string'));
-        $getNode->addParams([$mi, new Param($ib = new Expr\Variable('invalidBehavior'), $b->val(1), 'int')]);
-        $getNode->addStmt($p8 ? new Expr\Assign($sv = new Expr\Variable('s'), new Expr\Match_($ia, $getMethods)) : new \PhpParser\Node\Stmt\Switch_($ia, $getMethods));
-        $sf = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($b->propertyFetch($s, 'services'), $i), $b->methodCall($s, 'doLoad', [$i, $ib]));
-        $hf = $b->staticCall('parent', 'has', [$i]);
-
-        if ($p8) {
-            unset($getMethods[0]);
-            $hasNode->addStmt(new Expr\Assign($sv, new Expr\Match_($i, [new MatchArm(\array_map([$b, 'val'], \array_keys($getMethods)), $b->val(true)), $md])));
-            $hf = new Expr\BinaryOp\Coalesce($sv, $hf);
-            $sf = new Expr\BinaryOp\Coalesce($sv, $sf);
-        } else {
-            $hf = new Expr\BinaryOp\BooleanOr($b->funcCall('method_exists', [$s, $b->staticCall(Resolver::class, 'createMethod', [$i])]), $hf);
-        }
-
-        $containerNode->addStmt($hasNode->addStmt(new Return_($hf)));
-        $containerNode->addStmt($getNode->addStmt(new Return_($sf)));
     }
 
     /**
