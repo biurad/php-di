@@ -475,7 +475,7 @@ class YamlFileLoader extends FileLoader
             $definition->tags($this->parseDefinitionTags("in \"{$name}\"", $tags, $file));
         }
 
-        if (null !== $bindings = $defaults['bind'] ?? $default['calls'] ?? null) {
+        if (null !== $bindings = $defaults['bind'] ?? $defaults['calls'] ?? null) {
             if (!\is_array($bindings)) {
                 throw new \InvalidArgumentException(\sprintf('Parameter "bind" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
@@ -504,6 +504,7 @@ class YamlFileLoader extends FileLoader
     private function parseDefinition(string $id, array $service, string $file): void
     {
         $this->checkDefinition($id, $service, $file, false);
+        $entity = $service['entity'] ?? $service['class'] ?? null;
 
         if (\array_key_exists('namespace', $service) || isset($service['resource'])) {
             if (isset($service['resource']) && !\is_string($service['resource'])) {
@@ -514,17 +515,13 @@ class YamlFileLoader extends FileLoader
         } elseif (isset($service['parent'])) {
             $definition = $this->builder->set($id, new Reference($service['parent']));
 
-            if ($entity = $service['entity'] ?? $service['class'] ?? null) {
+            if (null !== $entity) {
                 $definition->replace($entity, null !== $entity);
             }
-        } elseif (\is_string($entity = $service['entity'] ?? $service['class'] ?? null)) {
-            if ($this->builder->getContainer()->has($id)) {
-                $definition = $this->builder->extend($id)->replace($entity, $id !== $entity);
-            } elseif ('@' === $entity[0]) {
-                $definition = $this->builder->decorate(\substr($id, 1), new Definition(\ltrim($entity, '@')));
-            } else {
-                $definition = $this->builder->set($id, new Definition($entity));
-            }
+        } elseif ($this->builder->getContainer()->has($id)) {
+            $definition = $this->builder->extend($id)->replace($entity, isset($entity) && $id !== $entity);
+        } elseif (\is_string($entity) && '@' === $entity[0]) {
+            $definition = $this->builder->decorate(\substr($id, 1), new Definition(\ltrim($entity, '@')));
         } else {
             $definition = $this->builder->set($id, \is_object($entity) ? $entity : new Definition($entity ?? $id));
         }
@@ -568,16 +565,16 @@ class YamlFileLoader extends FileLoader
             $this->parseDefinitionBinds($id, $bindings, $file, $definition);
         }
 
-        if (isset($service['configure'])) {
-            if (!\is_array($configures = $service['configure'])) {
+        if (!empty($configures = $service['configure'] ?? [])) {
+            if (!\is_array($configures)) {
                 throw new \InvalidArgumentException(\sprintf('Parameter "configure" in "%s" must be an array in "%s". Check your YAML syntax.', $id, $file));
             }
 
             $this->parseDefinitionBinds($id, $configures, $file, $this->builder, true);
         }
 
-        if (isset($service['tags'])) {
-            if (!\is_array($tags = $service['tags'])) {
+        if (!empty($tags = $service['tags'] ?? [])) {
+            if (!\is_array($tags)) {
                 throw new \InvalidArgumentException(\sprintf('Parameter "tags" must be an array for service "%s" in "%s". Check your YAML syntax.', $id, $file));
             }
 
