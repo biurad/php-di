@@ -441,7 +441,7 @@ class Resolver
 
         if (null !== $this->builder) {
             $type = \rtrim(\ltrim($value, '?'), '[]');
-    
+
             if ('[]' === \substr($value, -2)) {
                 $returnType = 'array';
             } elseif ($this->container->has($type) && ($def = $this->container->definition($type)) instanceof Definitions\TypedDefinitionInterface) {

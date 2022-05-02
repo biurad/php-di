@@ -107,21 +107,21 @@ class Definition implements DefinitionInterface, TypedDefinitionInterface, Share
             } elseif (!\is_object($resolved)) {
                 $resolved = $resolver->resolve($resolved, $this->arguments);
             }
-    
+
             if ($this->hasBindings) {
                 foreach ($this->parameters as $property => $propertyValue) {
                     $resolved->{$property} = $resolver->resolve($propertyValue);
                 }
-        
+
                 foreach ($this->calls as [$method, $methodValue]) {
                     $resolver->resolve([$resolved, $method], $methodValue ?? []);
                 }
-        
+
                 foreach ($this->extras as [$extend, $code]) {
                     $resolver->resolve($code, $extend ? [$resolved] : []);
                 }
             }
-    
+
             return $resolved;
         }
 

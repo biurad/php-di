@@ -31,7 +31,7 @@ class Container extends AbstractContainer implements \ArrayAccess
         if (!isset($this->types[$cl = static::class])) {
             $this->type(self::SERVICE_CONTAINER, \array_keys(\class_implements($c = $this) + \class_parents($c) + [$cl => $cl]));
         }
-        $this->resolver = new Resolver($this->services[self::SERVICE_CONTAINER] = $c?? $this);
+        $this->resolver = new Resolver($this->services[self::SERVICE_CONTAINER] = $c ?? $this);
     }
 
     /**
