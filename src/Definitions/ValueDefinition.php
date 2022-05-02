@@ -81,7 +81,6 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
     public function build(string $id, Resolver $resolver)
     {
         $builder = $resolver->getBuilder();
-        $value = $this->value;
 
         if ($this->abstract) {
             throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $id));
@@ -91,8 +90,12 @@ class ValueDefinition implements DefinitionInterface, ShareableDefinitionInterfa
             $deprecation = $this->triggerDeprecation($id, $builder);
         }
 
+        if (\is_array($value = $this->value)) {
+            $value = $resolver->resolveArguments($value);
+        }
+
         if (null === $builder) {
-            return \is_array($value) ? $resolver->resolveArguments($value) : (!$this->lazy ? $value : $resolver->resolve($value));
+            return !\is_array($value) && $this->lazy ? $resolver->resolve($value) : $value;
         }
 
         $defNode = $builder->method($resolver->createMethod($id))->makeProtected();
