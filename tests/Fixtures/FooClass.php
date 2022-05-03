@@ -20,17 +20,11 @@ namespace Rade\DI\Tests\Fixtures;
 class FooClass
 {
     public $foo;
-
     public $moo;
-
     public $bar = null;
-
     public $initialized = false;
-
     public $configured = false;
-
     public $called = false;
-
     public $arguments = [];
 
     public function __construct($arguments = [])

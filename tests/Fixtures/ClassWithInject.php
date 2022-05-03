@@ -18,34 +18,28 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Fixtures;
 
 use Rade\DI\Attribute\Inject;
+use Rade\DI\Attribute\Tagged;
+use Rade\DI\Injector\InjectableInterface;
 
 /**
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class InjectableClass extends ClassWithInject
+class ClassWithInject implements InjectableInterface
 {
-    #[Inject] public Service $bar;
-
-    private FooClass $foo;
-
-    #[Inject]
-    public function injectFooClass(FooClass $foo): void
-    {
-        $this->foo = $foo;
-    }
+    #[Inject('?bar')] public ?Constructor $service;
 
     public function getService(): Service
     {
         return $this->service;
     }
 
-    public function getFooClass(): FooClass
+    public static function InjectParameter(#[Inject('container')] $container, #[Inject] FooClass $foo)
     {
-        return $this->foo;
+        return [$container, $foo];
     }
 
-    public function getBarService(): Constructor
+    public static function injectTag(#[Tagged('a')] array $tagged)
     {
-        return $this->bar;
+        return $tagged;
     }
 }

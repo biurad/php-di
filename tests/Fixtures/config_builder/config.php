@@ -15,22 +15,8 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Rade\DI\Tests\Loader;
+use Symfony\Config\RadeProviderConfig;
 
-use PHPUnit\Framework\TestCase;
-use Rade\DI\Container;
-use Rade\DI\ContainerBuilder;
-
-abstract class LoaderTestCase extends TestCase
-{
-    /**
-     * Load Supported Containers.
-     */
-    public function loadContainers(): array
-    {
-        return [
-            'Optimize Container' => [new Container()],
-            'Compilable Container' => [new ContainerBuilder()],
-        ];
-    }
-}
+return static function (RadeProviderConfig $config): void {
+    $config->hello('Hi Divine');
+};

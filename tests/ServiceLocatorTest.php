@@ -23,6 +23,9 @@ use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Services\ServiceLocator;
 use Symfony\Contracts\Service\Test\ServiceLocatorTest as BaseServiceLocatorTest;
 
+/**
+ * @group required
+ */
 class ServiceLocatorTest extends BaseServiceLocatorTest
 {
     public function getServiceLocator(array $factories)

@@ -18,29 +18,89 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Fixtures;
 
 use Rade\DI\Container;
-use Rade\DI\Definition;
-use Rade\DI\Exceptions\NotFoundServiceException;
+use Rade\DI\Resolver;
 
 class AppContainer extends Container
 {
-    protected array $methodsMap = [
-        'scoped' => 'getDefinition',
-        'broken' => 'getBrokenService',
-    ];
+    protected array $aliases = ['alias' => 'bar'];
 
     public function __construct()
     {
         parent::__construct();
-        $this->types += [Definition::class => ['scoped'], self::class => ['container']];
+        $this->types += [BarInterface::class => ['foo_baz']];
     }
 
-    protected function getDefinition(): Definition
+    public function has(string $id): bool
     {
-        return self:: $services['scoped'] = new Definition('scoped');
+        return \method_exists($this, Resolver::createMethod($this->aliases[$id] ?? $id)) || parent::has($id);
     }
 
-    protected function getBrokenService(): void
+    public function get(string $id, int $invalidBehavior = 1)
     {
-        throw new NotFoundServiceException('Broken Service');
+        switch ($id = $this->aliases[$id] ?? $id) {
+            case 'bar':
+                return $this->services[$id] ?? $this->getBar();
+            case self::SERVICE_CONTAINER:
+                return $this;
+            case 'foo_baz':
+                return $this->services[$id] ?? $this->getFooBaz();
+            case 'foo_bar':
+                return $this->getFooBar();
+            case 'foo.baz':
+                return $this->getFoo_Baz();
+            case 'throw_exception':
+                return fn () => throw new \RuntimeException('Error');
+            case 'throws_exception_on_service_configuration':
+                return $this->services[$id] ?? $this->getThrowsExceptionOnServiceConfiguration();
+            case 'internal_dependency':
+                return $this->services[$id] ?? $this->getInternalDependency();
+        }
+
+        return $this->doLoad($id, $invalidBehavior);
+    }
+
+    protected function getInternal(): object
+    {
+        return $this->privates['internal'] = new \stdClass();
+    }
+
+    protected function getBar(): object
+    {
+        return $this->services['bar'] = new \stdClass();
+    }
+
+    protected function getFooBar(): object
+    {
+        return new \stdClass();
+    }
+
+    protected function getFooBaz(): Bar
+    {
+        return $this->services['foo_baz'] = new Bar('a', null, new Bar('hello'), ['joo']);
+    }
+
+    protected function getFoo_Baz(): object
+    {
+        return new \stdClass();
+    }
+
+    protected function getCircular()
+    {
+        return $this->get('circular');
+    }
+
+    protected function getThrowsExceptionOnServiceConfiguration(): void
+    {
+        $this->services['throws_exception_on_service_configuration'] = new \stdClass();
+
+        throw new \Exception('Something was terribly wrong while trying to configure the service!');
+    }
+
+    protected function getInternalDependency(): object
+    {
+        $service = new \stdClass();
+        $service->internal = $this->privates['internal'] ?? $this->getInternal();
+
+        return $this->services['internal_dependency'] = $service;
     }
 }

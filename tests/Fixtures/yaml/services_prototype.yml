@@ -1,4 +1,4 @@
 services:
     Rade\DI\Tests\Fixtures\Prototype\:
-        resource: ../Prototype
+        resource: ../Prototype/*
         exclude: '../Prototype/{OtherDir,BadClasses,SinglyImplementedInterface}'

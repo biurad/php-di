@@ -7,4 +7,4 @@ services:
     # This definition is invalid and must raise a deprecation notice
     bar:
         class: stdClass
-        public: true        # the "public" keyword is invalid
+        private: true        # the "private" keyword is invalid

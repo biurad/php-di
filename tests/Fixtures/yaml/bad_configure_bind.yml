@@ -1,0 +1,5 @@
+services:
+    bind1:
+        entity: Rade\DI\Tests\Fixtures\FooClass
+        configure:
+          - [!statement Bar, [false]] # This is invalid, should be: false and not [false]

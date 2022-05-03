@@ -17,12 +17,24 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
+use PHPUnit\Framework\Assert;
 use Psr\Container\ContainerInterface;
 use Rade\DI\AbstractContainer;
-use Rade\DI\Services\ServiceProviderInterface;
+use Rade\DI\Container;
+use Rade\DI\Extensions\ExtensionInterface;
+use Rade\DI\Extensions\PhpExtension;
+use Rade\DI\Extensions\RequiredPackagesInterface;
 
-class OtherServiceProvider implements ServiceProviderInterface
+class OtherServiceProvider implements ExtensionInterface, RequiredPackagesInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getRequiredPackages(): array
+    {
+        return [Container::class => 'divineniiquaye/rade-di'];
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -30,5 +42,8 @@ class OtherServiceProvider implements ServiceProviderInterface
     {
         $container->parameters['other'] = $configs;
         $container->alias('other', ContainerInterface::class);
+
+        Assert::assertCount(4, $container->getExtensions());
+        Assert::assertEquals(\date_default_timezone_get(), $container->getExtensionConfig(PhpExtension::class)['date.timezone']);
     }
 }

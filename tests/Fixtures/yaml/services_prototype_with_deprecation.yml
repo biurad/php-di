@@ -3,6 +3,6 @@ services:
         namespace: Rade\DI\Tests\Fixtures\Prototype\OtherDir\
         resource: ../Prototype/OtherDir/*/Dir1
         deprecated:
-            message: "This %s has been deprecated"
+            message: "This %service_id% has been deprecated"
             package: vendor/package
             version: 1.1

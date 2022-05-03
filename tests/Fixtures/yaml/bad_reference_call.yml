@@ -1,0 +1,4 @@
+services:
+    bar:
+        class: Rade\DI\Tests\Fixtures\Bar
+        arguments: [!reference 232]
