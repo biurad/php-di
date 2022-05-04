@@ -489,7 +489,10 @@ class DefinitionBuilder implements ResetInterface
 
     private function createErrorException(string $name, \Throwable $e): \Throwable
     {
-        if (\str_starts_with($e->getMessage(), 'call_user_func_array(): Argument #1')) {
+        if (
+            \str_starts_with($e->getMessage(), 'call_user_func_array(): Argument #1') ||
+            \str_starts_with($e->getMessage(), 'call_user_func_array() expects parameter 1')
+        ) {
             $e = new \BadMethodCallException(\sprintf(
                 'Call to undefined method %s() method must either belong to an instance of %s or the %s class',
                 $name,
