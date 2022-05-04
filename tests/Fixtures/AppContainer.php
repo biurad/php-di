@@ -49,7 +49,7 @@ class AppContainer extends Container
             case 'foo.baz':
                 return $this->getFoo_Baz();
             case 'throw_exception':
-                return fn () => throw new \RuntimeException('Error');
+                throw new \RuntimeException('Error');
             case 'throws_exception_on_service_configuration':
                 return $this->services[$id] ?? $this->getThrowsExceptionOnServiceConfiguration();
             case 'internal_dependency':
