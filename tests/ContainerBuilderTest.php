@@ -91,7 +91,7 @@ class ContainerBuilderTest extends AbstractContainerTest
         }
 
         $builder->removeDefinition('callback');
-        $this->assertStringEqualsFile(self::COMPILED . '/service1_' . ((int) \PHP_MAJOR_VERSION >= 8) . '.phpt', $builder->compile());
+        $this->assertStringEqualsFile(self::COMPILED . '/service1_' . (\PHP_MAJOR_VERSION >= 8 ? 1 : 0) . '.phpt', $builder->compile());
     }
 
     public function testPrivateDefinition(): void
@@ -161,6 +161,6 @@ class ContainerBuilderTest extends AbstractContainerTest
         \class_alias(Fixtures\Service::class, 'NonExistent');
 
         $builder->set('bar', new Definition(Fixtures\Bar::class))->args(['NonExistent' => new Statement('NonExistent'), 'value', 'foo' => [1, 2, 3]]);
-        $this->assertStringEqualsFile(self::COMPILED . '/service3_' . ((int) \PHP_MAJOR_VERSION >= 8) . '.phpt', $builder->compile());
+        $this->assertStringEqualsFile(self::COMPILED . '/service3_' . (\PHP_MAJOR_VERSION >= 8 ? 1 : 0) . '.phpt', $builder->compile());
     }
 }
