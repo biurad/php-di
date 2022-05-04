@@ -33,7 +33,7 @@ class CompiledContainer extends Rade\DI\Container
 
     protected function getNoxe(): Rade\DI\Tests\Fixtures\FooClass
     {
-        return $this->services['noxe'] = new Rade\DI\Tests\Fixtures\FooClass();
+        return $this->services['noxe'] = new Rade\DI\Tests\Fixtures\FooClass([]);
     }
 
     protected function getRecur()
