@@ -58,8 +58,7 @@ class DefinitionBuilder implements ResetInterface
                 $serializedDef = \serialize($definition);
 
                 foreach ($classes as $resource) {
-                    $serializedDef = \str_replace('s:33:"Rade\DI\Tests\Fixtures\Prototype\";', \serialize($resource), $serializedDef);
-                    $resolvedDef = $this->container->set($resource, \unserialize($serializedDef));
+                    $resolvedDef = $this->container->set($resource, \unserialize($serializedDef)->replace($resource, true));
 
                     if (\str_contains($serializedDef, 'autowired";b:1;')) {
                         $resolvedDef->typed(Resolver::autowireService($resource));
