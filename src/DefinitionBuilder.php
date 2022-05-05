@@ -61,7 +61,7 @@ class DefinitionBuilder implements ResetInterface
                     $resolvedDef = $this->container->set($resource, \unserialize($serializedDef)->replace($resource, true));
 
                     if (\str_contains($serializedDef, 'autowired";b:1;')) {
-                        $resolvedDef->typed(Resolver::autowireService($resource));
+                        $resolvedDef->typed($definition->getTypes());
                     }
                 }
             }
