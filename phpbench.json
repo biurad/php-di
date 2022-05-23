@@ -2,6 +2,7 @@
     "runner.path": "tests/Benchmarks",
     "runner.bootstrap": "vendor/autoload.php",
     "runner.retry_threshold": 5,
+    "runner.warmup": 2,
     "runner.php_config": {
         "opcache.enable": true,
         "opcache.enable_cli": true,

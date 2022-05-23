@@ -75,7 +75,7 @@ jobs:
       #    sarif_file: "build/logs/psalm.sarif"
 
       - name: "Benchmark for Performance"
-        if: matrix.operating-system == 'windows-latest'
+        if: matrix.operating-system != 'macos-latest'
         run: |
           composer require phpbench/phpbench -W
           vendor/bin/phpbench run --report=default --revs=1000 -l none

@@ -127,7 +127,7 @@ class ContainerBench
         $this->container = $container;
     }
 
-    public function benchConstructWithMultiple(bool $set = false): void
+    public function benchConstructWithMultiple(): void
     {
         $definitions = [];
 
@@ -141,10 +141,7 @@ class ContainerBench
 
         $container = new Container();
         $container->multiple($definitions);
-
-        if ($set) {
-            $this->container = $container;
-        }
+        $this->container = $container;
     }
 
     public function benchContainerBuilder(): void
@@ -168,7 +165,7 @@ class ContainerBench
         $builder->multiple($definitions);
     }
 
-    public function benchContainerWithDefinitionBuilder(bool $set = false): void
+    public function benchContainerWithDefinitionBuilder(): void
     {
         $definitions = new DefinitionBuilder(new Container());
 
@@ -181,9 +178,7 @@ class ContainerBench
                 ->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
         }
 
-        if ($set) {
-            $this->container = $definitions->getContainer();
-        }
+        $this->container = $definitions->getContainer();
     }
 
     public function benchContainerBuilderWithDefinitionBuilder(): void
@@ -255,7 +250,7 @@ class ContainerBench
      */
     public function benchUnoptimisedMultipleLifecycle(array $params): void
     {
-        $this->benchConstructWithMultiple(true);
+        $this->benchConstructWithMultiple();
         $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
     }
 
@@ -264,7 +259,7 @@ class ContainerBench
      */
     public function benchUnoptimisedBuilderLifecycle(array $params): void
     {
-        $this->benchContainerWithDefinitionBuilder(true);
+        $this->benchContainerWithDefinitionBuilder();
         $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
     }
 }
