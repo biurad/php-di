@@ -19,10 +19,9 @@ namespace Rade\DI\Tests;
 
 use DivineNii\Invoker\ArgumentResolver\DefaultValueResolver;
 use PhpParser\Node\Expr\BinaryOp\Coalesce;
-use PhpParser\Node\Expr\{FuncCall, MethodCall, PropertyFetch, StaticCall};
+use PhpParser\Node\Expr\{FuncCall, MethodCall, New_, PropertyFetch, StaticCall};
 use PhpParser\Node\Stmt\ClassMethod;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Rade\DI\{AbstractContainer, Container, ContainerBuilder, ContainerInterface, Definition, DefinitionBuilder};
 use Rade\DI\Builder\PhpLiteral;
@@ -30,9 +29,8 @@ use Rade\DI\Definitions\{DefinitionInterface, Reference, Statement, ValueDefinit
 use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, FrozenServiceException, NotFoundServiceException, ServiceCreationException};
 use Rade\DI\Extensions\ExtensionBuilder;
 use Rade\DI\Extensions\PhpExtension;
-use Rade\DI\Injector\Injectable;
-use Symfony\Contracts\Service\ServiceProviderInterface;
 
+use function Rade\DI\Loader\param;
 use function Rade\DI\Loader\phpCode;
 use function Rade\DI\Loader\reference;
 use function Rade\DI\Loader\service;
@@ -54,7 +52,7 @@ abstract class AbstractContainerTest extends TestCase
             $container->set(AbstractContainer::SERVICE_CONTAINER, new Fixtures\Service());
             $this->fail('A frozen exception is expected to be thrown as service id is initialized');
         } catch (FrozenServiceException $e) {
-            $this->assertEquals($e->getMessage(), sprintf('The "%s" service is already initialized, and cannot be replaced.', AbstractContainer::SERVICE_CONTAINER));
+            $this->assertEquals($e->getMessage(), \sprintf('The "%s" service is already initialized, and cannot be replaced.', AbstractContainer::SERVICE_CONTAINER));
         }
 
         return $container;
@@ -80,7 +78,7 @@ abstract class AbstractContainerTest extends TestCase
         ];
         $container->multiple($definitions);
 
-        $this->assertEquals([\stdClass::class, 'foo', 'bar', 'value', 'service'], array_keys($container->definitions()));
+        $this->assertEquals([\stdClass::class, 'foo', 'bar', 'value', 'service'], \array_keys($container->definitions()));
         $this->assertTrue($container->has('foo'));
         $this->assertTrue($container->has('bar'));
         $this->assertFalse($container->has('foobar'));
@@ -311,7 +309,7 @@ abstract class AbstractContainerTest extends TestCase
             $container->autowired(Fixtures\FooClass::class, true);
             $this->fail('->autowired() is expected to throw an exception as multiple types exists');
         } catch (ContainerResolutionException $e) {
-            $this->assertEquals(sprintf('Multiple services of type %s found: bar, foo.', Fixtures\FooClass::class), $e->getMessage());
+            $this->assertEquals(\sprintf('Multiple services of type %s found: bar, foo.', Fixtures\FooClass::class), $e->getMessage());
         }
 
         $container->removeDefinition('foo');
@@ -330,7 +328,7 @@ abstract class AbstractContainerTest extends TestCase
             $this->assertEquals('Service identifier is not defined, integer found.', $e->getMessage());
         }
 
-        $this->expectExceptionObject(new NotFoundServiceException(sprintf('Service of type "%s" not found. Check class name because it cannot be found.', Fixtures\FooClass::class)));
+        $this->expectExceptionObject(new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', Fixtures\FooClass::class)));
         $container->autowired(Fixtures\FooClass::class);
     }
 
@@ -518,7 +516,7 @@ abstract class AbstractContainerTest extends TestCase
         $container->set('foo', $foo1 = new \stdClass());
         $container->set('Foo', $foo2 = new \stdClass());
 
-        $this->assertSame(['foo', 'Foo'], array_keys($container->definitions()));
+        $this->assertSame(['foo', 'Foo'], \array_keys($container->definitions()));
         $this->assertSame($foo1, $container->definition('foo'));
         $this->assertSame($foo2, $container->definition('Foo'));
     }
@@ -528,7 +526,7 @@ abstract class AbstractContainerTest extends TestCase
         $container = $this->getContainer();
         $container->set('foo', new Definition('stdClass'));
         $container->set('bar', new \stdClass());
-        $this->assertEquals(['foo', 'bar'], array_keys($container->definitions()));
+        $this->assertEquals(['foo', 'bar'], \array_keys($container->definitions()));
     }
 
     public function testRemoveService()
@@ -536,10 +534,10 @@ abstract class AbstractContainerTest extends TestCase
         $container = $this->getContainer();
         $container->set('foo', new Definition('stdClass'));
         $container->set('bar', new \stdClass());
-        $this->assertEquals(['foo', 'bar'], array_keys($container->definitions()));
+        $this->assertEquals(['foo', 'bar'], \array_keys($container->definitions()));
 
         $container->removeDefinition('foo');
-        $this->assertEquals(['bar'], array_keys($container->definitions()));
+        $this->assertEquals(['bar'], \array_keys($container->definitions()));
 
         return $container;
     }
@@ -643,6 +641,14 @@ abstract class AbstractContainerTest extends TestCase
             $this->fail('->parameter() throws an InvalidArgumentException if the key does not exist');
         } catch (\InvalidArgumentException $e) {
             $this->assertEquals('You have requested a non-existent parameter "baba".', $e->getMessage());
+        }
+
+        $resolve = $container->call(Fixtures\FooClass::class, [[param('foo')]]);
+
+        if ($resolve instanceof New_) {
+            $this->assertEquals('foo', $resolve->args[0]->value->items[0]->value->dim->value);
+        } else {
+            $this->assertEquals(['baz'], $resolve->arguments);
         }
     }
 
@@ -810,7 +816,7 @@ abstract class AbstractContainerTest extends TestCase
         $extension->load([
             PhpExtension::class,
             Fixtures\RadeServiceProvider::class => 100,
-            Fixtures\ProjectServiceProvider::class
+            Fixtures\ProjectServiceProvider::class,
         ]);
 
         $this->assertTrue(isset($container->parameters['rade_di']['hello']));
