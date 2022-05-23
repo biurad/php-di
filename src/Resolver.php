@@ -20,6 +20,7 @@ namespace Rade\DI;
 use Nette\Utils\{Callback, Reflection};
 use PhpParser\BuilderFactory;
 use PhpParser\Node\{Expr, Stmt, Scalar};
+use PhpParser\Node\Scalar\String_;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
@@ -189,7 +190,21 @@ class Resolver
      */
     public function resolve($callback, array $args = [])
     {
-        if ($callback instanceof Definitions\Statement) {
+        if ($callback instanceof Definitions\Parameter) {
+            if (!\array_key_exists($param = (string) $callback, $this->container->parameters)) {
+                if (!$callback->shouldResolve()) {
+                    throw new ContainerResolutionException(\sprintf('The parameter "%s" is not defined.', $param));
+                }
+
+                return null === $this->builder ? $this->container->parameter($param) : $this->builder->methodCall(new Expr\Variable('this'), 'parameter', [$param]);
+            }
+
+            if (null !== $this->builder) {
+                return $resolved = new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param));
+            }
+
+            $resolved = $this->container->parameters[$param];
+        } elseif ($callback instanceof Definitions\Statement) {
             $resolved = $this->resolve($callback->getValue(), $callback->getArguments() + $args);
 
             if ($callback->isClosureWrappable()) {

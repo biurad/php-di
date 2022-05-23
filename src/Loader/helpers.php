@@ -19,7 +19,7 @@ namespace Rade\DI\Loader;
 
 use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
-use Rade\DI\Definitions\{Reference, Statement, TaggedLocator, ValueDefinition};
+use Rade\DI\Definitions\{Parameter, Reference, Statement, TaggedLocator, ValueDefinition};
 
 /**
  * Marks a definition from being interpreted as a service.
@@ -62,6 +62,16 @@ function service($definition, array $args = []): Definition
 function reference(string $id): Reference
 {
     return new Reference($id);
+}
+
+/**
+ * Represents a registered parameter id.
+ *
+ * @param string $id parameter identifier
+ */
+function param(string $id): Parameter
+{
+    return new Parameter($id);
 }
 
 /**
