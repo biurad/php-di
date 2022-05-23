@@ -264,7 +264,7 @@ class Resolver
     public function resolveCallable($callback, array $arguments = [])
     {
         if (\is_array($callback)) {
-            if (2 === \count($callback, \COUNT_RECURSIVE) && \is_string($callback[1])) {
+            if (2 === \count($callback) && \array_is_list($callback)) {
                 $callback[0] = $this->resolve($callback[0]);
 
                 if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
@@ -490,6 +490,22 @@ class Resolver
     public function autowireArgument(\ReflectionParameter $parameter, array $types, array $providedParameters)
     {
         foreach ($types as $typeName) {
+            if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
+                foreach ($attributes as $attribute) {
+                    if (Attribute\Inject::class === $attribute->getName()) {
+                        try {
+                            return $attribute->newInstance()->resolve($this, $typeName);
+                        } catch (NotFoundServiceException $e) {
+                            // Ignore this exception ...
+                        }
+                    }
+
+                    if (Attribute\Tagged::class === $attribute->getName()) {
+                        return $this->resolveArguments($attribute->newInstance()->getValues($this->container));
+                    }
+                }
+            }
+
             if (!Reflection::isBuiltinType($typeName)) {
                 try {
                     return $providedParameters[$typeName] ?? $this->get($typeName, !$parameter->isVariadic());
@@ -513,22 +529,6 @@ class Resolver
                     }
 
                     return $this->get($class->getName());
-                }
-            }
-
-            if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
-                foreach ($attributes as $attribute) {
-                    if (Attribute\Inject::class === $attribute->getName()) {
-                        try {
-                            return $this->resolveReference($attribute->getArguments()[0] ?? $typeName);
-                        } catch (NotFoundServiceException $e) {
-                            // Ignore this exception ...
-                        }
-                    }
-
-                    if (Attribute\Tagged::class === $attribute->getName()) {
-                        return $this->resolveArguments($attribute->newInstance()->getValues($this->container));
-                    }
                 }
             }
 
@@ -629,7 +629,7 @@ class Resolver
      *
      * @throws \ReflectionException|ContainerResolutionException
      *
-     * @return null|void
+     * @return void|null
      */
     private static function getParameterDefaultValue(\ReflectionParameter $parameter, array $types)
     {

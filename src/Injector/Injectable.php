@@ -113,8 +113,14 @@ class Injectable
                 continue;
             }
 
+            if (\count($propertyAttributes) > 1) {
+                throw new ContainerResolutionException(
+                    \sprintf('Property "%s" has more than one #[Inject] attribute.', $property->getName())
+                );
+            }
+
             if (!empty($pValue = $propertyAttributes[0]->getArguments()[0] ?? null)) {
-                $properties[0][$property->getName()] = $resolver->resolveReference($pValue);
+                $properties[0][$property->getName()] = $propertyAttributes[0]->newInstance()->resolve($resolver);
                 continue;
             }
 
@@ -134,8 +140,14 @@ class Injectable
                 continue;
             }
 
+            if (\count($methodAttributes) > 1) {
+                throw new ContainerResolutionException(
+                    \sprintf('Method %s::%s has more than one #[Inject] attribute.', $reflection->getName(), $method->getName())
+                );
+            }
+
             if (!empty($methodAttributes[0]->getArguments())) {
-                throw new ContainerResolutionException(\sprintf('Method with Inject attributes does not support having arguments.'));
+                throw new ContainerResolutionException(\sprintf('Method with #[Inject] attribute does not support having arguments.'));
             }
 
             $properties[1][$method->getName()] = $resolver->autowireArguments($method);

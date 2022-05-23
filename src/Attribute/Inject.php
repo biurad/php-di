@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI\Attribute;
 
+use Rade\DI\Resolver;
+
 /**
  * Marks a property or method as an injection point.
  *
@@ -25,10 +27,32 @@ namespace Rade\DI\Attribute;
 #[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::TARGET_FUNCTION | \Attribute::TARGET_PARAMETER)]
 final class Inject
 {
+    /** @var mixed */
+    private $value;
+
     /**
-     * @param string|null $value Represents service id, may change in the future
+     * @param mixed $value
      */
-    public function __construct(?string $value = null)
+    public function __construct($value = null)
     {
+        $this->value = $value;
+    }
+
+    /**
+     * Resolve the value of the injection point.
+     *
+     * @return mixed
+     */
+    public function resolve(Resolver $resolver, string $typeName = null)
+    {
+        if (\is_string($value = $this->value ?? $typeName)) {
+            return $resolver->resolveReference($value);
+        }
+
+        if (null !== $value) {
+            return $resolver->resolve($value);
+        }
+
+        return $value;
     }
 }

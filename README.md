@@ -16,7 +16,7 @@
 
 **divineniiquaye/rade-di** is a HIGH performance smart tool for performing simple to complex dependency injection in your application for [PHP] 7.4+ created by [Divine Niiquaye][@divineniiquaye] referenced to [Nette DI][nette-di] and [Pimple]. This library provides an advance way of resolving services for best performance to your application.
 
-Rade DI was born after frustration using [Symfony DI][symfony-di] and [Nette DI][nette-di] on several projects. Autowiring feature in Nette is much more simpler than that of symfony's. No doubt, they all great to use. But I wanted a DI which allows me focus on writing code than configuring the DI. Initially was a simple container, but over time managed to include most essential features.
+Rade DI was born after frustration using [Symfony DI][symfony-di] and [Nette DI][nette-di] on several projects. Autowiring feature in Nette is much more simpler than that of symfony's. No doubt they all great to use, but I wanted a DI which allows me focus on writing code than configuring the DI. Initially was a simple container, but over time managed to include most essential features.
 
 This project adheres to a [code of conduct](CODE_OF_CONDUCT.md). By participating in this project and its community, you are expected to uphold this code.
 
@@ -169,7 +169,7 @@ class FooClass implements InjectableInterface
 }
 ```
 
-> **NB:** Property injection uses the declared typed name, while methods uses same, this types declared must be found in container else exception is thrown. I prefer this type of injection in my controllers, but nowhere else.
+> Before the PHP's 8 #[Inject] attribute, rade di supported autowiring using phpdoc type and still support's with plans to remove after PHP 8.2 release. The #[Inject] attribute is an advanced autowiring, as long as the value is resolvable by the container, it doesn't mind.
 
 Rade Di has extensions support, which allows the container to be extensible and reuseable. With Rade DI, your project do not need so to depend on PSR-11 container so much. Using service providers in your project, saves you alot.
 
