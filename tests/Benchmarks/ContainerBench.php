@@ -102,20 +102,12 @@ class ContainerBench
 
         if ($dump) {
             \file_put_contents(self::CACHE_DIR . '/container.php', $builder->compile());
-            \file_put_contents(self::CACHE_DIR . '/sealed_container.php', $sealed->compile());
         }
     }
 
     public function createOptimized(): void
     {
         include_once self::CACHE_DIR . \DIRECTORY_SEPARATOR . 'container.php';
-
-        $this->container = new \CompiledContainer();
-    }
-
-    public function createSealed(): void
-    {
-        include_once self::CACHE_DIR . \DIRECTORY_SEPARATOR . 'sealed_container.php';
 
         $this->container = new \CompiledContainer();
     }
@@ -226,35 +218,6 @@ class ContainerBench
     }
 
     /**
-     * @BeforeMethods({"createSealed"})
-     * @ParamProviders({"provideDefinitions"})
-     */
-    public function benchSealedGet(array $params): void
-    {
-        if (isset($params[1])) {
-            $this->container->get($params[1], Container::IGNORE_MULTIPLE_SERVICE);
-        } else {
-            for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-                $this->container->get($params[0] . $i);
-            }
-        }
-    }
-
-    /**
-     * @BeforeMethods({"createSealed"})
-     * @ParamProviders({"provideDefinitions"})
-     */
-    public function benchSealedWithIntTypedGet(array $params): void
-    {
-        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            if (isset($params[1])) {
-                [$params[0], $i] = [$params[1], '[' . $i . ']'];
-            }
-            $this->container->get($params[0] . $i);
-        }
-    }
-
-    /**
      * @BeforeMethods({"benchConstruct"})
      * @ParamProviders({"provideDefinitions"})
      */
@@ -275,15 +238,6 @@ class ContainerBench
     public function benchOptimisedLifecycle(array $params): void
     {
         $this->createOptimized();
-        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
-    }
-
-    /**
-     * @ParamProviders({"provideDefinitions"})
-     */
-    public function benchSealedLifecycle(array $params): void
-    {
-        $this->createSealed();
         $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
     }
 
