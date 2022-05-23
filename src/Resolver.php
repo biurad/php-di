@@ -416,31 +416,33 @@ class Resolver
      */
     public function resolveReference(string $reference)
     {
+        $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
+
         if ('?' === $reference[0]) {
-            $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
+            $invalidBehavior = $this->container::NULL_ON_INVALID_SERVICE;
             $reference = \substr($reference, 1);
-
-            if ($arrayLike = \str_ends_with($reference, '[]')) {
-                $reference = \substr($reference, 0, -2);
-                $invalidBehavior = $this->container::IGNORE_MULTIPLE_SERVICE;
-            }
-
-            if ($this->container->has($reference) || $this->container->typed($reference)) {
-                $service = $this->container->get($reference, $invalidBehavior);
-
-                return !$arrayLike ? $service : (\is_array($service) ? $service : [$service]);
-            }
-
-            return $arrayLike ? [] : null;
         }
 
-        if ('[]' === \substr($reference, -2)) {
-            $service = $this->container->get(\substr($reference, 0, -2), $this->container::IGNORE_MULTIPLE_SERVICE);
+        if (1 === \preg_match('/\[(.*?)?\]$/', $reference, $matches, \PREG_UNMATCHED_AS_NULL)) {
+            $reference = \str_replace($matches[0], '', $reference);
+            $autowired = $this->container->typed($reference, true);
 
-            return \is_array($service) ? $service : [$service];
+            if (\is_numeric($k = $matches[1] ?? null) && isset($autowired[$k])) {
+                return $this->container->get($autowired[$k], $invalidBehavior);
+            }
+
+            if (!empty($autowired)) {
+                return \array_map([$this->container, 'get'], $autowired);
+            }
+
+            if (null === $service = $this->container->get($reference, $invalidBehavior)) {
+                return [];
+            }
+
+            return [$service];
         }
 
-        return $this->container->get($reference);
+        return $this->container->get($reference, $invalidBehavior);
     }
 
     /**
