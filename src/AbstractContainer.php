@@ -223,7 +223,7 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
         }
 
         if (\array_key_exists($id, $this->types)) {
-            return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
+            return $this->autowired($id, self::IGNORE_MULTIPLE_SERVICE !== $invalidBehavior);
         }
 
         if (\class_exists($id) || \function_exists($id)) {
