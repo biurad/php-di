@@ -22,6 +22,7 @@ use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression, Nop}
 use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
+use Symfony\Component\VarExporter\VarExporter;
 
 /**
  * A compilable container to build services easily.
@@ -222,7 +223,12 @@ class ContainerBuilder extends AbstractContainer
                 $definition = $this->resolver->getBuilder()->new(\get_class($definition), [$this->resolver->resolveArguments(\iterator_to_array($definition))]);
             } else {
                 $method->setReturnType(\get_class($definition));
-                $definition = $this->resolver->getBuilder()->funcCall('\\unserialize', [new String_(\serialize($definition), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
+
+                if (\class_exists(VarExporter::class)) {
+                    $definition = Loader\phpCode(VarExporter::export($definition))->resolve($this->resolver);
+                } else {
+                    $definition = $this->resolver->getBuilder()->funcCall('\\unserialize', [new String_(\serialize($definition), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
+                }
             }
         }
 
