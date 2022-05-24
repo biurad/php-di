@@ -264,7 +264,7 @@ class Resolver
     public function resolveCallable($callback, array $arguments = [])
     {
         if (\is_array($callback)) {
-            if (2 === \count($callback) && \array_is_list($callback)) {
+            if ((2 === \count($callback) && \array_is_list($callback)) && \is_string($callback[0])) {
                 $callback[0] = $this->resolve($callback[0]);
 
                 if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
