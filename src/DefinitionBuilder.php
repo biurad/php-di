@@ -37,7 +37,7 @@ class DefinitionBuilder implements ResetInterface
 {
     private AbstractContainer $container;
     private ?string $definition = null, $directory = null;
-    private bool $trackDefaults = false;
+    private bool $trackDefaults = false, $condition = true;
 
     /** @var array<string,array<int,mixed>> */
     private array $classes = [];
@@ -81,6 +81,10 @@ class DefinitionBuilder implements ResetInterface
      */
     public function __call(string $name, array $arguments)
     {
+        if (!$this->condition) {
+            return $this;
+        }
+
         if (!$id = $this->definition) {
             throw $this->createInitializingError($name);
         }
@@ -135,7 +139,9 @@ class DefinitionBuilder implements ResetInterface
      */
     public function parameter(string $name, $value)
     {
-        $this->container->parameters[$name] = $value;
+        if ($this->condition) {
+            $this->container->parameters[$name] = $value;
+        }
 
         return $this;
     }
@@ -147,7 +153,37 @@ class DefinitionBuilder implements ResetInterface
      */
     public function alias(string $id, string $serviceId = null)
     {
-        $this->container->alias($id, $serviceId ?? $this->definition);
+        if ($this->condition) {
+            $this->container->alias($id, $serviceId ?? $this->definition);
+        }
+
+        return $this;
+    }
+
+    /**
+     * A condition to be evaluated before service is created.
+     *
+     * @param callable $condition A callable that returns a boolean value.
+     *
+     * @return $this
+     */
+    public function if(callable $condition)
+    {
+        $this->condition = $condition($this->container);
+
+        return $this;
+    }
+
+    /**
+     * Reverts the condition to true if it was false.
+     *
+     * Note: This method is required to be called after if() method.
+     *
+     * @return $this
+     */
+    public function endIf()
+    {
+        $this->condition = true;
 
         return $this;
     }
@@ -164,6 +200,10 @@ class DefinitionBuilder implements ResetInterface
     public function autowire(/* string $id, $definition or array $types */)
     {
         $arguments = \func_get_args();
+
+        if (!$this->condition) {
+            return $this;
+        }
 
         if (\is_string($arguments[0] ?? null)) {
             $this->doCreate($this->container->autowire($this->definition = $arguments[0], $arguments[1] ?? null));
@@ -197,7 +237,9 @@ class DefinitionBuilder implements ResetInterface
      */
     public function set(string $id, object $definition = null)
     {
-        $this->doCreate($this->container->set($this->definition = $id, $definition));
+        if ($this->condition) {
+            $this->doCreate($this->container->set($this->definition = $id, $definition));
+        }
 
         return $this;
     }
@@ -209,7 +251,9 @@ class DefinitionBuilder implements ResetInterface
      */
     public function extend(string $id)
     {
-        $this->doCreate($this->container->definition($this->definition = $id));
+        if ($this->condition) {
+            $this->doCreate($this->container->definition($this->definition = $id));
+        }
 
         return $this;
     }
@@ -225,7 +269,9 @@ class DefinitionBuilder implements ResetInterface
      */
     public function decorate(string $id, object $definition = null, ?string $newId = null)
     {
-        $this->doCreate($this->container->decorate($this->definition = $id, $definition, $newId));
+        if ($this->condition) {
+            $this->doCreate($this->container->decorate($this->definition = $id, $definition, $newId));
+        }
 
         return $this;
     }
@@ -239,11 +285,13 @@ class DefinitionBuilder implements ResetInterface
      */
     public function defaults(bool $merge = true)
     {
-        $this->trackDefaults = true;
-        $this->definition = '#defaults';
+        if ($this->condition) {
+            $this->trackDefaults = true;
+            $this->definition = '#defaults';
 
-        if (!$merge) {
-            $this->defaults[$this->definition] = [];
+            if (!$merge) {
+                $this->defaults[$this->definition] = [];
+            }
         }
 
         return $this;
@@ -256,13 +304,15 @@ class DefinitionBuilder implements ResetInterface
      */
     public function instanceOf(string $interfaceOrClass)
     {
-        $this->trackDefaults = true;
+        if ($this->condition) {
+            $this->trackDefaults = true;
 
-        if (!Validators::isType($interfaceOrClass)) {
-            throw new \RuntimeException(\sprintf('"%s" is set as an "instanceof" conditional, but it does not exist.', $interfaceOrClass));
+            if (!Validators::isType($interfaceOrClass)) {
+                throw new \RuntimeException(\sprintf('"%s" is set as an "instanceof" conditional, but it does not exist.', $interfaceOrClass));
+            }
+
+            $this->definition = $interfaceOrClass;
         }
-
-        $this->definition = $interfaceOrClass;
 
         return $this;
     }
@@ -278,6 +328,10 @@ class DefinitionBuilder implements ResetInterface
      */
     public function namespaced(string $namespace, string $resource = null, $exclude = null)
     {
+        if (!$this->condition) {
+            return $this;
+        }
+
         if ('\\' !== @$namespace[-1]) {
             throw new \InvalidArgumentException(\sprintf('Namespace prefix must end with a "\\": "%s".', $namespace));
         }
@@ -313,7 +367,9 @@ class DefinitionBuilder implements ResetInterface
      */
     public function directory(string $path)
     {
-        $this->directory = \rtrim($path, '\\/') . '/';
+        if ($this->condition) {
+            $this->directory = \rtrim($path, '\\/') . '/';
+        }
 
         return $this;
     }
