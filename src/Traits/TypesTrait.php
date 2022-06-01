@@ -190,7 +190,7 @@ trait TypesTrait
 
         if ($single) {
             if (1 === $c = \count($autowired)) {
-                return $this->services[$autowired[0]] ?? $this->get($autowired[0]);
+                return $this->services[$id = \current($autowired)] ?? $this->get($id);
             }
 
             \natsort($autowired);
