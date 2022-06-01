@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI\Attribute;
 
+use Rade\DI\Definitions\Parameter;
+use Rade\DI\Definitions\TaggedLocator;
 use Rade\DI\Resolver;
 
 /**
@@ -27,15 +29,23 @@ use Rade\DI\Resolver;
 #[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::TARGET_FUNCTION | \Attribute::TARGET_PARAMETER)]
 final class Inject
 {
+    public const
+        VALUE = 0,
+        REFERENCE = 1,
+        PARAMETER = 2;
+
+    private int $type;
+
     /** @var mixed */
     private $value;
 
     /**
      * @param mixed $value
      */
-    public function __construct($value = null)
+    public function __construct($value = null, $type = self::REFERENCE)
     {
         $this->value = $value;
+        $this->type = $type;
     }
 
     /**
@@ -45,14 +55,22 @@ final class Inject
      */
     public function resolve(Resolver $resolver, string $typeName = null)
     {
-        if (\is_string($value = $this->value ?? $typeName)) {
+        if (null === $value = $this->value ?? $typeName) {
+            return null;
+        }
+
+        if ($value instanceof TaggedLocator) {
+            throw new \LogicException(\sprintf('Use the #[%s] attribute instead for lazy loading tags.', Tagged::class));
+        }
+
+        if (self::REFERENCE === $this->type) {
             return $resolver->resolveReference($value);
         }
 
-        if (null !== $value) {
-            return $resolver->resolve($value);
+        if (self::PARAMETER === $this->type) {
+            $value = new Parameter($value, true);
         }
 
-        return $value;
+        return $resolver->resolve($value);
     }
 }
