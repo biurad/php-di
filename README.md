@@ -9,6 +9,7 @@
 [![Coverage Status](https://img.shields.io/codecov/c/github/divineniiquaye/rade-di?style=flat-square)](https://codecov.io/gh/divineniiquaye/rade-di)
 [![Psalm Type Coverage](https://img.shields.io/endpoint?style=flat-square&url=https%3A%2F%2Fshepherd.dev%2Fgithub%2Fdivineniiquaye%2Frade-di%2Fcoverage)](https://shepherd.dev/github/divineniiquaye/rade-di)
 [![Quality Score](https://img.shields.io/scrutinizer/g/divineniiquaye/rade-di.svg?style=flat-square)](https://scrutinizer-ci.com/g/divineniiquaye/rade-di)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbiurad%2Fphp-di.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbiurad%2Fphp-di?ref=badge_shield)
 
 </div>
 
@@ -337,3 +338,6 @@ The **divineniiquaye/rade-di** library is copyright © [Divine Niiquaye Ibok](ht
 [Pimple]: https://github.com/silexphp/pimple
 [PSR-11]: http://www.php-fig.org/psr/psr-11/
 [PSR-12]: http://www.php-fig.org/psr/psr-12/
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fbiurad%2Fphp-di.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fbiurad%2Fphp-di?ref=badge_large)
