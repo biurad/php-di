@@ -4,10 +4,10 @@
     "runner.retry_threshold": 5,
     "runner.warmup": 2,
     "runner.php_config": {
+        "xdebug.mode": "off",
         "opcache.enable": true,
         "opcache.enable_cli": true,
-        "opcache.jit": 1235,
-        "xdebug.mode": 0
+        "opcache.jit": 1235
       },
 
     "report.generators": {
@@ -15,5 +15,12 @@
             "extends": "expression",
             "cols": [ "benchmark", "subject", "set", "mem_peak", "best", "mean", "mode", "worst", "stdev", "rstdev" ]
         }
-    }
+    },
+    "report.outputs": {
+        "html": {
+            "renderer": "html",
+            "path": "build/bench-report.html",
+            "title": "PHP Dependency Injection Container Benchmark"
+        }
+   }
 }

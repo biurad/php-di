@@ -17,249 +17,342 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Benchmarks;
 
-use DivineNii\Invoker\ArgumentResolver\NamedValueResolver;
-use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
-use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 use Rade\DI\DefinitionBuilder;
-use Rade\DI\SealedContainer;
+use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\Tests\Fixtures\Constructor;
 use Rade\DI\Tests\Fixtures\Service;
+use DivineNii\Invoker\ArgumentResolver\NamedValueResolver;
+use DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface;
+use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 
 use function Rade\DI\Loader\service;
 
 /**
- * @BeforeClassMethods({"clearCache", "warmup"})
- * @AfterClassMethods({"tearDown"})
+ * @BeforeClassMethods({"clearCache"})
+ * @AfterClassMethods({"clearCache"})
  * @Iterations(5)
  * @Revs(100)
  */
 class ContainerBench
 {
-    public const SERVICE_COUNT = 200;
+    public const SERVICE_COUNT = 1500;
 
     protected const CACHE_DIR = __DIR__ . '/../cache';
 
-    private ContainerInterface $container;
-
-    public function provideDefinitions(): iterable
-    {
-        yield 'Shared' => ['shared'];
-
-        yield 'Factory' => ['factory'];
-
-        yield 'Shared,Autowired' => ['shared_autowired'];
-
-        yield 'Factory,Autowired' => ['factory_autowired'];
-
-        yield 'Shared,Typed,Autowired' => [null, Service::class];
-
-        yield 'Factory,Typed,Autowired' => [null, ArgumentValueResolverInterface::class];
-    }
+    /** @var array<string,ContainerInterface> */
+    private array $containers = [];
 
     public static function clearCache(): void
-    {
-        self::tearDown();
-
-        if (!\is_dir(self::CACHE_DIR)) {
-            \mkdir(self::CACHE_DIR);
-        }
-    }
-
-    public static function tearDown(): void
     {
         if (\file_exists(self::CACHE_DIR)) {
             $fs = new Filesystem();
             $fs->remove(self::CACHE_DIR);
         }
+
+        \mkdir(self::CACHE_DIR, 0777, true);
     }
 
-    public static function warmup(bool $dump = true): void
+    public function provideContainers(): iterable
     {
-        $builder = new ContainerBuilder();
+        yield 'container' => ['use' => 'container'];
 
-        if ($dump) {
-            $sealed = new ContainerBuilder(SealedContainer::class);
-        }
+        yield 'def_container' => ['use' => 'def_container'];
+
+        yield 'builder' => ['use' => 'builder'];
+    }
+
+    public function provideScenarios(): iterable
+    {
+        yield 'first_shared' => [
+            'id' => 'shared0',
+            'result' => Service::class,
+        ];
+
+        yield 'first_factory' => [
+            'id' => 'factory0',
+            'result' => Service::class,
+        ];
+
+        yield 'first_shared_autowired' => [
+            'id' => 'shared_autowired0',
+            'result' => Service::class,
+        ];
+
+        yield 'first_factory_autowired' => [
+            'id' => 'factory_autowired0',
+            'result' => ArgumentValueResolverInterface::class,
+        ];
+
+        yield 'middle_shared' => [
+            'id' => 'shared' . self::SERVICE_COUNT / 2,
+            'result' => Service::class,
+        ];
+
+        yield 'middle_factory' => [
+            'id' => 'factory' . self::SERVICE_COUNT / 2,
+            'result' => Service::class,
+        ];
+
+        yield 'middle_shared_autowired' => [
+            'id' => 'shared_autowired' . self::SERVICE_COUNT / 2,
+            'result' => Service::class,
+        ];
+
+        yield 'middle_factory_autowired' => [
+            'id' => 'factory_autowired' . self::SERVICE_COUNT / 2,
+            'result' => ArgumentValueResolverInterface::class,
+        ];
+
+        yield 'last_shared' => [
+            'id' => 'shared1499',
+            'result' => Service::class,
+        ];
+
+        yield 'last_factory' => [
+            'id' => 'factory1499',
+            'result' => Service::class,
+        ];
+
+        yield 'last_shared_autowired' => [
+            'id' => 'shared_autowired1499',
+            'result' => Service::class,
+        ];
+
+        yield 'last_factory_autowired' => [
+            'id' => 'factory_autowired1499',
+            'result' => ArgumentValueResolverInterface::class,
+        ];
+
+        yield 'typed_shared' => [
+            'id' => Service::class,
+            'flag' => Container::IGNORE_MULTIPLE_SERVICE,
+            'result' => 1499,
+        ];
+
+        yield 'typed_factory' => [
+            'id' => ArgumentValueResolverInterface::class,
+            'flag' => Container::IGNORE_MULTIPLE_SERVICE,
+            'result' => 1499,
+        ];
+
+        yield 'aliased_shared' => [
+            'id' => 'a_shared',
+            'result' => Service::class,
+        ];
+
+        yield 'aliased_factory' => [
+            'id' => 'a_factory',
+            'result' => Service::class,
+        ];
+
+        yield 'non-existent' => [
+            'id' => 'none',
+            'result' => NotFoundExceptionInterface::class,
+        ];
+    }
+
+    public function provideAllScenarios(): iterable
+    {
+        yield 'scenarios(first,middle,last,typed,aliased,none)' => \array_values(\iterator_to_array($this->provideScenarios()));
+        $all = [];
 
         for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $builder->set("shared$i", service(Service::class));
-            $builder->set("factory$i", service(Service::class))->shared(false);
+            $all[] = [
+                'id' => 'shared' . $i,
+                'result' => Service::class,
+            ];
+            $all[] = [
+                'id' => 'factory' . $i,
+                'result' => Service::class,
+            ];
+            $all[] = [
+                'id' => 'shared_autowired' . $i,
+                'result' => Service::class,
+            ];
+            $all[] = [
+                'id' => 'factory_autowired' . $i,
+                'result' => ArgumentValueResolverInterface::class,
+            ];
+        }
+        $all[] = [
+            'id' => Service::class,
+            'flag' => Container::IGNORE_MULTIPLE_SERVICE,
+            'result' => 999,
+        ];
+        $all[] = [
+            'id' => ArgumentValueResolverInterface::class,
+            'flag' => Container::IGNORE_MULTIPLE_SERVICE,
+            'result' => 999,
+        ];
+        $all[] = [
+            'id' => 'a_shared',
+            'result' => Service::class,
+        ];
+        $all[] = [
+            'id' => 'a_factory',
+            'result' => Service::class,
+        ];
+        $all[] = [
+            'id' => 'none',
+            'result' => NotFoundExceptionInterface::class,
+        ];
 
-            $builder->autowire("shared_autowired$i", service(Constructor::class));
-            $builder->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+        yield 'scenarios(0...999,typed,aliased,none)' => $all;
+    }
 
-            if (isset($sealed)) {
-                $sealed->set("shared$i", service(Service::class));
-                $sealed->set("factory$i", service(Service::class))->shared(false);
+    public function initContainers(): void
+    {
+        $this->containers['container'] = $this->createContainer();
+        $this->containers['def_container'] = $this->createDefContainer();
+        $this->containers['builder'] = $this->createBuilder();
+    }
 
-                $sealed->autowire("shared_autowired$i", service(Constructor::class));
-                $sealed->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+    public function createContainer(): ContainerInterface
+    {
+        $container = new Container();
+
+        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+            $container->set("shared{$i}", new Service());
+            $container->set("factory{$i}", service(Service::class))->shared(false);
+
+            if (25 === $i) {
+                $container->alias('a_shared', 'shared25');
+                $container->alias('a_factory', 'factory25');
             }
+
+            $container->autowire("shared_autowired{$i}", service(Constructor::class));
+            $container->autowire("factory_autowired{$i}", service(NamedValueResolver::class))->shared(false);
         }
 
-        if ($dump) {
-            \file_put_contents(self::CACHE_DIR . '/container.php', $builder->compile());
-        }
+        return $container;
     }
 
-    public function createOptimized(): void
-    {
-        include_once self::CACHE_DIR . \DIRECTORY_SEPARATOR . 'container.php';
-
-        $this->container = new \CompiledContainer();
-    }
-
-    public function benchConstruct(): void
-    {
-        $container = new Container();
-
-        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $container->set("shared$i", new Service());
-            $container->set("factory$i", service(Service::class))->shared(false);
-
-            $container->autowire("shared_autowired$i", service(Constructor::class));
-            $container->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
-        }
-
-        $this->container = $container;
-    }
-
-    public function benchConstructWithMultiple(): void
-    {
-        $definitions = [];
-
-        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $definitions["shared$i"] = new Service();
-            $definitions["factory$i"] = service(Service::class)->shared(false);
-
-            $definitions["shared_autowired$i"] = service(Constructor::class)->autowire();
-            $definitions["factory_autowired$i"] = service(NamedValueResolver::class)->autowire()->shared(false);
-        }
-
-        $container = new Container();
-        $container->multiple($definitions);
-        $this->container = $container;
-    }
-
-    public function benchContainerBuilder(): void
-    {
-        self::warmup(false);
-    }
-
-    public function benchContainerBuilderWithMultiple(): void
-    {
-        $definitions = [];
-
-        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $definitions["shared$i"] = service(Service::class);
-            $definitions["factory$i"] = service(Service::class)->shared(false);
-
-            $definitions["shared_autowired$i"] = service(Constructor::class)->autowire();
-            $definitions["factory_autowired$i"] = service(NamedValueResolver::class)->autowire()->shared(false);
-        }
-
-        $builder = new ContainerBuilder();
-        $builder->multiple($definitions);
-    }
-
-    public function benchContainerWithDefinitionBuilder(): void
+    public function createDefContainer(): ContainerInterface
     {
         $definitions = new DefinitionBuilder(new Container());
 
         for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
             $definitions
-                ->set("shared$i", service(Service::class))
-                ->set("factory$i", service(Service::class))->shared(false)
+                ->set("shared{$i}", service(Service::class))
+                ->set("factory{$i}", service(Service::class))->shared(false)
 
-                ->autowire("shared_autowired$i", service(Constructor::class))
-                ->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
+                ->if(static fn (): bool => 25 === $i)
+                    ->alias('a_shared', 'shared25')
+                    ->alias('a_factory', 'factory25')
+                ->endIf()
+
+                ->autowire("shared_autowired{$i}", service(Constructor::class))
+                ->autowire("factory_autowired{$i}", service(NamedValueResolver::class))->shared(false);
         }
 
-        $this->container = $definitions->getContainer();
+        return $definitions->getContainer();
     }
 
-    public function benchContainerBuilderWithDefinitionBuilder(): void
+    public function createBuilder(): ContainerInterface
     {
-        $definitions = new DefinitionBuilder(new ContainerBuilder());
+        if (!\file_exists($f = self::CACHE_DIR . '/container.php')) {
+            $builder = new ContainerBuilder();
 
-        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-            $definitions
-                ->set("shared$i", service(Service::class))
-                ->set("factory$i", service(Service::class))->shared(false)
-
-                ->autowire("shared_autowired$i", service(Constructor::class))
-                ->autowire("factory_autowired$i", service(NamedValueResolver::class))->shared(false);
-        }
-
-        $definitions->getContainer();
-    }
-
-    /**
-     * @BeforeMethods({"createOptimized"})
-     * @ParamProviders({"provideDefinitions"})
-     */
-    public function benchOptimizedGet(array $params): void
-    {
-        if (isset($params[1])) {
-            $this->container->get($params[1], Container::IGNORE_MULTIPLE_SERVICE);
-        } else {
             for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-                $this->container->get($params[0] . $i);
+                $builder->set("shared{$i}", service(Service::class));
+                $builder->set("factory{$i}", service(Service::class))->shared(false);
+
+                if (25 === $i) {
+                    $builder->alias('a_shared', 'shared25');
+                    $builder->alias('a_factory', 'factory25');
+                }
+
+                $builder->autowire("shared_autowired{$i}", service(Constructor::class));
+                $builder->autowire("factory_autowired{$i}", service(NamedValueResolver::class))->shared(false);
             }
+            \file_put_contents($f, $builder->compile());
+        }
+
+        include_once $f;
+
+        return new \CompiledCOntainer();
+    }
+
+    /**
+     * @BeforeMethods({"initContainers"})
+     * @ParamProviders({"provideContainers", "provideScenarios"})
+     */
+    public function benchScenarios(array $params): void
+    {
+        $this->runScenario($params);
+    }
+
+    /**
+     * @BeforeMethods({"initContainers"})
+     * @ParamProviders({"provideContainers", "provideAllScenarios"})
+     */
+    public function benchAllScenarios(array $params): void
+    {
+        $use = \array_shift($params);
+
+        foreach ($params as $param) {
+            $this->runScenario($param + \compact('use'));
         }
     }
 
     /**
-     * @BeforeMethods({"benchConstruct"})
-     * @ParamProviders({"provideDefinitions"})
+     * @ParamProviders({"provideAllScenarios"})
+     * @Revs(4)
      */
-    public function benchUnoptimizedGet(array $params): void
+    public function benchContainer(array $params): void
     {
-        if (isset($params[1])) {
-            $this->container->get($params[1], Container::IGNORE_MULTIPLE_SERVICE);
-        } else {
-            for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
-                $this->container->get($params[0] . $i);
-            }
+        $this->containers['1'] = $this->createContainer();
+
+        foreach ($params as $param) {
+            $this->runScenario($param + ['use' => '1']);
         }
     }
 
     /**
-     * @ParamProviders({"provideDefinitions"})
+     * @ParamProviders({"provideAllScenarios"})
+     * @Revs(4)
      */
-    public function benchOptimisedLifecycle(array $params): void
+    public function benchDefContainer(array $params): void
     {
-        $this->createOptimized();
-        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
+        $this->containers['2'] = $this->createDefContainer();
+
+        foreach ($params as $param) {
+            $this->runScenario($param + ['use' => '2']);
+        }
     }
 
     /**
-     * @ParamProviders({"provideDefinitions"})
+     * @ParamProviders({"provideAllScenarios"})
+     * @Revs(4)
      */
-    public function benchUnoptimisedLifecycle(array $params): void
+    public function benchBuilder(array $params): void
     {
-        $this->benchConstruct();
-        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
+        $this->containers['3'] = $this->createBuilder();
+
+        foreach ($params as $param) {
+            $this->runScenario($param + ['use' => '3']);
+        }
     }
 
     /**
-     * @ParamProviders({"provideDefinitions"})
+     * @param array<string,array<int,mixed>|string> $params
      */
-    public function benchUnoptimisedMultipleLifecycle(array $params): void
+    private function runScenario(array $params): void
     {
-        $this->benchConstructWithMultiple();
-        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
-    }
+        try {
+            $container = $this->containers[$params['use']];
+            $service = $container->get($params['id'], $params['flag'] ?? 1);
+            $result = !isset($params['flag']) ? \is_a($service, $params['result']) : $params['result'] === \count($service);
+        } catch (NotFoundServiceException $e) {
+            $result = \is_a($e, $params['result']);
+        }
 
-    /**
-     * @ParamProviders({"provideDefinitions"})
-     */
-    public function benchUnoptimisedBuilderLifecycle(array $params): void
-    {
-        $this->benchContainerWithDefinitionBuilder();
-        $this->container->get($params[1] ?? ($params[0] . \rand(0, 199)), Container::IGNORE_MULTIPLE_SERVICE);
+        \assert($result, new \RuntimeException(
+            \sprintf('Benchmark "%s" failed with service id "%s"', $params['use'], $params['id'])
+        ));
     }
 }
