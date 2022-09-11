@@ -18,7 +18,7 @@
         "source": "https://github.com/divineniiquaye/rade-di"
     },
     "require": {
-        "php": "^7.4 || ^8.0",
+        "php": "^8.0",
         "nette/utils": "^3.2",
         "psr/container": "^1.1 || ^2.0",
         "symfony/deprecation-contracts": "^2.4",
