@@ -446,7 +446,7 @@ class YamlFileLoader extends FileLoader
         $definition = $instanceof ? $this->builder->instanceOf($name) : $this->builder->defaults();
 
         if (isset($defaults['public'])) {
-            $defintion->public($defaults['public']);
+            $definition->public($defaults['public']);
         }
 
         if (isset($defaults['lazy'])) {
