@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Injector;
 
 use Nette\Utils\Reflection;
-use PhpParser\Builder\Method;
+use PhpParser\Builder\FunctionLike;
 use PhpParser\BuilderFactory;
 use PhpParser\Node\Expr\{Assign, Variable};
 use Rade\DI\Attribute\Inject;
@@ -29,6 +29,7 @@ use Rade\DI\Resolver;
  * An injectable class used by service definitions.
  *
  * @internal This is almost a final class
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 class Injectable
@@ -60,19 +61,24 @@ class Injectable
         return $this->service;
     }
 
-    public function build(Method $definition, Variable $service, BuilderFactory $builder): Assign
+    public function build(FunctionLike|array &$definition, Variable $service, BuilderFactory $builder): Assign
     {
-        $definition->addStmt($createdService = new Assign($service, $this->service));
+        $calls = [];
+        $calls[] = $createdService = new Assign($service, $this->service);
 
         foreach ($this->properties[0] ?? [] as $property => $propertyValue) {
-            $definition->addStmt(new Assign($builder->propertyFetch($service, $property), $builder->val($propertyValue)));
+            $calls[] = new Assign($builder->propertyFetch($service, $property), $builder->val($propertyValue));
         }
 
         foreach ($this->properties[1] ?? [] as $method => $methodValue) {
-            $definition->addStmt($builder->methodCall($service, $method, $methodValue));
+            $calls[] = $builder->methodCall($service, $method, $methodValue);
         }
 
-        return $createdService;
+        try {
+            return $createdService;
+        } finally {
+            $definition = $definition instanceof FunctionLike ? $definition->addStmts($calls) : $calls;
+        }
     }
 
     /**
@@ -102,10 +108,6 @@ class Injectable
      */
     public static function getResolved(Resolver $resolver, object $service, \ReflectionClass $reflection): object
     {
-        if (\PHP_VERSION_ID < 80000) {
-            return $service;
-        }
-
         $properties = [];
 
         foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
