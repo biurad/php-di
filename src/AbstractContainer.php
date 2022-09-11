@@ -52,7 +52,9 @@ abstract class AbstractContainer implements ContainerInterface, ResetInterface
      */
     public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
     {
-        return $this->services[$id = $this->aliases[$id] ?? $id] ?? $this->{$this->methodsMap[$id] ?? 'doLoad'}($id, $invalidBehavior);
+        return $this->services[$id]
+            ?? $this->services[$id = $this->aliases[$id] ?? $id]
+            ?? $this->{$this->methodsMap[$id] ?? 'doLoad'}($id, $invalidBehavior);
     }
 
     /**
