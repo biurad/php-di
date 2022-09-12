@@ -30,21 +30,21 @@ trait DefinitionTrait
 {
     use AliasTrait;
 
-    /** @var array<string,Definition|object> service name => instance */
+    /** @var array<string,Definition> */
     protected array $definitions = [];
 
-    /** @var array<string,mixed> A list of already public loaded services (this act as a local cache) */
-    protected array $services = [];
+    /** @var array<string,mixed> */
+    protected array $services = [], $privates = [];
 
-    /** @var array<string,mixed> A list of already private loaded services (this act as a local cache) */
-    protected array $privates = [];
+    /** @var array<string,string> service name => method name */
+    protected array $methodsMap = [];
 
     /**
-     * {@inheritdoc}
+     * Gets/Extends a service definition from the container by its id.
      *
-     * @return Definition or mixed value which maybe object
+     * @param string $id service id relying on this definition
      */
-    public function definition(string $id)
+    public function definition(string $id): ?Definition
     {
         return $this->definitions[$this->aliases[$id] ?? $id] ?? null;
     }
@@ -52,15 +52,17 @@ trait DefinitionTrait
     /**
      * Gets all service definitions.
      *
-     * @return array<string,Definition|object>
+     * @return array<string,Definition>
      */
-    public function definitions(): array
+    public function getDefinitions(): array
     {
         return $this->definitions;
     }
 
     /**
-     * {@inheritdoc}
+     * Returns true if the given shared service has actually been initialized.
+     *
+     * @param string $id The service identifier
      */
     public function shared(string $id): bool
     {
@@ -75,64 +77,55 @@ trait DefinitionTrait
         unset($this->definitions[$id], $this->services[$id]);
 
         foreach ($this->aliases as $alias => $aliased) {
-            if ($id !== $aliased) {
+            if ($id === $aliased) {
+                $this->removeAlias($alias);
+            }
+        }
+
+        foreach ($this->types as $typed => $serviceIds) {
+            if (!\in_array($id, $serviceIds, true)) {
                 continue;
             }
 
-            $this->removeAlias($alias);
-        }
-
-        if (isset($this->types)) {
-            foreach ($this->types as &$serviceIds) {
-                foreach ($serviceIds as $offset => $serviceId) {
-                    if ($id !== $serviceId) {
-                        continue;
-                    }
-
-                    unset($serviceIds[$offset]);
+            foreach ($serviceIds as $offset => $serviceId) {
+                if ($id === $serviceId) {
+                    unset($this->types[$typed][$offset]);
                 }
             }
         }
 
-        if (isset($this->tags)) {
-            foreach ($this->tags as $tag => &$attr) {
-                if (!isset($attr[$id])) {
-                    continue;
-                }
-
-                unset($attr[$id]);
+        foreach ($this->tags as $tag => $attr) {
+            if (!isset($attr[$id])) {
+                continue;
             }
+            unset($this->tags[$tag][$id]);
         }
     }
 
     /**
-     * {@inheritdoc}
-     *
-     * @param Definition|object|null $definition
-     *
-     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
+     * Register a service definition into the container.
      */
-    public function set(string $id, object $definition = null): object
+    public function set(string $id, mixed $definition = null): Definition
     {
-        unset($this->aliases[$id]); // Incase new service definition exists in aliases.
+        unset($this->aliases[$id]); // remove alias
 
         if (null !== ($this->services[$id] ?? $this->privates[$id] ?? $this->methodsMap[$id] ?? null)) {
             throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
         }
 
-        if (null === $definition || $definition instanceof Definitions\Statement) {
-            $definition = new Definition($definition ?? $id);
-        } elseif ($definition instanceof Definitions\Reference) {
-            if (null === $previousDef = $this->definitions[(string) $definition] ?? null) {
-                throw $this->createNotFound((string) $definition);
-            }
-            $definition = clone $previousDef;
-            $definition->abstract(false);
-        } elseif (!$definition instanceof Definition) {
-            return $this->definitions[$id] = $this->services[$id] = $definition;
-        }
+        if ($definition instanceof Definitions\Reference) {
+            $parent = (string) $definition;
+            $child = $this->definitions[$this->aliases[$parent] ?? $parent] ?? throw $this->createNotFound($parent);
 
-        return $this->definitions[$id] = $definition->setContainer($this, $id);
+            if (($definition = clone $child)->hasContainer()) {
+                return $this->definitions[$id] = $definition->abstract(false);
+            }
+        } elseif (!$definition instanceof Definition) {
+            $definition = new Definition($definition ?? $id);
+        }
+        $this->definitions[$id] = $definition;
+
+        return $definition->setContainer($this, $id);
     }
 
     /**
@@ -154,11 +147,9 @@ trait DefinitionTrait
      *
      * All decorated services under the tag: container.decorated_services
      *
-     * @param Definitions\DefinitionInterface|object|null $definition
-     *
-     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
+     * @param Definitions|null $definition
      */
-    public function decorate(string $id, object $definition = null, string $newId = null)
+    public function decorate(string $id, mixed $definition = null, string $newId = null): Definition
     {
         if (null === $innerDefinition = $this->definitions[$id] ?? null) {
             throw $this->createNotFound($id);
