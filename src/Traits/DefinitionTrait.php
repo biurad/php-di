@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI\Traits;
 
 use Nette\Utils\Helpers;
-use PhpParser\Node\Expr\ArrowFunction;
 use Rade\DI\{Definition, Definitions};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 
@@ -31,7 +30,7 @@ trait DefinitionTrait
 {
     use AliasTrait;
 
-    /** @var array<string,Definitions\DefinitionInterface|object> service name => instance */
+    /** @var array<string,Definition|object> service name => instance */
     protected array $definitions = [];
 
     /** @var array<string,mixed> A list of already public loaded services (this act as a local cache) */
@@ -43,7 +42,7 @@ trait DefinitionTrait
     /**
      * {@inheritdoc}
      *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return Definition or mixed value which maybe object
      */
     public function definition(string $id)
     {
@@ -53,7 +52,7 @@ trait DefinitionTrait
     /**
      * Gets all service definitions.
      *
-     * @return array<string,Definitions\DefinitionInterface|object>
+     * @return array<string,Definition|object>
      */
     public function definitions(): array
     {
@@ -109,7 +108,7 @@ trait DefinitionTrait
     /**
      * {@inheritdoc}
      *
-     * @param Definitions\DefinitionInterface|object|null $definition
+     * @param Definition|object|null $definition
      *
      * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
      */
@@ -117,50 +116,23 @@ trait DefinitionTrait
     {
         unset($this->aliases[$id]); // Incase new service definition exists in aliases.
 
-        if (null !== ($this->services[$id] ?? $this->privates[$id] ?? null)) {
+        if (null !== ($this->services[$id] ?? $this->privates[$id] ?? $this->methodsMap[$id] ?? null)) {
             throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
         }
 
-        if (null === $definition) {
-            ($definition = new Definition($id))->bindWith($id, $this);
-        } elseif ($definition instanceof Definitions\Statement) {
-            if ($definition->isClosureWrappable()) {
-                if ($this->resolver->getBuilder()) {
-                    $entity = new ArrowFunction(['expr' => $this->resolver->resolve($definition->getValue(), $definition->getArguments())]);
-                }
-                $definition = $entity ?? fn () => $this->resolver->resolve($definition->getValue(), $definition->getArguments());
-            } else {
-                $definition = new Definition($definition->getValue(), $definition->getArguments());
-            }
+        if (null === $definition || $definition instanceof Definitions\Statement) {
+            $definition = new Definition($definition ?? $id);
         } elseif ($definition instanceof Definitions\Reference) {
             if (null === $previousDef = $this->definitions[(string) $definition] ?? null) {
                 throw $this->createNotFound((string) $definition);
             }
             $definition = clone $previousDef;
-
-            if ($definition instanceof Definitions\ShareableDefinitionInterface) {
-                $definition->abstract(false);
-            }
+            $definition->abstract(false);
+        } elseif (!$definition instanceof Definition) {
+            return $this->definitions[$id] = $this->services[$id] = $definition;
         }
 
-        if ($definition instanceof Definitions\DefinitionInterface) {
-            if ($definition instanceof Definitions\TypedDefinitionInterface) {
-                $definition->isTyped() && $this->type($id, $definition->getTypes());
-            }
-
-            if ($definition instanceof Definitions\DefinitionAwareInterface) {
-                /** @var \Rade\DI\Definitions\Traits\DefinitionAwareTrait $definition */
-                if ($definition->hasTags()) {
-                    foreach ($definition->getTags() as $tag => $value) {
-                        $this->tag($id, $tag, $value);
-                    }
-                }
-
-                $definition->bindWith($id, $this);
-            }
-        }
-
-        return $this->definitions[$id] = $definition;
+        return $this->definitions[$id] = $definition->setContainer($this, $id);
     }
 
     /**
