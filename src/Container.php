@@ -42,7 +42,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @throws FrozenServiceException Prevent override of a frozen service
      */
-    public function offsetSet($offset, $value): void
+    public function offsetSet(mixed $offset, mixed $value): void
     {
         $this->autowire($offset, $value);
     }
@@ -52,12 +52,11 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for the service
      *
-     * @throws NotFoundServiceException If the identifier is not defined
-     *
      * @return mixed The value of the service
+     *
+     * @throws NotFoundServiceException If the identifier is not defined
      */
-    #[\ReturnTypeWillChange]
-    public function offsetGet($offset)
+    public function offsetGet(mixed $offset): mixed
     {
         return $this->get($offset);
     }
@@ -67,7 +66,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for the service
      */
-    public function offsetExists($offset): bool
+    public function offsetExists(mixed $offset): bool
     {
         return $this->has($offset);
     }
@@ -77,7 +76,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for service definition
      */
-    public function offsetUnset($offset): void
+    public function offsetUnset(mixed $offset): void
     {
         $this->removeDefinition($offset);
     }
