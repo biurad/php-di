@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\ContainerInterface as PsrContainerInterface;
-use Rade\DI\Definitions\DefinitionInterface;
 use Rade\DI\Exceptions\{CircularReferenceException, NotFoundServiceException};
 
 /**
@@ -43,9 +42,9 @@ interface ContainerInterface extends PsrContainerInterface
     /**
      * Set a service definition.
      *
-     * @param DefinitionInterface|object|null $definition
+     * @param Definition|object|null $definition
      *
-     * @return Definition|Definitions\ValueDefinition or DefinitionInterface, mixed value which maybe object
+     * @return Definition|Definitions\ValueDefinition or mixed value which maybe object
      */
     public function set(string $id, object $definition = null): object;
 
@@ -81,7 +80,7 @@ interface ContainerInterface extends PsrContainerInterface
      *
      * @param string $id service id relying on this definition
      *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return Definition or Definition, mixed value which maybe object
      */
     public function definition(string $id);
 

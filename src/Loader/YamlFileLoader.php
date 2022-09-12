@@ -464,7 +464,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Parameter "autowire" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $definition->autowire($autowired);
+            $definition->typed(...$autowired);
         }
 
         if (isset($defaults['tags'])) {
@@ -547,7 +547,7 @@ class YamlFileLoader extends FileLoader
         }
 
         if (\array_key_exists('autowire', $service) && false !== $service['autowire']) {
-            $definition->autowire(\is_array($a = $service['autowire'] ?? []) ? $a : []);
+            $definition->typed(...(\is_array($a = $service['autowire'] ?? []) ? $a : []));
         }
 
         if (isset($service['deprecated'])) {

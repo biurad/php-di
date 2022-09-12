@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Nette\Utils\{FileSystem, Validators};
-use Rade\DI\Definitions\DefinitionInterface;
 use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -29,7 +28,7 @@ use Symfony\Contracts\Service\ResetInterface;
  *
  * @experimental in 1.0
  *
- * @method self|Definition autowire(string $id, Definitions\TypedDefinitionInterface|object|null $definition = null)
+ * @method self|Definition autowire(string $id, Definitions\TypedDefinition|object|null $definition = null)
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
@@ -58,11 +57,7 @@ class DefinitionBuilder implements ResetInterface
                 $serializedDef = \serialize($definition);
 
                 foreach ($classes as $resource) {
-                    $resolvedDef = $this->container->set($resource, \unserialize($serializedDef)->replace($resource, true));
-
-                    if (\str_contains($serializedDef, 'autowired";b:1;')) {
-                        $resolvedDef->typed($definition->getTypes());
-                    }
+                    $this->container->set($resource, \unserialize($serializedDef)->replace($resource));
                 }
             }
 
@@ -75,9 +70,9 @@ class DefinitionBuilder implements ResetInterface
      *
      * @param array<int,mixed> $arguments
      *
-     * @return $this
-     *
      * @throws \Throwable
+     *
+     * @return $this
      */
     public function __call(string $name, array $arguments)
     {
@@ -123,7 +118,7 @@ class DefinitionBuilder implements ResetInterface
      */
     public function reset()
     {
-        $this->definition = $this->directory =  null;
+        $this->definition = $this->directory = null;
         $this->classes = $this->defaults = [];
         $this->trackDefaults = false;
 
@@ -163,7 +158,7 @@ class DefinitionBuilder implements ResetInterface
     /**
      * A condition to be evaluated before service is created.
      *
-     * @param callable $condition A callable that returns a boolean value.
+     * @param callable $condition a callable that returns a boolean value
      *
      * @return $this
      */
@@ -191,38 +186,15 @@ class DefinitionBuilder implements ResetInterface
     /**
      * Enables autowiring.
      *
-     * @param string                                           $id
-     * @param array<int,string>                                $types
-     * @param Definitions\TypedDefinitionInterface|object|null $definition
+     * @param array<int,string>      $types
+     * @param Definition|object|null $definition
      *
      * @return Definition|$this
      */
-    public function autowire(/* string $id, $definition or array $types */)
+    public function autowire(string $id, object $definition = null)
     {
-        $arguments = \func_get_args();
-
-        if (!$this->condition) {
-            return $this;
-        }
-
-        if (\is_string($arguments[0] ?? null)) {
-            $this->doCreate($this->container->autowire($this->definition = $arguments[0], $arguments[1] ?? null));
-
-            return $this;
-        }
-
-        if (!$id = $this->definition) {
-            throw $this->createInitializingError(__FUNCTION__);
-        }
-
-        if ($this->trackDefaults) {
-            $this->defaults[$id][] = [__FUNCTION__, $arguments];
-        } else {
-            $definition = !isset($this->classes[$id]) ? $this->container->definition($id) : $this->classes[$id][0];
-
-            if ($definition instanceof Definitions\TypedDefinitionInterface) {
-                $definition->autowire($arguments[0] ?? []);
-            }
+        if ($this->condition) {
+            $this->doCreate($this->container->autowire($this->definition = $id, $definition));
         }
 
         return $this;
@@ -231,7 +203,7 @@ class DefinitionBuilder implements ResetInterface
     /**
      * Set a service definition.
      *
-     * @param DefinitionInterface|object|null $definition
+     * @param Definition|object|null $definition
      *
      * @return Definition|$this
      */
@@ -261,13 +233,13 @@ class DefinitionBuilder implements ResetInterface
     /**
      * Replaces old service with a new one, but keeps a reference of the old one as: service_id.inner.
      *
-     * @param DefinitionInterface|object|null $definition
+     * @param Definition|object|null $definition
      *
      * @see Rade\DI\Traits\DefinitionTrait::decorate
      *
      * @return Definition|$this
      */
-    public function decorate(string $id, object $definition = null, ?string $newId = null)
+    public function decorate(string $id, object $definition = null, string $newId = null)
     {
         if ($this->condition) {
             $this->doCreate($this->container->decorate($this->definition = $id, $definition, $newId));
@@ -385,7 +357,7 @@ class DefinitionBuilder implements ResetInterface
 
         foreach ($this->defaults as $offset => $defaultMethods) {
             if ('#defaults' !== $offset) {
-                $class = $definition instanceof DefinitionInterface ? $definition->getEntity() : $definition;
+                $class = $definition instanceof Definition ? $definition->getEntity() : $definition;
 
                 if (!(\is_string($class) || \is_object($class)) || !\is_subclass_of($class, $offset)) {
                     continue;
@@ -446,9 +418,9 @@ class DefinitionBuilder implements ResetInterface
     /**
      * @param array<int,string> $excludePatterns
      *
-     * @return array<int,string>
-     *
      * @throws \ReflectionException
+     *
+     * @return array<int,string>
      */
     private function findClasses(string $namespace, string $pattern, array $excludePatterns): array
     {
@@ -551,7 +523,7 @@ class DefinitionBuilder implements ResetInterface
             $e = new \BadMethodCallException(\sprintf(
                 'Call to undefined method %s() method must either belong to an instance of %s or the %s class',
                 $name,
-                Definitions\DefinitionInterface::class,
+                Definition::class,
                 __CLASS__,
             ), 0, $e);
         }
