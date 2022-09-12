@@ -153,7 +153,7 @@ trait TypesTrait
     /**
      * Alias of container's set method with default autowiring.
      *
-     * @param DefinitionInterface|object|null $definition
+     * @param Definition|object|null $definition
      *
      * @return Definition or DefinitionInterface, mixed value which maybe object
      */
@@ -161,8 +161,8 @@ trait TypesTrait
     {
         $definition = $this->set($id, $definition);
 
-        if ($definition instanceof TypedDefinitionInterface && !$definition->isTyped()) {
-            return $definition->autowire();
+        if ($definition instanceof Definition) {
+            return $definition->typed();
         }
 
         if (!$definition instanceof DefinitionInterface) {
