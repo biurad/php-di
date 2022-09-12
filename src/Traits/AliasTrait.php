@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Traits;
 
+use Rade\DI\Definitions\Reference;
 use Rade\DI\Exceptions\ContainerResolutionException;
 
 /**
@@ -32,37 +33,43 @@ trait AliasTrait
     /**
      * Remove an aliased definition.
      */
-    final public function removeAlias(string $id): void
+    public function removeAlias(string $id): void
     {
         unset($this->aliases[$id]);
     }
 
     /**
-     * {@inheritdoc}
+     * Marks an alias id to service id.
+     *
+     * @param string                       $id      The alias id
+     * @param Reference|string $service The registered service id
+     *
+     * @throws NotFoundServiceException Service id is not found in container
      */
-    public function alias(string $id, string $serviceId): void
+    public function alias(string $id, Reference|string $service): void
     {
-        if ($id === $serviceId) {
-            throw new \LogicException(\sprintf('[%s] is aliased to itself.', $id));
+        if ($id === $service = (string) $service) {
+            throw new ContainerResolutionException(\sprintf('Cannot alias "%s" to itself.', $id));
         }
 
-        if (isset($this->types) && $typed = $this->typed($serviceId, true)) {
+        if (isset($this->types) && $typed = $this->typed($service, true)) {
             if (\count($typed) > 1) {
-                throw new ContainerResolutionException(\sprintf('Aliasing an alias of "%s" on a multiple defined type "%s" is not allowed.', $id, $serviceId));
+                throw new ContainerResolutionException(\sprintf('Aliasing an alias of "%s" on a multiple defined type "%s" is not allowed.', $id, $service));
             }
-
-            $serviceId = $typed[0];
+            $service = $typed[0];
         }
 
-        if (!$this->has($serviceId)) {
-            throw $this->createNotFound($serviceId);
+        if (!$this->has($service)) {
+            throw $this->createNotFound($service);
         }
 
-        $this->aliases[$id] = $this->aliases[$serviceId] ?? $serviceId;
+        $this->aliases[$id] = $this->aliases[$service] ?? $service;
     }
 
     /**
-     * {@inheritdoc}
+     * Checks if a service definition has been aliased.
+     *
+     * @param string $id The registered service id
      */
     public function aliased(string $id): bool
     {
