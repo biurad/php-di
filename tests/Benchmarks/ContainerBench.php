@@ -60,8 +60,6 @@ class ContainerBench
     {
         yield 'container' => ['use' => 'container'];
 
-        yield 'def_container' => ['use' => 'def_container'];
-
         yield 'builder' => ['use' => 'builder'];
     }
 
@@ -207,7 +205,6 @@ class ContainerBench
     public function initContainers(): void
     {
         $this->containers['container'] = $this->createContainer();
-        $this->containers['def_container'] = $this->createDefContainer();
         $this->containers['builder'] = $this->createBuilder();
     }
 
