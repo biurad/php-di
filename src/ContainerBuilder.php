@@ -19,7 +19,6 @@ namespace Rade\DI;
 
 use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
 use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression, Nop};
-use Rade\DI\Definitions\{DefinitionInterface, ShareableDefinitionInterface};
 use Rade\DI\Exceptions\ServiceCreationException;
 use Symfony\Component\Config\Resource\ResourceInterface;
 use Symfony\Component\VarExporter\VarExporter;
@@ -246,20 +245,18 @@ class ContainerBuilder extends AbstractContainer
             return null;
         }
 
-        $compiledDefinition = $definition instanceof DefinitionInterface ? $definition->build($id, $this->resolver) : $this->dumpObject($id, $definition);
+        $compiledDefinition = $definition instanceof Definition ? $definition->resolve($this->resolver) : $this->dumpObject($id, $definition);
 
-        if (self::BUILD_SERVICE_DEFINITION !== $invalidBehavior) {
+        if (3 !== ($invalidBehavior & self::BUILD_SERVICE_DEFINITION)) {
             $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver::createMethod($id));
             $serviceType = 'services';
 
-            if ($definition instanceof ShareableDefinitionInterface) {
-                if (!$definition->isShared()) {
-                    return $this->services[$id] = $resolved;
-                }
+            if (!$definition->isShared()) {
+                return $this->services[$id] = $resolved;
+            }
 
-                if (!$definition->isPublic()) {
-                    $serviceType = 'privates';
-                }
+            if (!$definition->isPublic()) {
+                $serviceType = 'privates';
             }
 
             $service = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), $serviceType);
@@ -274,7 +271,7 @@ class ContainerBuilder extends AbstractContainer
     /**
      * Analyse all definitions, build definitions and return results.
      *
-     * @param DefinitionInterface[] $definitions
+     * @param Definition[] $definitions
      */
     protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
@@ -291,7 +288,7 @@ class ContainerBuilder extends AbstractContainer
 
             $methodsMap[$id] = $this->resolver::createMethod($id);
 
-            if ($definition instanceof ShareableDefinitionInterface) {
+            if ($definition instanceof Definition) {
                 if (!$definition->isPublic()) {
                     unset($methodsMap[$id]);
                 }
