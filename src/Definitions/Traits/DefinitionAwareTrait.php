@@ -47,7 +47,7 @@ trait DefinitionAwareTrait
     /**
      * @return mixed|\PhpParser\Node\Stmt\ClassMethod
      */
-    public function resolve(Resolver $resolver): mixed
+    public function resolve(Resolver $resolver, bool $createMethod = false): mixed
     {
         if (isset($this->options['abstract'])) {
             throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $this->id));
@@ -84,7 +84,7 @@ trait DefinitionAwareTrait
             return $entity;
         }
 
-        return $this->build($resolver, $builder);
+        return $this->build($resolver, $builder, $createMethod);
     }
 
     /**
@@ -127,7 +127,7 @@ trait DefinitionAwareTrait
         return $this;
     }
 
-    protected function build(Resolver $resolver, p\BuilderFactory $builder): p\Node\Expr|p\Builder\Method
+    protected function build(Resolver $resolver, p\BuilderFactory $builder, bool $createMethod): p\Node\Expr|p\Node\Stmt\ClassMethod
     {
         $defNode = $builder->method($resolver::createMethod($this->id))->makeProtected();
         $defTyped = $defNodes = [];
@@ -200,6 +200,22 @@ trait DefinitionAwareTrait
             }
         }
 
+        if (!$createMethod) {
+            $service = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver::createMethod($this->id));
+
+            if ($this->isShared()) {
+                $service = new p\Node\Expr\BinaryOp\Coalesce(
+                    new p\Node\Expr\ArrayDimFetch(
+                        $builder->propertyFetch($builder->var('this'), $this->isPublic() ? 'services' : 'privates'),
+                        new p\Node\Scalar\String_($this->id)
+                    ),
+                    $service
+                );
+            }
+
+            return $service;
+        }
+
         if ($createdDef instanceof p\Node\Expr\Assign) {
             $createdVar = $createdDef->var;
         }
@@ -216,7 +232,7 @@ trait DefinitionAwareTrait
 
         $defNodes[] = new p\Node\Stmt\Return_($createdVar ?? $createdDef);
 
-        return $defNode->setReturnType($defTyped[0] ?? 'mixed')->addStmts($defNodes);
+        return $defNode->setReturnType($defTyped[0] ?? 'mixed')->addStmts($defNodes)->getNode();
     }
 
     protected function methodExists(mixed $entity, string $method): bool

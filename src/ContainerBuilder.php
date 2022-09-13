@@ -17,11 +17,9 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Expr, Name, Scalar, Scalar\String_};
-use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Expression, Nop};
-use Rade\DI\Exceptions\ServiceCreationException;
+use PhpParser\Node\{Expr, Name, Scalar\String_};
+use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Nop};
 use Symfony\Component\Config\Resource\ResourceInterface;
-use Symfony\Component\VarExporter\VarExporter;
 
 /**
  * A compilable container to build services easily.
@@ -32,13 +30,8 @@ use Symfony\Component\VarExporter\VarExporter;
  */
 class ContainerBuilder extends Container
 {
-    public const BUILD_SERVICE_DEFINITION = 3;
-
-    /** @var array<string,ResourceInterface>|null */
-    private ?array $resources;
-
-    /** Name of the compiled container parent class. */
-    private string $containerParentClass;
+    /** @var array<string,ResourceInterface> */
+    private array $resources = [];
 
     private ?\PhpParser\NodeTraverser $nodeTraverser = null;
 
@@ -47,28 +40,14 @@ class ContainerBuilder extends Container
      *
      * @param string $containerParentClass Name of the compiled container parent class. Customize only if necessary.
      */
-    public function __construct(string $containerParentClass = Container::class)
+    public function __construct(private string $containerParentClass = Container::class)
     {
         if (!\class_exists(\PhpParser\BuilderFactory::class)) {
             throw new \RuntimeException('ContainerBuilder uses "nikic/php-parser" v4, do composer require the nikic/php-parser package.');
         }
 
-        $this->containerParentClass = $c = $containerParentClass;
-        $this->resources = \interface_exists(ResourceInterface::class) ? [] : null;
         $this->resolver = new Resolver($this, new \PhpParser\BuilderFactory());
         $this->services[self::SERVICE_CONTAINER] = new Expr\Variable('this');
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function set(string $id, object $definition = null): object
-    {
-        if ($definition instanceof \PhpParser\Node) {
-            $definition = new Definitions\ValueDefinition($definition);
-        }
-
-        return parent::set($id, $definition);
         $this->type(self::SERVICE_CONTAINER, ...\array_keys((\class_implements($c = $containerParentClass) ?: []) + (\class_parents($c) ?: []) + [$c => $c]));
     }
 
@@ -79,10 +58,7 @@ class ContainerBuilder extends Container
     {
         parent::reset();
         $this->nodeTraverser = null;
-
-        if (isset($this->resources)) {
-            $this->resources = [];
-        }
+        $this->resources = [];
     }
 
     /**
@@ -102,9 +78,7 @@ class ContainerBuilder extends Container
      */
     public function addResource(ResourceInterface $resource)
     {
-        if (\is_array($this->resources)) {
-            $this->resources[(string) $resource] = $resource;
-        }
+        $this->resources[(string) $resource] = $resource;
 
         return $this;
     }
@@ -144,31 +118,48 @@ class ContainerBuilder extends Container
     {
         $options += ['strictType' => true, 'printToString' => true, 'containerClass' => 'CompiledContainer'];
         $astNodes = $options['strictType'] ? [new Declare_([new DeclareDeclare('strict_types', $this->resolver->getBuilder()->val(1))])] : [];
-
         $processedData = $this->doAnalyse($this->definitions);
         $containerNode = $this->resolver->getBuilder()->class($options['containerClass'])->extend($this->containerParentClass)->setDocComment(Builder\CodePrinter::COMMENT);
 
-        if (!empty($processedData[0])) {
-            $containerNode->addStmt($this->resolver->getBuilder()->property('aliases')->makeProtected()->setType('array')->setDefault($processedData[0]));
-        }
-
         if (!empty($parameters = $this->parameters)) {
             \ksort($parameters);
-            $this->compileToConstructor($this->resolveParameters($parameters), $containerNode, 'parameters');
-        }
-
-        if (!empty($processedData[1]) && count($processedData[1]) > 1) {
-            unset($processedData[1][self::SERVICE_CONTAINER]);
-            $containerNode->addStmt($this->resolver->getBuilder()->property('methodsMap')->makeProtected()->setType('array')->setDefault($processedData[1]));
+            $parameters = $this->resolver->resolveArguments($parameters);
         }
 
         if (!empty($processedData[3])) {
             $containerNode->addStmt($this->resolver->getBuilder()->property('types')->makeProtected()->setType('array')->setDefault($processedData[3]));
         }
 
-        if (!empty($processedData[4])) {
-            $containerNode->addStmt($this->resolver->getBuilder()->property('tags')->makeProtected()->setType('array')->setDefault($processedData[4]));
-        }
+        [$resolver, $c, $s] = [$this->resolver, $this->containerParentClass, self::SERVICE_CONTAINER];
+        $containerNode = \Closure::bind(function (\PhpParser\Builder\Class_ $node) use ($c, $s, $resolver, $parameters, $processedData) {
+            $endMethod = \array_pop($node->methods);
+            $constructorNode = ($b = $resolver->getBuilder())->method('__construct');
+
+            if ($endMethod instanceof ClassMethod && '__construct' === $endMethod->name->name) {
+                $constructorNode->addStmts([...$endMethod->stmts, new Nop()]);
+            } elseif (\method_exists($c, '__construct')) {
+                $constructorNode->addStmt($b->staticCall(new Name('parent'), '__construct'));
+            }
+
+            if (!empty($parameters)) {
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'parameters'), $b->val($parameters)));
+            }
+
+            if (!empty($processedData[0])) {
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'aliases'), $b->val($processedData[0])));
+            }
+
+            if (\count($processedData[1]) > 1) {
+                unset($processedData[1][$s]);
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'methodsMap'), $b->val($processedData[1])));
+            }
+
+            if (!empty($processedData[4])) {
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'tags'), $b->val($processedData[4])));
+            }
+
+            return $node->addStmt($constructorNode->makePublic());
+        }, $containerNode, $containerNode::class)($containerNode);
 
         if (!empty($processedData[2])) {
             $containerNode->addStmts($processedData[2]);
@@ -190,88 +181,9 @@ class ContainerBuilder extends Container
     }
 
     /**
-     * @param mixed $definition
-     *
-     * @return mixed
-     */
-    public function dumpObject(string $id, $definition)
-    {
-        $method = $this->resolver->getBuilder()->method($this->resolver::createMethod($id))->makeProtected();
-        $cachedService = new Expr\ArrayDimFetch(new Expr\PropertyFetch(new Expr\Variable('this'), 'services'), new String_($id));
-
-        if ($definition instanceof Expression) {
-            $definition = $definition->expr;
-        }
-
-        if ($definition instanceof \PhpParser\Node) {
-            if ($definition instanceof Expr\Array_) {
-                $method->setReturnType('array');
-            } elseif ($definition instanceof Expr\New_) {
-                $method->setReturnType($definition->class->toString());
-            }
-        } elseif (\is_object($definition)) {
-            if ($definition instanceof \Closure) {
-                throw new ServiceCreationException(\sprintf('Cannot dump closure for service "%s".', $id));
-            }
-
-            if ($definition instanceof \stdClass) {
-                $method->setReturnType('object');
-                $definition = new Expr\Cast\Object_($this->resolver->getBuilder()->val($this->resolver->resolveArguments((array) $definition)));
-            } elseif ($definition instanceof \IteratorAggregate) {
-                $method->setReturnType('iterable');
-                $definition = $this->resolver->getBuilder()->new(\get_class($definition), [$this->resolver->resolveArguments(\iterator_to_array($definition))]);
-            } else {
-                $method->setReturnType(\get_class($definition));
-
-                if (\class_exists(VarExporter::class)) {
-                    $definition = Loader\phpCode(VarExporter::export($definition))->resolve($this->resolver);
-                } else {
-                    $definition = $this->resolver->getBuilder()->funcCall('\\unserialize', [new String_(\serialize($definition), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
-                }
-            }
-        }
-
-        return $method->addStmt(new \PhpParser\Node\Stmt\Return_(new Expr\Assign($cachedService, $this->resolver->getBuilder()->val($definition))));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function doCreate(string $id, $definition, int $invalidBehavior)
-    {
-        if ($definition instanceof String_ && $id === $definition->value) {
-            unset($this->services[$id]);
-
-            return null;
-        }
-
-        $compiledDefinition = $definition instanceof Definition ? $definition->resolve($this->resolver) : $this->dumpObject($id, $definition);
-
-        if (3 !== ($invalidBehavior & self::BUILD_SERVICE_DEFINITION)) {
-            $resolved = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver::createMethod($id));
-            $serviceType = 'services';
-
-            if (!$definition->isShared()) {
-                return $this->services[$id] = $resolved;
-            }
-
-            if (!$definition->isPublic()) {
-                $serviceType = 'privates';
-            }
-
-            $service = $this->resolver->getBuilder()->propertyFetch($this->resolver->getBuilder()->var('this'), $serviceType);
-            $createdService = new Expr\BinaryOp\Coalesce(new Expr\ArrayDimFetch($service, new String_($id)), $resolved);
-
-            return $this->services[$id] = $createdService;
-        }
-
-        return $compiledDefinition->getNode();
-    }
-
-    /**
      * Analyse all definitions, build definitions and return results.
      *
-     * @param Definition[] $definitions
+     * @param array<string,Definition> $definitions
      */
     protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
@@ -285,21 +197,17 @@ class ContainerBuilder extends Container
             if ($this->tagged('container.remove_services', $id)) {
                 continue;
             }
-
             $methodsMap[$id] = $this->resolver::createMethod($id);
 
-            if ($definition instanceof Definition) {
-                if (!$definition->isPublic()) {
-                    unset($methodsMap[$id]);
-                }
-
-                if ($definition->isAbstract()) {
-                    unset($methodsMap[$id]);
-                    continue;
-                }
+            if (!$definition->isPublic()) {
+                unset($methodsMap[$id]);
             }
 
-            $serviceMethods[] = $this->doCreate($id, $definition, self::BUILD_SERVICE_DEFINITION);
+            if ($definition->isAbstract()) {
+                unset($methodsMap[$id]);
+                continue;
+            }
+            $serviceMethods[] = $definition->resolve($this->resolver, true);
         }
 
         if ($onlyDefinitions) {
@@ -311,7 +219,6 @@ class ContainerBuilder extends Container
             $methodsMap = \array_merge($methodsMap, $processedData[0]);
             $serviceMethods = [...$serviceMethods, ...$processedData[1]];
         }
-
         $aliases = \array_filter($this->aliases, static fn (string $aliased): bool => isset($methodsMap[$aliased]));
         $tags = \array_filter($this->tags, static fn (array $tagged): bool => isset($methodsMap[\key($tagged)]));
 
@@ -324,7 +231,6 @@ class ContainerBuilder extends Container
                 $wiredTypes[] = new Expr\ArrayItem($this->resolver->getBuilder()->val($ids), new String_($type));
             }
         }
-
         \natsort($aliases);
         \ksort($methodsMap);
         \ksort($tags, \SORT_NATURAL);
@@ -332,83 +238,5 @@ class ContainerBuilder extends Container
         \usort($wiredTypes, fn (Expr\ArrayItem $a, Expr\ArrayItem $b): int => \strnatcmp($a->key->value, $b->key->value));
 
         return [$aliases, $methodsMap, $serviceMethods, $wiredTypes, $tags];
-    }
-
-    /**
-     * Build parameters + dynamic parameters in compiled container class.
-     *
-     * @param array<int,array<string,mixed>> $parameters
-     */
-    protected function compileToConstructor(array $parameters, \PhpParser\Builder\Class_ &$containerNode, string $name): void
-    {
-        [$resolvedParameters, $dynamicParameters] = $parameters;
-
-        if (!empty($dynamicParameters)) {
-            $resolver = $this->resolver;
-            $container = $this->containerParentClass;
-            $containerNode = \Closure::bind(function (\PhpParser\Builder\Class_ $node) use ($dynamicParameters, $resolver, $container, $name) {
-                $endMethod = \array_pop($node->methods);
-                $constructorNode = $resolver->getBuilder()->method('__construct');
-
-                if ($endMethod instanceof ClassMethod && '__construct' === $endMethod->name->name) {
-                    $constructorNode->addStmts([...$endMethod->stmts, new Nop()]);
-                } elseif (\method_exists($container, '__construct')) {
-                    $constructorNode->addStmt($resolver->getBuilder()->staticCall(new Name('parent'), '__construct'));
-                }
-
-                foreach ($dynamicParameters as $offset => $value) {
-                    $parameter = $resolver->getBuilder()->propertyFetch($resolver->getBuilder()->var('this'), $name);
-                    $constructorNode->addStmt(new Expr\Assign(new Expr\ArrayDimFetch($parameter, new String_($offset)), $resolver->getBuilder()->val($value)));
-                }
-
-                return $node->addStmt($constructorNode->makePublic());
-            }, $containerNode, $containerNode)($containerNode);
-        }
-
-        if (!empty($resolvedParameters)) {
-            $containerNode->addStmt($this->resolver->getBuilder()->property($name)->makePublic()->setType('array')->setDefault($resolvedParameters));
-        }
-    }
-
-    /**
-     * Resolve parameter's and retrieve dynamic type parameter.
-     *
-     * @param array<string,mixed> $parameters
-     *
-     * @return array<int,mixed>
-     */
-    protected function resolveParameters(array $parameters, bool $recursive = false): array
-    {
-        $resolvedParameters = $dynamicParameters = [];
-
-        if (!$recursive) {
-            $parameters = $this->resolver->resolveArguments($parameters);
-        }
-
-        foreach ($parameters as $parameter => $value) {
-            if (\is_array($value)) {
-                $arrayParameters = $this->resolveParameters($value, $recursive);
-
-                if (!empty($arrayParameters[1])) {
-                    $grouped = $arrayParameters[1] + $arrayParameters[0];
-                    \uksort($grouped, fn ($a, $b) => (\is_int($a) && \is_int($b) ? $a <=> $b : 0));
-                    $dynamicParameters[$parameter] = $grouped;
-                } else {
-                    $resolvedParameters[$parameter] = $arrayParameters[0];
-                }
-
-                continue;
-            }
-
-            if ($value instanceof Scalar || $value instanceof Expr\ConstFetch) {
-                $resolvedParameters[$parameter] = $value;
-
-                continue;
-            }
-
-            $dynamicParameters[$parameter] = $value;
-        }
-
-        return [$resolvedParameters, $dynamicParameters];
     }
 }
