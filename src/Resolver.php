@@ -150,11 +150,7 @@ class Resolver
 
             if (null === ($resolved = $resolved ?? $this->autowireArgument($parameter, $types, $args))) {
                 if ($parameter->isDefaultValueAvailable()) {
-                    if (\PHP_MAJOR_VERSION < 8) {
-                        $resolvedParameters[$position] = Reflection::getParameterDefaultValue($parameter);
-                    } else {
-                        ++$nullValuesFound;
-                    }
+                    ++$nullValuesFound;
                 } elseif (!$parameter->isVariadic()) {
                     $resolvedParameters[$position] = self::getParameterDefaultValue($parameter, $types);
                 }
@@ -214,8 +210,6 @@ class Resolver
             } else {
                 $callback = $resolved;
             }
-        } elseif ($callback instanceof Definitions\ValueDefinition) {
-            $resolved = $callback->getEntity();
         } elseif ($callback instanceof Definitions\TaggedLocator) {
             $resolved = $this->resolve($callback->resolve($this->container));
         } elseif ($callback instanceof Builder\PhpLiteral) {
@@ -599,18 +593,16 @@ class Resolver
         return [$resolver($type)];
     }
 
-    private static function getDefinitionClass(Definitions\DefinitionInterface $def): ?string
+    private static function getDefinitionClass(Definition $def): ?string
     {
         if (!\is_string($class = $def->getEntity())) {
             return null;
         }
 
         if (!\class_exists($class)) {
-            if ($def instanceof Definitions\TypedDefinitionInterface) {
-                foreach ($def->getTypes() as $typed) {
-                    if (\class_exists($typed)) {
-                        return $typed;
-                    }
+            foreach ($def->getTypes() as $typed) {
+                if (\class_exists($typed)) {
+                    return $typed;
                 }
             }
 
