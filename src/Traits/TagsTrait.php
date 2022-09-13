@@ -30,18 +30,29 @@ trait TagsTrait
     /**
      * Remove a registered tag.
      */
-    public function removeTag(string $name): void
+    public function removeTag(string $tag, string ...$only): void
     {
-        unset($this->tags[$name]);
+        if (empty($only)) {
+            unset($this->tags[$tag]);
+
+            return;
+        }
+
+        foreach ($this->tags[$tag] ?? [] as $values) {
+            foreach ($values as $id => $value) {
+                if (\in_array($id, $only, true)) {
+                    unset($this->tags[$tag][$id]);
+                }
+            }
+        }
     }
 
     /**
      * Assign a set a tag to a service.
      *
-     * @param string|array<int,string> $tags
-     * @param mixed $value
+     * @param array<int,string>|string $tags
      */
-    public function tag(string $serviceId, $tags, $value = true): void
+    public function tag(string $serviceId, string|array $tags, mixed $value = true): void
     {
         foreach ((array) $tags as $tag) {
             $this->tags[$tag][$serviceId] = $value;
@@ -60,7 +71,7 @@ trait TagsTrait
      *     $container->tags(['my.tag' => ['foo' => ['hello' => 'world'], 'bar'], 'my.tag2' => 'baz']);
      * ```
      *
-     * @param array<string,string|array<int|string,mixed>> $tags
+     * @param array<string,array<int|string,mixed>|string> $tags
      */
     public function tags(array $tags): void
     {
@@ -69,7 +80,6 @@ trait TagsTrait
                 if (\is_numeric($serviceId)) {
                     [$serviceId, $value] = [$value, true];
                 }
-
                 $this->tag($serviceId, $tag, $value);
             }
         }
@@ -92,7 +102,7 @@ trait TagsTrait
      *
      * @return array<string,mixed>|mixed An array of service ids as key mapping to tagged value
      */
-    public function tagged(string $tag, string $serviceId = null)
+    public function tagged(string $tag, string $serviceId = null): mixed
     {
         $tags = $this->tags[$tag] ?? [];
 
@@ -101,5 +111,15 @@ trait TagsTrait
         }
 
         return $tags;
+    }
+
+    /**
+     * Get all tags.
+     *
+     * @return array<string,array<string, mixed>>
+     */
+    public function getTags(): array
+    {
+        return $this->tags;
     }
 }
