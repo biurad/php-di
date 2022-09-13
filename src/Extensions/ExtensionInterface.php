@@ -36,5 +36,5 @@ interface ExtensionInterface
      *
      * @param array<int|string,mixed> $configs
      */
-    public function register(Container $container, array $configs): void;
+    public function register(Container $container, array $configs = []): void;
 }

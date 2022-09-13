@@ -50,7 +50,7 @@ class PhpExtension implements AliasedInterface, BootExtensionInterface, Extensio
     /**
      * {@inheritdoc}
      */
-    public function register(Container $container, array $configs): void
+    public function register(Container $container, array $configs = []): void
     {
         $this->config = $configs;
     }
