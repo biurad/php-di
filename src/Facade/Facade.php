@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Facade;
 
 use Psr\Container\ContainerInterface;
-use Rade\DI\{Container, Exceptions\ContainerResolutionException};
+use Rade\DI\{Container, Exceptions\NotFoundServiceException};
 
 /**
  * Represents a Static Proxy logic using `__callStatic()`.
@@ -30,7 +30,7 @@ class Facade
     /**
      * @var array<string,string>
      *
-     * @internal Do not use this property directly.
+     * @internal do not use this property directly
      */
     public static array $proxies = [];
 
@@ -41,7 +41,7 @@ class Facade
      */
     public static function setContainer(ContainerInterface $container): void
     {
-        static::$container = $container;
+        self::$container = $container;
     }
 
     /**
@@ -53,15 +53,16 @@ class Facade
      */
     public static function __callStatic(string $name, array $arguments = [])
     {
-        if (!\array_key_exists($name, self::$proxies)) {
-            throw new ContainerResolutionException(\sprintf('Subject "%s" is not a supported proxy service.', $name));
-        }
-        $di = self::$container;
+        $id = self::$proxies[$name] ?? null;
 
-        if (\is_callable($service = $di->get(self::$proxies[$name]))) {
-            return $di instanceof Container ? $di->call($service, $arguments) : \call_user_func_array($service, $arguments);
+        if (null === $id || !self::$container->has($id)) {
+            throw new NotFoundServiceException(\sprintf('Proxy service "%" not found' . ($id ? ' and non-existence in container' : ''), $name));
         }
 
-        return $service;
+        if (!\is_callable($service = self::$container->get(self::$proxies[$name]))) {
+            return $service;
+        }
+
+        return self::$container instanceof Container ? (self::$container)($service, $arguments) : \call_user_func_array($service, $arguments);
     }
 }
