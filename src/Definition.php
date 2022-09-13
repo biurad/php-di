@@ -436,6 +436,28 @@ class Definition
     }
 
     /**
+     * Returns all tags.
+     *
+     * @return array<string,mixed>
+     */
+    public function getTags(): array
+    {
+        if (null !== $this->container) {
+            $tags = [];
+
+            foreach ($this->container->getTags() as $tag => $values) {
+                if (isset($values[$this->id])) {
+                    $tags[$tag] = $values[$this->id];
+                }
+            }
+
+            return $tags;
+        }
+
+        return $this->options['tags'] ?? [];
+    }
+
+    /**
      * Whether this definition is deprecated, that means it should not be used anymore.
      *
      * @param string      $package The name of the composer package that is triggering the deprecation
