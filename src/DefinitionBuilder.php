@@ -479,7 +479,7 @@ class DefinitionBuilder implements ResetInterface
         return $classNames;
     }
 
-    private function findClass(AbstractContainer $container, string $class, string $path, string $pattern): ?string
+    private function findClass(Container $container, string $class, string $path, string $pattern): ?string
     {
         if (!\preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+(?:\\\\[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+)*+$/', $class)) {
             return null;
