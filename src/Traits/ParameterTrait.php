@@ -40,9 +40,9 @@ trait ParameterTrait
      *   // Expected value is "Hello how are you Divine"
      * ```
      *
-     * @return string or mixed value if $value is supported
+     * @return mixed value if $value is supported else return string
      */
-    public function parameter(string $value)
+    public function parameter(string $value): mixed
     {
         $res = [];
         $parts = \preg_split('#(%[^%\s]+%)#i', $value, -1, \PREG_SPLIT_DELIM_CAPTURE);
@@ -50,27 +50,24 @@ trait ParameterTrait
         if (false === $parts || (1 === \count($parts) && $value === $parts[0])) {
             return $value;
         }
-
         $partsN = \count($parts = \array_filter($parts));
 
         foreach ($parts as $part) {
             if ('' !== $part && '%' === $part[0]) {
                 $val = \substr($part, 1, -1);
+                $part = $this->parameters[$val] ?? (\str_starts_with($val, 'env(') ? ($_SERVER[$val = \substr($val, 4, -1)] ?? $_ENV[$val] ?? \getenv($val) ?: null) : null);
 
-                if (!\array_key_exists($val, $this->parameters)) {
+                if (null === $part) {
                     throw new \InvalidArgumentException(\sprintf('You have requested a non-existent parameter "%s".', $val));
                 }
-
-                $part = $this->parameters[$val];
 
                 if ($partsN > 1 && !\is_scalar($part)) {
                     throw new \InvalidArgumentException(\sprintf('Unable to concatenate non-scalar parameter "%s" into %s.', $val, $value));
                 }
             }
-
             $res[] = $part;
         }
 
-        return [] === $res ? $value : (1 === \count($res) ? $res[0] : \implode('', $res));
+        return empty($res) ? $value : (1 === \count($res) ? $res[0] : \implode('', $res));
     }
 }
