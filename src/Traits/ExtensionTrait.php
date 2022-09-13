@@ -30,13 +30,11 @@ trait ExtensionTrait
     /**
      * Get the extension builder extensions.
      *
-     * @return array<int,ExtensionInterface>
+     * @return array<int,Extensions\ExtensionInterface>
      */
     public function getExtensions(): array
     {
-        $extensionBuilder = $this->getExtensionBuilder();
-
-        return null !== $extensionBuilder ? $extensionBuilder->getExtensions() : [];
+        return $this->getExtensionBuilder()?->getExtensions() ?? [];
     }
 
     /**
@@ -46,9 +44,7 @@ trait ExtensionTrait
      */
     public function getExtension(string $extensionName): ?ExtensionInterface
     {
-        $extensionBuilder = $this->getExtensionBuilder();
-
-        return null !== $extensionBuilder ? $extensionBuilder->get($extensionName) : $extensionBuilder;
+        return $this->getExtensionBuilder()?->get($extensionName);
     }
 
     /**
@@ -60,9 +56,7 @@ trait ExtensionTrait
      */
     public function getExtensionConfig(string $extensionName, string $parent = null): array
     {
-        $extensionBuilder = $this->getExtensionBuilder();
-
-        return null !== $extensionBuilder ? $extensionBuilder->getConfig($extensionName, $parent) : [];
+        return $this->getExtensionBuilder()?->getConfig($extensionName, $parent) ?? [];
     }
 
     /**
@@ -72,9 +66,7 @@ trait ExtensionTrait
      */
     public function hasExtension(string $extensionName): bool
     {
-        $extensionBuilder = $this->getExtensionBuilder();
-
-        return null !== $extensionBuilder ? $extensionBuilder->has($extensionName) : false;
+        return $this->getExtensionBuilder()?->has($extensionName) ?? false;
     }
 
     /**
@@ -82,6 +74,6 @@ trait ExtensionTrait
      */
     public function getExtensionBuilder(): ?ExtensionBuilder
     {
-        return $this->definitions[ExtensionInterface::BUILDER] ?? null;
+        return $this->definitions[ExtensionInterface::BUILDER]?->getEntity() ?? null;
     }
 }
