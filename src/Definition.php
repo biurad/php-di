@@ -24,7 +24,7 @@ namespace Rade\DI;
  */
 class Definition
 {
-    use Definitions\Traits\DefinitionAwareTrait;
+    use Traits\DefinitionAwareTrait;
 
     public function __construct(mixed $entity, private array $arguments = [])
     {
