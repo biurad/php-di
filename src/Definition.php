@@ -325,7 +325,7 @@ class Definition
         }
 
         if (null !== $this->container) {
-            $this->container->type($this->id, $to);
+            $this->container->type($this->id, ...$to);
             $this->options['typed'] = true;
 
             return $this;

@@ -17,9 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Traits;
 
-use Nette\Utils\Validators;
 use Rade\DI\{Definition, Definitions, Extensions, Services};
-use Rade\DI\Definitions\{DefinitionInterface, TypedDefinitionInterface};
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Rade\DI\Resolver;
 use Symfony\Contracts\Service\{ResetInterface, ServiceSubscriberInterface};
@@ -60,12 +58,6 @@ trait TypesTrait
         Services\AliasedInterface::class => true,
         Services\ServiceProviderInterface::class => true,
         Services\ServiceLocator::class => true,
-        Definitions\DefinitionInterface::class => true,
-        Definitions\TypedDefinitionInterface::class => true,
-        Definitions\ShareableDefinitionInterface::class => true,
-        Definitions\DepreciableDefinitionInterface::class => true,
-        Definitions\DefinitionAwareInterface::class => true,
-        Definitions\ValueDefinition::class => true,
         Definitions\Reference::class => true,
         Definitions\Statement::class => true,
         Definition::class => true,
@@ -74,7 +66,7 @@ trait TypesTrait
     /**
      * Remove an aliased type set to service(s).
      */
-    final public function removeType(string $type, string $serviceId = null): void
+    public function removeType(string $type, string $serviceId = null): void
     {
         if (null !== $serviceId) {
             foreach ($this->types[$type] ?? [] as $offset => $typed) {
@@ -88,54 +80,33 @@ trait TypesTrait
     }
 
     /**
-     * Add a class or interface that should be excluded from autowiring.
-     *
-     * @param string ...$types
+     * Add a PHP type-hint(s) which should be excluded from autowiring.
      */
-    public function excludeType(string ...$types): void
+    public function excludeType(string ...$type): void
     {
-        foreach ($types as $type) {
-            $this->excluded[$type] = true;
+        foreach ($type as $exclude) {
+            $this->excluded[$exclude] = true;
         }
     }
 
     /**
-     * Add a aliased type of classes or interfaces for a service definition.
+     * Set the PHP type-hint(s) for a service.
      *
-     * @param string          $id    The registered service id
-     * @param string|string[] $types The types associated with service definition
+     * @param string $id      The registered service id
+     * @param string ...$type The PHP type-hint(s)
      */
-    public function type(string $id, $types): void
+    public function type(string $id, string ...$type): void
     {
-        foreach ((array) $types as $typed) {
-            if (!Validators::isType($typed)) {
+        foreach ((array) $type as $typed) {
+            if (!\Nette\Utils\Validators::isType($typed)) {
                 continue;
             }
 
-            if ($this->excluded[$typed] ?? \in_array($id, $this->types[$typed] ?? [], true)) {
-                continue;
+            if (!($this->excluded[$typed] ?? \in_array($id, $this->types[$typed] ?? [], true))) {
+                $this->types[$typed][] = $id;
             }
-
-            $this->types[$typed][] = $id;
         }
-    }
-
-    /**
-     * Set types for multiple services.
-     *
-     * @see type method
-     *
-     * @param string[] $types The types associated with service definition
-     */
-    public function types(array $types): void
-    {
-        foreach ($types as $id => $wiring) {
-            if (\is_int($id)) {
-                throw new ContainerResolutionException('Service identifier is not defined, integer found.');
-            }
-
-            $this->type($id, (array) $wiring);
-        }
+        $this->typed = [];
     }
 
     /**
@@ -143,33 +114,29 @@ trait TypesTrait
      *
      * @param string $id of class or interface
      *
-     * @return bool|string[] If $ids is true, returns found ids else bool
+     * @return array<int,string>|bool If $ids is true, returns found ids else bool
      */
-    public function typed(string $id, bool $ids = false)
+    public function typed(string $id, bool $ids = false): array|bool
     {
         return $ids ? $this->types[$id] ?? [] : \array_key_exists($id, $this->types);
     }
 
     /**
-     * Alias of container's set method with default autowiring.
+     * Get all services type-hints.
      *
-     * @param Definition|object|null $definition
-     *
-     * @return Definition or DefinitionInterface, mixed value which maybe object
+     * @return array<string,array<int,string>>
      */
-    public function autowire(string $id, object $definition = null): object
+    public function getTypes(): array
     {
-        $definition = $this->set($id, $definition);
+        return $this->types;
+    }
 
-        if ($definition instanceof Definition) {
-            return $definition->typed();
-        }
-
-        if (!$definition instanceof DefinitionInterface) {
-            $this->type($id, Resolver::autowireService($definition, false, $this));
-        }
-
-        return $definition;
+    /**
+     * Alias of container's set method with default autowiring.
+     */
+    public function autowire(string $id, mixed $definition = null): Definition
+    {
+        return $this->set($id, $definition)->typed();
     }
 
     /**
@@ -179,27 +146,28 @@ trait TypesTrait
      * @param string $id A class or an interface name
      *
      * @throws ContainerResolutionException|NotFoundServiceException
-     *
-     * @return mixed
      */
-    public function autowired(string $id, bool $single = false)
+    public function autowired(string $id, bool $single = false): mixed
     {
-        if (empty($autowired = $this->types[$id] ?? [])) {
-            throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
-        }
+        static $autowired = [];
 
-        if ($single) {
-            if (1 === $c = \count($autowired)) {
-                return $this->services[$id = \current($autowired)] ?? $this->get($id);
+        if (!\array_key_exists($id, $autowired)) {
+            foreach ($this->types[$id] ?? [] as $typed) {
+                $autowired[$id][] = $this->services[$typed] ?? $this->get($typed);
+
+                if ($single && \array_key_exists(1, $autowired[$id])) {
+                    $c = \count($t = $this->types[$id]);
+
+                    throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t)));
+                }
             }
 
-            \natsort($autowired);
-            $autowired = $c <= 3 ? \implode(', ', $autowired) : $autowired[0] . ', ...' . \end($autowired);
-
-            throw new ContainerResolutionException(\sprintf('Multiple services of type %s found: %s.', $id, $autowired));
+            if (empty($autowired[$id] ?? [])) {
+                throw new NotFoundServiceException(\sprintf('Typed service "%s" not found. Check class name because it cannot be found.', $id));
+            }
         }
 
-        return \array_map(fn (string $id) => $this->services[$id] ?? $this->get($id), $autowired);
+        return $single ? $autowired[$id][0] : $autowired[$id];
     }
 
     /**

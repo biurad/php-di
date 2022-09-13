@@ -29,7 +29,7 @@ class Container extends AbstractContainer implements \ArrayAccess
     public function __construct()
     {
         if (!isset($this->types[$cl = static::class])) {
-            $this->type(self::SERVICE_CONTAINER, \array_keys(\class_implements($c = $this) + \class_parents($c) + [$cl => $cl]));
+            $this->type(self::SERVICE_CONTAINER, ...\array_keys(\class_implements($c = $this) + \class_parents($c) + [$cl => $cl]));
         }
         $this->resolver = new Resolver($this->services[self::SERVICE_CONTAINER] = $c ?? $this);
     }
@@ -55,6 +55,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      * @return mixed The value of the service
      *
      * @throws NotFoundServiceException If the identifier is not defined
+     * @return mixed The value of the service
      */
     public function offsetGet(mixed $offset): mixed
     {
