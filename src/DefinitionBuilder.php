@@ -34,7 +34,6 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 class DefinitionBuilder implements ResetInterface
 {
-    private AbstractContainer $container;
     private ?string $definition = null, $directory = null;
     private bool $trackDefaults = false, $condition = true;
 
@@ -44,9 +43,8 @@ class DefinitionBuilder implements ResetInterface
     /** @var array<string,array<int,array<int,mixed>>> */
     private array $defaults = [];
 
-    public function __construct(AbstractContainer $container)
+    public function __construct(private Container $container)
     {
-        $this->container = $container;
     }
 
     public function __destruct()
@@ -346,7 +344,7 @@ class DefinitionBuilder implements ResetInterface
         return $this;
     }
 
-    public function getContainer(): AbstractContainer
+    public function getContainer(): Container
     {
         return $this->container;
     }

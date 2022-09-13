@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Loader;
 
 use Psr\Container\ContainerInterface;
-use Rade\DI\{AbstractContainer, ContainerBuilder, DefinitionBuilder};
+use Rade\DI\{Container, ContainerBuilder, DefinitionBuilder};
 use Symfony\Component\Config\Resource\{FileExistenceResource, FileResource};
 
 /**
@@ -53,7 +53,7 @@ class PhpFileLoader extends FileLoader
             $reflectionType = $parameter->getType();
 
             if (!$reflectionType instanceof \ReflectionNamedType) {
-                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "$%s" for "%s". You must typehint it (for example with "%s" or "%s").', $parameter->getName(), $path, DefinitionBuilder::class, AbstractContainer::class));
+                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "$%s" for "%s". You must typehint it (for example with "%s" or "%s").', $parameter->getName(), $path, DefinitionBuilder::class, Container::class));
             }
 
             $type = $reflectionType->getName();

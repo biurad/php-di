@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Extensions;
 
-use Rade\DI\{AbstractContainer, Container};
+use Rade\DI\{Container, ContainerBuilder};
 
 /**
  * PHP directives definition.
@@ -50,7 +50,7 @@ class PhpExtension implements AliasedInterface, BootExtensionInterface, Extensio
     /**
      * {@inheritdoc}
      */
-    public function register(AbstractContainer $container, array $configs): void
+    public function register(Container $container, array $configs): void
     {
         $this->config = $configs;
     }
@@ -58,9 +58,9 @@ class PhpExtension implements AliasedInterface, BootExtensionInterface, Extensio
     /**
      * {@inheritdoc}
      */
-    public function boot(AbstractContainer $container): void
+    public function boot(Container $container): void
     {
-        if ($container instanceof Container) {
+        if (!$container instanceof ContainerBuilder) {
             foreach ($this->config as $name => $value) {
                 if (null === $value) {
                     continue;

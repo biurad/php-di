@@ -17,12 +17,12 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions\Traits;
 
-use Rade\DI\AbstractContainer;
-use Rade\DI\Exceptions\ContainerResolutionException;
 use Nette\Utils\Callback;
 use PhpParser as p;
+use Rade\DI\Container;
 use Rade\DI\Definitions\Reference;
 use Rade\DI\Definitions\Statement;
+use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Injector\Injectable;
 use Rade\DI\Resolver;
 
@@ -35,7 +35,7 @@ trait DefinitionAwareTrait
 {
     private mixed $entity;
     private ?string $id = null;
-    private ?AbstractContainer $container = null;
+    private ?Container $container = null;
 
     /** @var array<string,array<int|string,mixed>> */
     private array $calls = [];
@@ -45,7 +45,7 @@ trait DefinitionAwareTrait
     private array $deprecation = [];
 
     /**
-     * @return mixed|\PhpParser\Builder\Method
+     * @return mixed|\PhpParser\Node\Stmt\ClassMethod
      */
     public function resolve(Resolver $resolver): mixed
     {
@@ -92,7 +92,7 @@ trait DefinitionAwareTrait
      *
      * @return $this
      */
-    public function setContainer(AbstractContainer $container, string $id)
+    public function setContainer(Container $container, string $id)
     {
         $this->container = $container;
         $this->id = $id;

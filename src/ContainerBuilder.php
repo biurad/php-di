@@ -30,7 +30,7 @@ use Symfony\Component\VarExporter\VarExporter;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class ContainerBuilder extends AbstractContainer
+class ContainerBuilder extends Container
 {
     public const BUILD_SERVICE_DEFINITION = 3;
 

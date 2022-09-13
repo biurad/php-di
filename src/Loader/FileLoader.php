@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
-use Rade\DI\{AbstractContainer, DefinitionBuilder};
+use Rade\DI\{Container, DefinitionBuilder};
 use Symfony\Component\Config\FileLocatorInterface;
 use Symfony\Component\Config\Loader\FileLoader as BaseFileLoader;
 
@@ -25,7 +25,7 @@ abstract class FileLoader extends BaseFileLoader
 {
     protected DefinitionBuilder $builder;
 
-    public function __construct(AbstractContainer $container, FileLocatorInterface $locator)
+    public function __construct(Container $container, FileLocatorInterface $locator)
     {
         $this->builder = new DefinitionBuilder($container);
         parent::__construct($locator);

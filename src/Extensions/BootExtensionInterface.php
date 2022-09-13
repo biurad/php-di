@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Extensions;
 
-use Rade\DI\AbstractContainer;
+use Rade\DI\Container;
 
 /**
  * This interface is implement by the service extension providers to
@@ -31,5 +31,5 @@ interface BootExtensionInterface
      * This method is called after all extensions have be loaded.
      * and should be used to register missing services, tags or even extend service definitions.
      */
-    public function boot(AbstractContainer $container): void;
+    public function boot(Container $container): void;
 }

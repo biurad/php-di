@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Extensions;
 
-use Rade\DI\AbstractContainer;
+use Rade\DI\Container;
 
 /**
  * The interface implemented for building services into container.
@@ -36,5 +36,5 @@ interface ExtensionInterface
      *
      * @param array<int|string,mixed> $configs
      */
-    public function register(AbstractContainer $container, array $configs): void;
+    public function register(Container $container, array $configs): void;
 }

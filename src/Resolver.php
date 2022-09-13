@@ -31,17 +31,13 @@ use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterf
  */
 class Resolver
 {
-    private AbstractContainer $container;
-    private ?BuilderFactory $builder;
     private bool $strict = true;
 
     /** @var array<string,\PhpParser\Node> */
     private array $literalCache = [];
 
-    public function __construct(AbstractContainer $container, BuilderFactory $builder = null)
+    public function __construct(private Container $container, private ?BuilderFactory $builder = null)
     {
-        $this->builder = $builder;
-        $this->container = $container;
     }
 
     /**
@@ -63,7 +59,7 @@ class Resolver
     /**
      * @param mixed $definition
      */
-    public static function autowireService($definition, bool $allTypes = false, AbstractContainer $container = null): array
+    public static function autowireService($definition, bool $allTypes = false, Container $container = null): array
     {
         $types = $autowired = [];
 

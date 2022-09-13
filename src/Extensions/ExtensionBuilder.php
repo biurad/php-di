@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Extensions;
 
-use Rade\DI\{AbstractContainer, ContainerBuilder};
+use Rade\DI\{Container, ContainerBuilder};
 use Rade\DI\Exceptions\MissingPackageException;
 use Symfony\Component\Config\Builder\{ConfigBuilderGenerator, ConfigBuilderGeneratorInterface};
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
@@ -30,7 +30,7 @@ use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceReso
  */
 class ExtensionBuilder
 {
-    protected AbstractContainer $container;
+    protected Container $container;
     private ?ConfigBuilderGeneratorInterface $configBuilder = null;
 
     /** @var array<string,mixed> */
@@ -45,7 +45,7 @@ class ExtensionBuilder
     /**
      * @param array<string,mixed> $config the default configuration for all extensions
      */
-    public function __construct(AbstractContainer $container, array $config = [])
+    public function __construct(Container $container, array $config = [])
     {
         if (\array_key_exists('parameters', $config)) {
             $container->parameters += $config['parameters'];
