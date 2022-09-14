@@ -49,7 +49,7 @@ class Resolver
     }
 
     /**
-     * If true, exception will be thrown on resolvable services with are not typed.
+     * @param bool $boolean If false and parameter type hint is a class, it will be auto resolved
      */
     public function setStrictAutowiring(bool $boolean = true): void
     {
@@ -382,12 +382,15 @@ class Resolver
             return $builder->new('\\' . Services\ServiceLocator::class, [$services]);
         }
 
-        if (!$this->strict) {
-            return $this->container->get($id, $single ? $this->container::EXCEPTION_ON_MULTIPLE_SERVICE : $this->container::IGNORE_MULTIPLE_SERVICE);
-        }
-
         if ($this->container->typed($id)) {
             return $this->container->autowired($id, $single);
+        }
+
+        if (!$this->strict && \class_exists($id)) {
+            try {
+                return $this->resolveClass($id);
+            } catch (ContainerResolutionException) {
+            }
         }
 
         throw new NotFoundServiceException(\sprintf('Service of type "%s" not found. Check class name because it cannot be found.', $id));
@@ -425,14 +428,35 @@ class Resolver
                 return \array_map([$this->container, 'get'], $autowired);
             }
 
-            if (null === $service = $this->container->get($reference, $invalidBehavior)) {
-                return [];
-            }
+            try {
+                if (null === $service = $this->container->get($reference, $invalidBehavior)) {
+                    return [];
+                }
 
-            return [$service];
+                return [$service];
+            } catch (NotFoundServiceException $e) {
+                goto type_get;
+            }
         }
 
-        return $this->container->get($reference, $invalidBehavior);
+        try {
+            return $this->container->get($reference, $invalidBehavior);
+        } catch (NotFoundServiceException $e) {
+            type_get:
+            if (!$this->strict) {
+                try {
+                    $s = \class_exists($reference) ? $this->resolveClass($reference) : (\function_exists($reference) ? $this->resolveCallable($reference) : null);
+
+                    if (null !== $s) {
+                        return !isset($autowired) ? $s : [$s];
+                    }
+                } catch (ContainerResolutionException) {
+                    // Skip error throwing while resolving
+                }
+            }
+
+            throw $e;
+        }
     }
 
     /**
