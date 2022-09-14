@@ -184,7 +184,7 @@ class Resolver
     {
         if ($callback instanceof Definitions\Parameter) {
             if (!\array_key_exists($param = (string) $callback, $this->container->parameters)) {
-                if (!$callback->shouldResolve()) {
+                if (!$callback->isResolvable()) {
                     throw new ContainerResolutionException(\sprintf('The parameter "%s" is not defined.', $param));
                 }
 

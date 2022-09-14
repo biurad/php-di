@@ -24,26 +24,19 @@ namespace Rade\DI\Definitions;
  */
 class Parameter implements \Stringable
 {
-    private string $parameter;
-    private bool $resolve;
-
-    public function __construct(string $parameter, bool $resolve = false)
+    public function __construct(private string $parameter, private bool $resolve = false)
     {
-        $this->resolve = $resolve;
-        $this->parameter = $parameter;
     }
 
-    public function shouldResolve(): bool
+    public function isResolvable(): bool
     {
         return $this->resolve;
     }
 
     /**
      * {@inheritdoc}
-     *
-     * @return string The parameter identifier
      */
-    public function __toString()
+    public function __toString(): string
     {
         return $this->parameter;
     }

@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Definitions;
 
-use Rade\DI\AbstractContainer;
+use Rade\DI\Container;
 
 /**
  * Creates a lazy iterator by tag name.
@@ -26,11 +26,7 @@ use Rade\DI\AbstractContainer;
  */
 class TaggedLocator
 {
-    private string $tag;
     private ?string $indexAttribute;
-
-    /** @var array<int,string> */
-    private array $exclude;
 
     /**
      * @param string            $tag                   The name of the tag identifying the target services
@@ -38,7 +34,7 @@ class TaggedLocator
      * @param bool              $needsIndexes          Whether indexes are required and should be generated when computing the map
      * @param array<int,string> $exclude               Services to exclude from the iterator
      */
-    public function __construct(string $tag, string $indexAttribute = null, bool $needsIndexes = false, array $exclude = [])
+    public function __construct(private string $tag, string $indexAttribute = null, bool $needsIndexes = false, private array $exclude = [])
     {
         if (null === $indexAttribute && $needsIndexes) {
             $indexAttribute = \preg_match('/[^.]++$/', $tag, $m) ? $m[0] : $tag;
@@ -46,14 +42,13 @@ class TaggedLocator
 
         $this->tag = $tag;
         $this->exclude = $exclude;
-        $this->needsIndexes = $needsIndexes;
         $this->indexAttribute = $indexAttribute;
     }
 
     /**
      * @return array<int|string,Reference|Statement>
      */
-    public function resolve(AbstractContainer $container): array
+    public function resolve(Container $container): array
     {
         $i = 0;
         $services = $refs = [];

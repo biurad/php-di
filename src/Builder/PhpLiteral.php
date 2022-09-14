@@ -34,19 +34,14 @@ use Rade\DI\NodeVisitor\PhpLiteralVisitor;
  */
 class PhpLiteral
 {
-    private string $value;
-    private array $args;
-
     /**
-     * `??` is a reserved string in code, as it used to resolve missing values.
+     * `%?` is a reserved string in code, as it used to resolve missing values.
      *
      * @param string $value Should be a php code excluding `<?php`
      * @param array<int,mixed> $args
      */
-    public function __construct(string $value, array $args = [])
+    public function __construct(private string $value, private array $args = [])
     {
-        $this->args = $args;
-        $this->value = $value;
     }
 
     public function resolve(\Rade\DI\Resolver $resolver)

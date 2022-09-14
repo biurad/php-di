@@ -24,14 +24,6 @@ namespace Rade\DI\Definitions;
  */
 class Statement
 {
-    /** @var mixed */
-    private $value;
-
-    /** @var array<int|string,mixed> */
-    private array $args;
-
-    private bool $inlineWrap;
-
     /**
      * Statement constructor.
      *
@@ -39,17 +31,11 @@ class Statement
      * @param array<int|string,mixed> $args
      * @param bool $closure Resolved value will be wrapped in a closure
      */
-    public function __construct($value, array $args = [], bool $closure = false)
+    public function __construct(private $value, private array $args = [], private bool $closure = false)
     {
-        $this->value = $value;
-        $this->args = $args;
-        $this->inlineWrap = $closure;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getValue()
+    public function getValue(): mixed
     {
         return $this->value;
     }
@@ -64,6 +50,6 @@ class Statement
 
     public function isClosureWrappable(): bool
     {
-        return $this->inlineWrap;
+        return $this->closure;
     }
 }

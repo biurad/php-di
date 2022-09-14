@@ -24,17 +24,14 @@ namespace Rade\DI\Definitions;
  */
 class Reference implements \Stringable
 {
-    private string $id;
-
-    public function __construct(string $id)
+    public function __construct(private string $id)
     {
-        $this->id = $id;
     }
 
     /**
      * @return string The service identifier
      */
-    public function __toString()
+    public function __toString(): string
     {
         return $this->id;
     }
