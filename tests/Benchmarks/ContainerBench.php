@@ -60,6 +60,8 @@ class ContainerBench
     {
         yield 'container' => ['use' => 'container'];
 
+        yield 'container_merged' => ['use' => 'container_merged'];
+
         yield 'builder' => ['use' => 'builder'];
     }
 
@@ -205,6 +207,7 @@ class ContainerBench
     public function initContainers(): void
     {
         $this->containers['container'] = $this->createContainer();
+        $this->containers['container_merged'] = $this->createContainerMerged();
         $this->containers['builder'] = $this->createBuilder();
     }
 
@@ -215,6 +218,27 @@ class ContainerBench
         for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
             $container->set("shared{$i}", new Service());
             $container->set("factory{$i}", service(Service::class))->shared(false);
+
+            if (25 === $i) {
+                $container->alias('a_shared', 'shared25');
+                $container->alias('a_factory', 'factory25');
+            }
+
+            $container->autowire("shared_autowired{$i}", service(Constructor::class));
+            $container->autowire("factory_autowired{$i}", service(NamedValueResolver::class))->shared(false);
+        }
+
+        return $container;
+    }
+
+    public function createContainerMerged(): ContainerInterface
+    {
+        $container = new Container();
+        $container->attach($child = new Container());
+
+        for ($i = 0; $i < self::SERVICE_COUNT; ++$i) {
+            $child->set("shared{$i}", new Service());
+            $child->set("factory{$i}", service(Service::class))->shared(false);
 
             if (25 === $i) {
                 $container->alias('a_shared', 'shared25');
@@ -293,6 +317,19 @@ class ContainerBench
 
         foreach ($params as $param) {
             $this->runScenario($param + \compact('use'));
+        }
+    }
+
+    /**
+     * @ParamProviders({"provideAllScenarios"})
+     * @Revs(4)
+     */
+    public function benchContainerMerged(array $params): void
+    {
+        $this->containers['0'] = $this->createContainerMerged();
+
+        foreach ($params as $param) {
+            $this->runScenario($param + ['use' => '0']);
         }
     }
 

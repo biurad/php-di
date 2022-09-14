@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Psr\Container\ContainerInterface;
+use Psr\Container\{ContainerInterface, NotFoundExceptionInterface};
 use Rade\DI\Exceptions\{
     CircularReferenceException,
     ContainerResolutionException,
@@ -46,6 +46,9 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
     /** Instead of throwing an exception, null will return if service not found */
     public const NULL_ON_INVALID_SERVICE = 2;
+
+    /** @var null|\WeakMap<ContainerInterface,true> A list of PSR-11 containers */
+    protected ?\WeakMap $containers = null;
 
     public function __construct()
     {
@@ -144,6 +147,27 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
     }
 
     /**
+     * Attach an existing container, useful for migration purposes.
+     */
+    public function attach(ContainerInterface $container): void
+    {
+        if (null === $this->containers) {
+            $this->containers = new \WeakMap();
+        }
+        $this->containers[$container] = true;
+    }
+
+    /**
+     * Detach an existing container if it's no longer needed.
+     */
+    public function detach(ContainerInterface $container): void
+    {
+        if (null !== $this->containers) {
+            unset($this->containers[$container]);
+        }
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function has(string $id): bool
@@ -154,6 +178,12 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 
         if (false !== ($this->aliases[$id] ?? $this->methodsMap[$id] ?? \array_key_exists($id, $this->definitions))) {
             return true;
+        }
+
+        foreach ($this->containers ?? [] as $container => $true) {
+            if ($container->has($id)) {
+                return $true;
+            }
         }
 
         return false;
@@ -242,7 +272,17 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
                 return $this->autowired($id, 1 === ($invalidBehavior & self::EXCEPTION_ON_MULTIPLE_SERVICE));
             }
 
-            return 2 === ($invalidBehavior & self::NULL_ON_INVALID_SERVICE) ? null : throw $this->createNotFound($id);
+            foreach ($this->containers ?? [] as $container => $true) {
+                if ($container->has($id)) {
+                    try {
+                        return $container->get($id);
+                    } catch (NotFoundExceptionInterface $e) {
+                        // Skip error ...
+                    }
+                }
+            }
+
+            return 2 === ($invalidBehavior & self::NULL_ON_INVALID_SERVICE) ? null : throw $this->createNotFound($id, $e ?? null);
         }
 
         try {
