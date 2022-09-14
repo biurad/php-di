@@ -189,9 +189,9 @@ class Resolver
         } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->resolveReference((string) $callback);
 
-            if (\is_callable($resolved) || (\is_array($resolved) && 2 === \count($resolved, \COUNT_RECURSIVE))) {
+            if (\is_callable($resolved) || \is_array($callback)) {
                 $resolved = $this->resolveCallable($resolved, $args);
-            } else {
+            } elseif (null === $resolved) {
                 $callback = $resolved;
             }
         } elseif ($callback instanceof Definitions\TaggedLocator) {
@@ -225,10 +225,8 @@ class Resolver
      * @param array<int|string,mixed>   $arguments
      *
      * @throws \ReflectionException if $callback is not a real callable
-     *
-     * @return mixed
      */
-    public function resolveCallable($callback, array $arguments = [])
+    public function resolveCallable(callable|array $callback, array $arguments = []): mixed
     {
         if (\is_array($callback)) {
             if ((2 === \count($callback) && \array_is_list($callback)) && \is_string($callback[1])) {
@@ -284,7 +282,7 @@ class Resolver
                 $services += $this->resolveServiceSubscriber($name, (string) $service);
             }
 
-            return $this->builder?->new('\\'.$class, [$services]) ?? new $class($services);
+            return $this->builder?->new('\\' . $class, [$services]) ?? new $class($services);
         }
 
         if (\is_subclass_of($class, ServiceSubscriberInterface::class)) {
