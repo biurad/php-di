@@ -190,7 +190,6 @@ trait DefinitionAwareTrait
                     try {
                         $defNodes[] = $builder->methodCall($createdDef->var, $name, $mCall);
                     } catch (\LogicException) {
-                        //dd($mCall, $value, $name, $createdDef->var, $this->calls['b'] ?? []);
                     }
                 }
             }
@@ -201,7 +200,7 @@ trait DefinitionAwareTrait
         }
 
         if (!$createMethod) {
-            $service = $this->resolver->getBuilder()->methodCall($this->resolver->getBuilder()->var('this'), $this->resolver::createMethod($this->id));
+            $service = $builder->methodCall($builder->var('this'), $resolver::createMethod($this->id));
 
             if ($this->isShared()) {
                 $service = new p\Node\Expr\BinaryOp\Coalesce(
