@@ -86,7 +86,7 @@ class Resolver
                 }
 
                 if (isset($def)) {
-                    if ($def instanceof Definitions\DefinitionInterface) {
+                    if ($def instanceof Definition) {
                         $class = self::getDefinitionClass($def);
 
                         if (null === $class) {
