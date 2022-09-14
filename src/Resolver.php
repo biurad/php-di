@@ -145,25 +145,17 @@ class Resolver
                 } catch (\ValueError $e) {
                     throw new ContainerResolutionException(\sprintf('The "%s" value could not be resolved for enum parameter %s.', $resolved, Reflection::toString($parameter)), 0, $e);
                 }
-                continue;
-            }
-
-            if (null === ($resolved = $resolved ?? $this->autowireArgument($parameter, $types, $args))) {
+            } elseif (null === ($resolved = $resolved ?? $this->autowireArgument($parameter, $types, $args))) {
                 if ($parameter->isDefaultValueAvailable()) {
                     ++$nullValuesFound;
                 } elseif (!$parameter->isVariadic()) {
                     $resolvedParameters[$position] = self::getParameterDefaultValue($parameter, $types);
                 }
-
-                continue;
-            }
-
-            if ($parameter->isVariadic() && \is_array($resolved)) {
+            } elseif ($parameter->isVariadic() && \is_array($resolved)) {
                 $resolvedParameters = \array_merge($resolvedParameters, $resolved);
-                continue;
+            } else {
+                $resolvedParameters[$position] = $resolved;
             }
-
-            $resolvedParameters[$position] = $resolved;
         }
 
         return $resolvedParameters;
