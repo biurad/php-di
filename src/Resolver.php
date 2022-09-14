@@ -180,20 +180,12 @@ class Resolver
                     throw new ContainerResolutionException(\sprintf('The parameter "%s" is not defined.', $param));
                 }
 
-                return null === $this->builder ? $this->container->parameter($param) : $this->builder->methodCall(new Expr\Variable('this'), 'parameter', [$param]);
+                return $this->builder?->methodCall(new Expr\Variable('this'), 'parameter', [$param]) ?? $this->container->parameter($param);
             }
-
-            if (null !== $this->builder) {
-                return $resolved = new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param));
-            }
-
-            $resolved = $this->container->parameters[$param];
+            $resolved = $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
         } elseif ($callback instanceof Definitions\Statement) {
-            $resolved = $this->resolve($callback->getValue(), $callback->getArguments() + $args);
-
-            if ($callback->isClosureWrappable()) {
-                $resolved = null === $this->builder ? fn () => $resolved : new Expr\ArrowFunction(['expr' => $resolved]);
-            }
+            $resolved = fn () => $this->resolve($callback->getValue(), $callback->getArguments() + $args);
+            $resolved = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
         } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->resolveReference((string) $callback);
 
@@ -207,13 +199,6 @@ class Resolver
         } elseif ($callback instanceof Builder\PhpLiteral) {
             $expression = $this->literalCache[\spl_object_id($callback)] ??= $callback->resolve($this)[0];
             $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
-        } elseif (Services\ServiceLocator::class === $callback) {
-            $services = [];
-
-            foreach ($args as $name => $service) {
-                $services += $this->resolveServiceSubscriber($name, (string) $service);
-            }
-            $resolved = null === $this->builder ? new Services\ServiceLocator($services) : $this->builder->new('\\' . Services\ServiceLocator::class, [$services]);
         } elseif (\is_string($callback)) {
             if (\str_contains($callback, '%')) {
                 $callback = $this->container->parameter($callback);
@@ -223,14 +208,14 @@ class Resolver
                 return $this->resolveClass($callback, $args);
             }
 
-            if (\is_callable($callback)) {
+            if (\function_exists($callback)) {
                 $resolved = $this->resolveCallable($callback, $args);
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
             $resolved = $this->resolveCallable($callback, $args);
         }
 
-        return $resolved ?? (null === $this->builder ? $callback : $this->builder->val($callback));
+        return $resolved ?? $this->builder?->val($callback) ?? $callback;
     }
 
     /**
@@ -292,26 +277,49 @@ class Resolver
      */
     public function resolveClass(string $class, array $args = []): object
     {
-        /** @var class-string $class */
-        $reflection = new \ReflectionClass($class);
+        if (\is_subclass_of($class, ServiceProviderInterface::class)) {
+            static $services = [];
 
-        if ($reflection->isAbstract() || !$reflection->isInstantiable()) {
-            throw new ContainerResolutionException(\sprintf('Class %s is an abstract type or instantiable.', $class));
-        }
-
-        if (null === $constructor = $reflection->getConstructor()) {
-            if (!empty($args)) {
-                throw new ContainerResolutionException(\sprintf('Unable to pass arguments, class "%s" has no constructor.', $class));
+            foreach ($args as $name => $service) {
+                $services += $this->resolveServiceSubscriber($name, (string) $service);
             }
 
-            $service = null === $this->builder ? $reflection->newInstanceWithoutConstructor() : $this->builder->new($class);
-        } else {
-            $args = $this->autowireArguments($constructor, $args);
-            $service = null === $this->builder ? $reflection->newInstanceArgs($args) : $this->builder->new($class, $args);
+            return $this->builder?->new('\\'.$class, [$services]) ?? new $class($services);
         }
 
-        if ($reflection->implementsInterface(Injector\InjectableInterface::class)) {
-            return Injector\Injectable::getResolved($this, $service, $reflection);
+        if (\is_subclass_of($class, ServiceSubscriberInterface::class)) {
+            static $services = [];
+
+            foreach ($class::getSubscribedServices() as $name => $service) {
+                $services += $this->resolveServiceSubscriber($name, $service);
+            }
+
+            return $this->builder?->new('\\' . Services\ServiceLocator::class, [$services]) ?? new Services\ServiceLocator($services);
+        }
+
+        if (\method_exists($class, '__construct')) {
+            $args = $this->autowireArguments(new \ReflectionMethod($class, '__construct'), $args);
+        } elseif (!empty($args)) {
+            throw new ContainerResolutionException(\sprintf('Unable to pass arguments, class "%s" has no constructor.', $class));
+        }
+
+        if (null === $this->builder) {
+            try {
+                $service = new $class(...$args);
+            } catch (\Throwable $e) {
+                throw new ContainerResolutionException(\sprintf('Class %s is an abstract type or instantiable.', $class), 0, $e);
+            }
+        } else {
+            $service = $this->builder->new($class, $args);
+            $reflection = new \ReflectionClass($class);
+
+            if ($reflection->isAbstract() || !$reflection->isInstantiable()) {
+                throw new ContainerResolutionException(\sprintf('Class %s is an abstract type or instantiable.', $class));
+            }
+        }
+
+        if (\is_subclass_of($class, Injector\InjectableInterface::class)) {
+            $service = Injector\Injectable::getResolved($this, $service, $reflection ?? new \ReflectionClass($class));
         }
 
         return $service;
@@ -360,22 +368,12 @@ class Resolver
      */
     public function get(string $id, bool $single = false)
     {
-        if (\is_subclass_of($id, ServiceSubscriberInterface::class)) {
-            static $services = [];
-
-            foreach ($id::getSubscribedServices() as $name => $service) {
-                $services += $this->resolveServiceSubscriber($name, $service);
-            }
-
-            if (null === $builder = $this->builder) {
-                return new Services\ServiceLocator($services);
-            }
-
-            return $builder->new('\\' . Services\ServiceLocator::class, [$services]);
-        }
-
         if ($this->container->typed($id)) {
             return $this->container->autowired($id, $single);
+        }
+
+        if (\is_subclass_of($id, ServiceSubscriberInterface::class)) {
+            return $this->resolveClass($id);
         }
 
         if (!$this->strict && \class_exists($id)) {
