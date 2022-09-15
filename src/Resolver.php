@@ -31,13 +31,12 @@ use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterf
  */
 class Resolver
 {
+    private \WeakMap $cache;
     private bool $strict = true;
-
-    /** @var array<string,\PhpParser\Node> */
-    private array $literalCache = [];
 
     public function __construct(private Container $container, private ?BuilderFactory $builder = null)
     {
+        $this->cache = new \WeakMap();
     }
 
     /**
@@ -180,14 +179,14 @@ class Resolver
                     throw new ContainerResolutionException(\sprintf('The parameter "%s" is not defined.', $param));
                 }
 
-                return $this->builder?->methodCall(new Expr\Variable('this'), 'parameter', [$param]) ?? $this->container->parameter($param);
+                return $this->cache[$callback] ??= $this->builder?->methodCall(new Expr\Variable('this'), 'parameter', [$param]) ?? $this->container->parameter($param);
             }
-            $resolved = $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
+            $resolved = $this->cache[$callback] ??= $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
         } elseif ($callback instanceof Definitions\Statement) {
             $resolved = fn () => $this->resolve($callback->getValue(), $callback->getArguments() + $args);
             $resolved = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
         } elseif ($callback instanceof Definitions\Reference) {
-            $resolved = $this->resolveReference((string) $callback);
+            $resolved = $this->cache[$callback] ??= $this->resolveReference((string) $callback);
 
             if (\is_callable($resolved) || \is_array($callback)) {
                 $resolved = $this->resolveCallable($resolved, $args);
@@ -195,9 +194,9 @@ class Resolver
                 $callback = $resolved;
             }
         } elseif ($callback instanceof Definitions\TaggedLocator) {
-            $resolved = $this->resolve($callback->resolve($this->container));
+            $resolved = $this->cache[$callback] ??= $this->resolve($callback->resolve($this->container));
         } elseif ($callback instanceof Builder\PhpLiteral) {
-            $expression = $this->literalCache[\spl_object_id($callback)] ??= $callback->resolve($this)[0];
+            $expression = $this->cache[$callback] ??= $callback->resolve($this)[0];
             $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
         } elseif (\is_string($callback)) {
             if (\str_contains($callback, '%')) {
@@ -321,7 +320,7 @@ class Resolver
         }
 
         if (\is_subclass_of($class, Injector\InjectableInterface::class)) {
-            $service = Injector\Injectable::getResolved($this, $service, $reflection ?? new \ReflectionClass($class));
+            $service = $this->cache[$service] ??= Injector\Injectable::getResolved($this, $service, $reflection ?? new \ReflectionClass($class));
         }
 
         return $service;
@@ -335,26 +334,28 @@ class Resolver
     public function resolveArguments(array $arguments = []): array
     {
         foreach ($arguments as $key => $value) {
-            if ($value instanceof \stdClass) {
-                $resolved = null === $this->builder ? $value : new Expr\Cast\Object_($this->builder->val($this->resolveArguments((array) $value)));
-            } elseif (\is_array($value)) {
+            if (\is_array($value)) {
                 $resolved = $this->resolveArguments($value);
             } elseif (\is_int($value)) {
-                $resolved = null === $this->builder ? $value : new Scalar\LNumber($value);
+                $resolved = $this->builder?->val(new Scalar\LNumber($value)) ?? $value;
             } elseif (\is_float($value)) {
-                $resolved = null === $this->builder ? (int) $value : new Scalar\DNumber($value);
+                $resolved = $this->builder?->val(new Scalar\DNumber($value)) ?? (int) $value;
             } elseif (\is_numeric($value)) {
-                $resolved = null === $this->builder ? (int) $value : Scalar\LNumber::fromString($value);
+                $resolved = $this->builder?->val(Scalar\LNumber::fromString($value)) ?? (int) $value;
             } elseif (\is_string($value)) {
                 if (\str_contains($value, '%')) {
                     $value = $this->container->parameter($value);
                 }
-
-                $resolved = null === $this->builder ? $value : $this->builder->val($value);
+                $resolved = $this->builder?->val($value) ?? $value;
+            } elseif (\is_bool($value)) {
+                $resolved = $this->builder?->val($value) ?? $value;
+            } elseif (\is_callable($value)) {
+                $resolved = $this->resolveCallable($value);
+            } elseif (null === $value) {
+                $resolved = $this->builder?->val(null) ?? $value;
             } else {
                 $resolved = $this->resolve($value);
             }
-
             $arguments[$key] = $resolved;
         }
 
