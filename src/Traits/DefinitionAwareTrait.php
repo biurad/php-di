@@ -92,12 +92,12 @@ trait DefinitionAwareTrait
      *
      * @return $this
      */
-    public function setContainer(Container $container, string $id)
+    public function setContainer(Container $container, string $id, bool $anonymous = false)
     {
         $this->container = $container;
         $this->id = $id;
 
-        if (!empty($this->options)) {
+        if (!$anonymous && !empty($this->options)) {
             if (isset($this->options['aliases'])) {
                 foreach ($this->options['aliases'] as $alias => $v) {
                     $this->container->alias($alias, $this->id);

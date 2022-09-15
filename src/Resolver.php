@@ -195,6 +195,24 @@ class Resolver
             }
         } elseif ($callback instanceof Definitions\TaggedLocator) {
             $resolved = $this->cache[$callback] ??= $this->resolve($callback->resolve($this->container));
+        } elseif ($callback instanceof Definition) {
+            if ($callback->hasContainer()) {
+                throw new ContainerResolutionException(\sprintf('The definition "%s" has container set and cannot be resolved.', $callback->getId()));
+            }
+
+            if (null === $this->builder) {
+                return $this->cache[$callback] ??= $callback->setContainer($this->container, 'anonymous', true)();
+            }
+
+            if (!isset($this->cache[$callback])) {
+                $service = \array_map(
+                    fn (\PhpParser\Node $v) => ($v instanceof Stmt\Return_ && $v->expr instanceof Expr\Assign) ? new Stmt\Return_($v->expr->expr) : $v,
+                    $callback(true)->stmts
+                );
+                $this->cache[$callback] = 1 === \count($service) ? $service[0]->expr : new Expr\FuncCall(new Expr\Closure(['stmts' => $service]));
+            }
+
+            $resolved = $this->cache[$callback];
         } elseif ($callback instanceof Builder\PhpLiteral) {
             $expression = $this->cache[$callback] ??= $callback->resolve($this)[0];
             $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
