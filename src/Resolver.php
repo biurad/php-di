@@ -56,10 +56,7 @@ class Resolver
         $this->strict = $boolean;
     }
 
-    /**
-     * @param mixed $definition
-     */
-    public static function autowireService($definition, bool $allTypes = false, Container $container = null): array
+    public static function autowireService(mixed $definition, bool $allTypes = false, Container $container = null): array
     {
         $types = $autowired = [];
 
@@ -169,10 +166,8 @@ class Resolver
      * @param array<int|string,mixed> $args
      *
      * @throws ContainerResolutionException|\ReflectionException if unresolvable
-     *
-     * @return mixed
      */
-    public function resolve($callback, array $args = [])
+    public function resolve($callback, array $args = []): mixed
     {
         if ($callback instanceof Definitions\Parameter) {
             if (!\array_key_exists($param = (string) $callback, $this->container->parameters)) {
@@ -410,10 +405,8 @@ class Resolver
      * Resolves service by type.
      *
      * @param string $id A class or an interface name
-     *
-     * @return mixed
      */
-    public function get(string $id, bool $single = false)
+    public function get(string $id, bool $single = false): mixed
     {
         if ($this->container->typed($id)) {
             return $this->container->autowired($id, $single);
@@ -441,10 +434,7 @@ class Resolver
         return $this->builder;
     }
 
-    /**
-     * @return mixed
-     */
-    public function resolveReference(string $reference)
+    public function resolveReference(string $reference): mixed
     {
         $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
 
@@ -535,10 +525,8 @@ class Resolver
      * @param array<int,string>       $types
      *
      * @throws ContainerResolutionException
-     *
-     * @return mixed
      */
-    public function autowireArgument(\ReflectionParameter $parameter, array $types, array $providedParameters)
+    public function autowireArgument(\ReflectionParameter $parameter, array $types, array $providedParameters): mixed
     {
         foreach ($types as $typeName) {
             if (\PHP_MAJOR_VERSION >= 8 && $attributes = $parameter->getAttributes()) {
