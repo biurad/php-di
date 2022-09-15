@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI\Traits;
 
 use Nette\Utils\Helpers;
-use Rade\DI\{Definition, Definitions};
+use Rade\DI\{ContainerBuilder, Definition, Definitions};
 use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
 
 /**
@@ -170,10 +170,14 @@ trait DefinitionTrait
      */
     protected function createNotFound(string $id, \Throwable $e = null): NotFoundServiceException
     {
-        if (null !== $suggest = Helpers::getSuggestion(\array_keys($this->definitions), $id)) {
-            $suggest = " Did you mean: \"$suggest\"?";
+        if ($this instanceof ContainerBuilder) {
+            $suggest = Helpers::getSuggestion(\array_keys($this->definitions), $id);
+
+            if (null !== $suggest) {
+                $suggest = " Did you mean: \"$suggest\"?";
+            }
         }
 
-        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest, $id), 0, $e);
+        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest ?? '', $id), 0, $e);
     }
 }
