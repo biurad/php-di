@@ -468,8 +468,8 @@ class Resolver
 
             if ('[]' === \substr($value, -2)) {
                 $returnType = 'array';
-            } elseif ($this->container->has($type) && ($def = $this->container->definition($type)) instanceof Definitions\TypedDefinitionInterface) {
-                $returnType = $def->getTypes()[0] ?? (
+            } elseif ($this->container->has($type)) {
+                $returnType = $this->container->definition($type)->getTypes()[0] ?? (
                     \class_exists($type) || \interface_exists($type)
                     ? $type
                     : (!\is_int($id) && (\class_exists($id) || \interface_exists($id)) ? $id : null)
