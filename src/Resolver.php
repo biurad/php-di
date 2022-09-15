@@ -22,6 +22,7 @@ use PhpParser\BuilderFactory;
 use PhpParser\Node\{Expr, Stmt, Scalar};
 use PhpParser\Node\Scalar\String_;
 use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
+use Symfony\Component\VarExporter\VarExporter;
 use Symfony\Contracts\Service\{ServiceProviderInterface, ServiceSubscriberInterface};
 
 /**
@@ -230,6 +231,31 @@ class Resolver
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
             $resolved = $this->resolveCallable($callback, $args);
+        } elseif (\is_object($callback)) {
+            if (null === $this->builder) {
+                return $callback;
+            }
+
+            if ($callback instanceof \PhpParser\Node) {
+                if (!$callback instanceof Expr\New_) {
+                    $resolved = $callback instanceof Stmt\Expression ? $callback->expr : $callback;
+                } elseif (\is_subclass_of($class = $callback->class->__toString(), Injector\InjectableInterface::class)) {
+                    $resolved = $this->cache[$callback] = Injector\Injectable::getResolved($this, $callback, new \ReflectionClass($class));
+                }
+            } elseif ($callback instanceof \stdClass) {
+                $resolved = $this->cache[$callback] ??= new Expr\Cast\Object_($this->builder->val($this->resolveArguments((array) $callback)));
+            } elseif (($ref = new \ReflectionObject($callback))->hasMethod('__set_state')) {
+                $args = \array_merge(...\array_map(function (\ReflectionProperty $p) use ($callback): mixed {
+                    $p->setAccessible(true);
+
+                    return $p->getValue($callback);
+                }, $ref->getProperties()));
+                $resolved = $this->builder->staticCall($ref->getName(), '__set_state', [$args]);
+            } elseif (\class_exists(VarExporter::class)) {
+                $resolved = $this->cache[$callback] ??= $this->resolve(new Builder\PhpLiteral(VarExporter::export($callback)));
+            } else {
+                $resolved = $this->cache[$callback] ??= $this->builder->funcCall('\\unserialize', [new String_(\serialize($callback), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
+            }
         }
 
         return $resolved ?? $this->builder?->val($callback) ?? $callback;
