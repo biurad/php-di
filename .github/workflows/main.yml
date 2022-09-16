@@ -9,7 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        php-versions: ['7.4', '8.0', '8.1']
+        php-versions: ['8.0', '8.1', '8.2']
 
     runs-on: ${{ matrix.operating-system }}
 
@@ -45,20 +45,20 @@ jobs:
       - name: Install dependencies
         run: composer install --no-progress --optimize-autoloader
 
-      - name: Run unit tests (PHPUnit)
-        run: vendor/bin/phpunit --coverage-text --coverage-clover=clover.xml --group=required
+      #- name: Run unit tests (PHPUnit)
+      #  run: vendor/bin/phpunit --coverage-text --coverage-clover=clover.xml --group=required
 
-      - name: "Upload coverage report to Codecov"
-        uses: codecov/codecov-action@v2
-        continue-on-error: true
-        with:
-          files: ./clover.xml
+      #- name: "Upload coverage report to Codecov"
+      #  uses: codecov/codecov-action@v2
+      #  continue-on-error: true
+      #  with:
+      #    files: ./clover.xml
 
-      - name: "Upload coverage report to CodeClimate"
-        uses: paambaati/codeclimate-action@v3.0.0
-        continue-on-error: true
-        env:
-          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+      #- name: "Upload coverage report to CodeClimate"
+      #  uses: paambaati/codeclimate-action@v3.0.0
+      #  continue-on-error: true
+      #  env:
+      #    CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
 
       - name: Check coding standards (PHP_CodeSniffer)
         run: vendor/bin/phpcs
@@ -78,4 +78,4 @@ jobs:
         if: matrix.operating-system != 'macos-latest'
         run: |
           composer require phpbench/phpbench -W
-          vendor/bin/phpbench run --report=default --revs=1000 -l none
+          vendor/bin/phpbench run --report=default -l none
