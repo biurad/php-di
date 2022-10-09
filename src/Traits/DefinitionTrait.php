@@ -103,6 +103,16 @@ trait DefinitionTrait
     }
 
     /**
+     * Removes an service which has been initialized for reinitialization.
+     *
+     * @param string $id The service identifier
+     */
+    public function removeShared(string $id): void
+    {
+        unset($this->services[$id]);
+    }
+
+    /**
      * Register a service definition into the container.
      */
     public function set(string $id, mixed $definition = null): Definition
