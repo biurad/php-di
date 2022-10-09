@@ -22,7 +22,6 @@ use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\{Class_, Declare_, Expression};
 use PhpParser\NodeVisitorAbstract;
 use Rade\DI\Builder\CodePrinter;
-use Symfony\Component\Config\ConfigCache;
 
 /**
  * This class splits definitions equally with the total amount of $maxDefinitions
@@ -53,10 +52,14 @@ class DefinitionsSplitter extends NodeVisitorAbstract
      *
      * @param array<int,string> $includePaths
      */
-    public function buildTraits(string $cacheDirectory, bool $debug = false, array $includePaths = []): string
+    public function buildTraits(string $cacheDirectory, array $includePaths = []): string
     {
         $traitsDirectory = \rtrim($cacheDirectory, '/') . '/Definitions' . $this->traitHash($cacheDirectory);
         $autoLoadAst = [];
+
+        if (!\is_dir($traitsDirectory)) {
+            \mkdir($traitsDirectory, 0777, true);
+        }
 
         if (null !== $this->strictDeclare) {
             $autoLoadAst[] = $this->strictDeclare;
@@ -67,39 +70,31 @@ class DefinitionsSplitter extends NodeVisitorAbstract
         }
 
         foreach ($this->traits as $traitName => $traitStmts) {
-            $cache = new ConfigCache($traitsDirectory . '/' . $traitName . '.php', $debug);
-            $autoLoadInclude = new Expression(new Include_(new String_($cache->getPath()), Include_::TYPE_REQUIRE));
+            $path = $traitsDirectory . '/' . $traitName . '.php';
+            $autoLoadInclude = new Expression(new Include_(new String_($path), Include_::TYPE_REQUIRE));
 
             if (\count($autoLoadAst) <= 1) {
                 $autoLoadInclude->setDocComment(new \PhpParser\Comment\Doc(\str_replace('class', 'file', CodePrinter::COMMENT)));
             }
 
-            if (!$cache->isFresh() || $debug) {
-                $traitAst = [];
-                $traitComment = "\n *\n" . ' * @property array<int,mixed> $services' . \PHP_EOL . ' * @property array<int,mixed> $privates';
+            $traitAst = [];
+            $traitComment = "\n *\n" . ' * @property array<int,mixed> $services' . \PHP_EOL . ' * @property array<int,mixed> $privates';
 
-                if (null !== $this->strictDeclare) {
-                    $traitAst[] = $this->strictDeclare;
-                }
-
-                $traitAst[] = $this->builder->trait($traitName)
-                    ->setDocComment(\strtr(CodePrinter::COMMENT, ['class' => 'trait', '.' => '.' . $traitComment . \PHP_EOL]))
-                    ->addStmts($traitStmts)
-                    ->getNode();
-
-                $cache->write(CodePrinter::print($traitAst));
+            if (null !== $this->strictDeclare) {
+                $traitAst[] = $this->strictDeclare;
             }
 
+            $traitAst[] = $this->builder->trait($traitName)
+                ->setDocComment(\strtr(CodePrinter::COMMENT, ['class' => 'trait', '.' => '.' . $traitComment . \PHP_EOL]))
+                ->addStmts($traitStmts)
+                ->getNode();
+
+            \file_put_contents($path, CodePrinter::print($traitAst));
             $autoLoadAst[] = $autoLoadInclude;
         }
+        \file_put_contents($build = $cacheDirectory .'/' . $this->fileName, CodePrinter::print($autoLoadAst));
 
-        $autoloadCache = new ConfigCache(\rtrim($cacheDirectory, '/') . '/' . $this->fileName, $debug);
-
-        if (!$autoloadCache->isFresh() || $debug) {
-            $autoloadCache->write(CodePrinter::print($autoLoadAst) . \PHP_EOL);
-        }
-
-        return $autoloadCache->getPath();
+        return $build;
     }
 
     /**
