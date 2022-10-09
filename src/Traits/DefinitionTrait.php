@@ -126,10 +126,7 @@ trait DefinitionTrait
         if ($definition instanceof Definitions\Reference) {
             $parent = (string) $definition;
             $child = $this->definitions[$this->aliases[$parent] ?? $parent] ?? throw $this->createNotFound($parent);
-
-            if (($definition = clone $child)->hasContainer()) {
-                return $this->definitions[$id] = $definition->abstract(false);
-            }
+            $definition = clone $child->abstract(false);
         } elseif (!$definition instanceof Definition) {
             $definition = new Definition($definition ?? $id);
         }

@@ -49,7 +49,7 @@ trait DefinitionAwareTrait
      */
     public function resolve(Resolver $resolver, bool $createMethod = false): mixed
     {
-        if (isset($this->options['abstract'])) {
+        if (($this->options['abstract'] ?? false)) {
             throw new ContainerResolutionException(\sprintf('Resolving an abstract definition %s is not allowed.', $this->id));
         }
 
