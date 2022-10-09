@@ -110,6 +110,22 @@ trait TypesTrait
     }
 
     /**
+     * Set types for multiple services.
+     *
+     * @param array<string,array<int,string>> $types The types associated with service definition
+     */
+    public function types(array $types): void
+    {
+        foreach ($types as $id => $wiring) {
+            if (\is_int($id)) {
+                throw new ContainerResolutionException('Service identifier is not defined, integer found.');
+            }
+
+            $this->type($id, ...(\is_string($wiring) ? [$wiring] : $wiring));
+        }
+    }
+
+    /**
      * If class or interface is a autowired typed value.
      *
      * @param string $id of class or interface
