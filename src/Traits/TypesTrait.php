@@ -187,6 +187,16 @@ trait TypesTrait
     }
 
     /**
+     * Alias of resolver's resolve method.
+     *
+     * @param array<int|string,mixed> $args
+     */
+    public function call(mixed $value, array $args = []): mixed
+    {
+        return $this->resolver->resolve($value, $args);
+    }
+
+    /**
      * The resolver associated with the container.
      */
     public function getResolver(): Resolver
