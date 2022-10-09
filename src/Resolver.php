@@ -221,7 +221,7 @@ class Resolver
                 return $this->resolveClass($callback, $args);
             }
 
-            if (\function_exists($callback)) {
+            if (\is_callable($callback)) {
                 $resolved = $this->resolveCallable($callback, $args);
             }
         } elseif (\is_callable($callback) || \is_array($callback)) {
