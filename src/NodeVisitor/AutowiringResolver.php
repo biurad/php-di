@@ -106,6 +106,10 @@ class AutowiringResolver extends NodeVisitorAbstract
                 $expression = &$expression->value;
             }
 
+            if ($expression instanceof \PhpParser\Node\FunctionLike) {
+                continue;
+            }
+
             if (\property_exists($expression, 'expr')) {
                 $this->doReplacement($expression, $parentId, $leaveNodes, $expR);
 
@@ -153,7 +157,7 @@ class AutowiringResolver extends NodeVisitorAbstract
 
     private function doReplacement(\PhpParser\Node &$nodeValue, string $parentId, bool $leaveNodes, ?bool &$replaced = false): void
     {
-        if ($nodeValue instanceof Expr\Variable || $nodeValue instanceof Expr\Closure) {
+        if ($nodeValue instanceof Expr\Variable || $nodeValue instanceof \PhpParser\Node\FunctionLike) {
             return; // @Todo: work in progress ...
         }
 
