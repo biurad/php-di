@@ -202,8 +202,7 @@ class ExtensionBuilder
             }
 
             if ($container instanceof ContainerBuilder) {
-                $container->addResource(new ClassExistenceResource(($ref = new \ReflectionClass($resolved))->getName(), false));
-                $container->addResource(new FileExistenceResource($rPath = $ref->getFileName()));
+                $container->addResource(new FileExistenceResource($rPath = (new \ReflectionClass($resolved))->getFileName()));
                 $container->addResource(new FileResource($rPath));
             }
 
