@@ -67,12 +67,39 @@ trait DefinitionAwareTrait
 
             if (!empty($this->calls)) {
                 foreach ($this->calls['a'] ?? [] as $property => $propertyValue) {
-                    $entity->{$property} = $resolver->resolve($propertyValue);
+                    $propertyValue = $resolver->resolve($propertyValue);
+
+                    if (\str_contains($property, '|')) {
+                        $pR = $entity;
+                        $pL = \count($properties = \explode('|', $property)) - 1;
+
+                        foreach ($properties as $pI => $p) {
+                            $pL !== $pI ? $pR = $pR->{$p} : $pR->{$p} = $propertyValue;
+                        }
+                    } else {
+                        $entity->{$property} = $propertyValue;
+                    }
                 }
 
                 foreach ($this->calls['b'] ?? [] as $name => $methods) {
+                    if (\str_contains($name, '|')) {
+                        $mR = $entity;
+                        $mL = \count($names = \explode('|', $name)) - 1;
+
+                        foreach ($names as $mI => $m) {
+                            if ($mL !== $mI) {
+                                $mR = $resolver->resolveCallable([$mR, $m]);
+                            } else {
+                                foreach ($methods as $value) {
+                                    $resolver->resolveCallable([$mR, $m], \is_array($value) ? $value : (null === $value ? [] : [$value]));
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
                     foreach ($methods as $value) {
-                        $resolver->resolve([$entity, $name], \is_array($value) ? $value : (null === $value ? [] : [$value]));
+                        $resolver->resolveCallable([$entity, $name], \is_array($value) ? $value : (null === $value ? [] : [$value]));
                     }
                 }
 
@@ -169,10 +196,19 @@ trait DefinitionAwareTrait
 
             foreach ($this->calls['a'] ?? [] as $property => $pValue) {
                 $pValue = $resolver->resolve($pValue);
-                $defNodes[] = new p\Node\Expr\Assign($builder->propertyFetch($createdDef->var, $property), $pValue);
 
                 if ($pValue instanceof p\Node\Stmt) {
                     throw new ContainerResolutionException(\sprintf('Constructing property "%s" for service "%s" failed, expression not supported.', $property, $this->id));
+                }
+
+                if (\str_contains($property, '|')) {
+                    $properties = \array_reverse(\explode('|', $property));
+                    $pF = \array_pop($properties);
+                    $defNodes[] = new p\Node\Expr\Assign(\array_reduce($properties, function (p\Node\Expr\PropertyFetch $p, string $i) use ($builder) {
+                        return $builder->propertyFetch($p, $i);
+                    }, $builder->propertyFetch($createdDef->var, $pF)), $pValue);
+                } else {
+                    $defNodes[] = new p\Node\Expr\Assign($builder->propertyFetch($createdDef->var, $property), $pValue);
                 }
             }
 
@@ -182,15 +218,24 @@ trait DefinitionAwareTrait
                         $value = null === $value ? [] : [$value];
                     }
 
-                    if ($this->methodExists($this->entity, $name)) {
-                        $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $name]), $value);
-                    } else {
+                    if (!$this->methodExists($this->entity, $name)) {
                         $mCall = $resolver->resolveArguments($value);
+
+                        if (\str_contains($name, '|')) {
+                            $names = \explode('|', $name);
+                            [$mF, $mL] = [\array_shift($names), \array_pop($names)];
+                            $defNodes[] = $builder->methodCall(
+                                \array_reduce($names, function (p\Node\Expr\MethodCall $m, string $i) use ($builder) {
+                                    return $builder->methodCall($m, $i);
+                                }, $builder->methodCall($createdDef->var, $mF)),
+                                $mL, $mCall
+                            );
+                            continue;
+                        }
+                    } else {
+                        $mCall = $resolver->autowireArguments(Callback::toReflection([$this->entity, $name]), $value);
                     }
-                    try {
-                        $defNodes[] = $builder->methodCall($createdDef->var, $name, $mCall);
-                    } catch (\LogicException) {
-                    }
+                    $defNodes[] = $builder->methodCall($createdDef->var, $name, $mCall);
                 }
             }
 
