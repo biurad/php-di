@@ -243,6 +243,8 @@ class Definition
     public function abstract(bool $boolean = true)
     {
         $this->options['abstract'] = $boolean;
+
+        return $this;
     }
 
     /**
