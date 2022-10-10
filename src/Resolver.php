@@ -179,8 +179,11 @@ class Resolver
             }
             $resolved = $this->cache[$callback] ??= $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
         } elseif ($callback instanceof Definitions\Statement) {
-            $resolved = fn () => $this->resolve($callback->getValue(), $callback->getArguments() + $args);
-            $resolved = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
+            if (!isset($this->cache[$callback])) {
+                $resolved = fn () => $this->resolve($callback->getValue(), $callback->getArguments() + $args);
+                $this->cache[$callback] = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
+            }
+            $resolved = $this->cache[$callback];
         } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->cache[$callback] ??= $this->resolveReference((string) $callback);
 
@@ -235,7 +238,7 @@ class Resolver
                 if (!$callback instanceof Expr\New_) {
                     $resolved = $callback instanceof Stmt\Expression ? $callback->expr : $callback;
                 } elseif (\is_subclass_of($class = $callback->class->__toString(), Injector\InjectableInterface::class)) {
-                    $resolved = $this->cache[$callback] = Injector\Injectable::getResolved($this, $callback, new \ReflectionClass($class));
+                    $resolved = $this->cache[$callback] ??= Injector\Injectable::getResolved($this, $callback, new \ReflectionClass($class));
                 }
             } elseif ($callback instanceof \stdClass) {
                 $resolved = $this->cache[$callback] ??= new Expr\Cast\Object_($this->builder->val($this->resolveArguments((array) $callback)));
