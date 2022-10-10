@@ -228,7 +228,8 @@ trait DefinitionAwareTrait
                                 \array_reduce($names, function (p\Node\Expr\MethodCall $m, string $i) use ($builder) {
                                     return $builder->methodCall($m, $i);
                                 }, $builder->methodCall($createdDef->var, $mF)),
-                                $mL, $mCall
+                                $mL,
+                                $mCall
                             );
                             continue;
                         }

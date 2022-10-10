@@ -92,7 +92,7 @@ class DefinitionsSplitter extends NodeVisitorAbstract
             \file_put_contents($path, CodePrinter::print($traitAst));
             $autoLoadAst[] = $autoLoadInclude;
         }
-        \file_put_contents($build = $cacheDirectory .'/' . $this->fileName, CodePrinter::print($autoLoadAst));
+        \file_put_contents($build = $cacheDirectory . '/' . $this->fileName, CodePrinter::print($autoLoadAst));
 
         return $build;
     }
