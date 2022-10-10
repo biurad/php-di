@@ -34,18 +34,8 @@ final class Inject
         REFERENCE = 1,
         PARAMETER = 2;
 
-    private int $type;
-
-    /** @var mixed */
-    private $value;
-
-    /**
-     * @param mixed $value
-     */
-    public function __construct($value = null, $type = self::REFERENCE)
+    public function __construct(private mixed $value = null, private int $type = self::REFERENCE)
     {
-        $this->value = $value;
-        $this->type = $type;
     }
 
     /**
