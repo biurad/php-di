@@ -100,11 +100,15 @@ class DefinitionsSplitter extends NodeVisitorAbstract
     /**
      * {@inheritdoc}
      */
-    public function enterNode(\PhpParser\Node $node)
+    public function afterTraverse(array $nodes)
     {
-        if ($node instanceof Declare_) {
-            $this->strictDeclare = $node;
-        } elseif ($node instanceof Class_) {
+        $node = $nodes[1] ?? $nodes[0];
+
+        if (isset($nodes[0]) && $nodes[0] instanceof Declare_) {
+            $this->strictDeclare = $nodes[0];
+        }
+
+        if ($node instanceof Class_) {
             $indexHash = ($stmtsCount = \count($nodeStmts = $node->stmts)) . 'a';
 
             while ($stmtsCount >= $this->maxCount) {
@@ -132,7 +136,7 @@ class DefinitionsSplitter extends NodeVisitorAbstract
             $this->previousTrait = null;
         }
 
-        return parent::enterNode($node);
+        return parent::afterTraverse($nodes);
     }
 
     private function traitHash(string $indexHash): string
