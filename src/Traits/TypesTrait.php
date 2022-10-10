@@ -172,9 +172,9 @@ trait TypesTrait
                 $autowired[$id][] = $this->services[$typed] ?? $this->get($typed);
 
                 if ($single && \array_key_exists(1, $autowired[$id])) {
-                    $c = \count($t = $this->types[$id]);
+                    $c = \count($t = $this->types[$id]) <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t);
 
-                    throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t)));
+                    throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c));
                 }
             }
 

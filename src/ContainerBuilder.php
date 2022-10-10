@@ -19,6 +19,7 @@ namespace Rade\DI;
 
 use PhpParser\Node\{Expr, Name, Scalar\String_};
 use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Nop};
+use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Component\Config\Resource\ResourceInterface;
 
 /**
@@ -49,6 +50,30 @@ class ContainerBuilder extends Container
         $this->resolver = new Resolver($this, new \PhpParser\BuilderFactory());
         $this->services[self::SERVICE_CONTAINER] = new Expr\Variable('this');
         $this->type(self::SERVICE_CONTAINER, ...\array_keys((\class_implements($c = $containerParentClass) ?: []) + (\class_parents($c) ?: []) + [$c => $c]));
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function autowired(string $id, bool $single = false): mixed
+    {
+        $autowired = [];
+
+        foreach ($this->types[$id] ?? [] as $typed) {
+            $autowired[] = $this->services[$typed] ?? $this->get($typed);
+
+            if ($single && \array_key_exists(1, $autowired)) {
+                $c = \count($t = $this->types[$id]) <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t);
+
+                throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c));
+            }
+        }
+
+        if (empty($autowired)) {
+            throw new NotFoundServiceException(\sprintf('Typed service "%s" not found. Check class name because it cannot be found.', $id));
+        }
+
+        return $single ? $autowired[0] : $autowired;
     }
 
     /**
