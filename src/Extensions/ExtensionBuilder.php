@@ -21,7 +21,7 @@ use Rade\DI\{Container, ContainerBuilder};
 use Rade\DI\Exceptions\MissingPackageException;
 use Symfony\Component\Config\Builder\{ConfigBuilderGenerator, ConfigBuilderGeneratorInterface};
 use Symfony\Component\Config\Definition\{ConfigurationInterface, Processor};
-use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource};
+use Symfony\Component\Config\Resource\{FileExistenceResource, FileResource};
 
 /**
  * Provides ability to load container extensions.
@@ -216,10 +216,10 @@ class ExtensionBuilder
             $configuration = $this->getConfig($id = \get_class($resolved), $extraKey);
 
             if ($resolved instanceof ConfigurationInterface) {
-                if (null !== $this->configBuilder && \is_string($configuration)) {
+                if (null !== $this->configBuilder && (\is_string($configuration) && 0 === \substr_compare($configuration, '%file(', 0, 6))) {
                     $configLoader = $this->configBuilder->build($resolved)();
 
-                    if (\file_exists($configuration = $container->parameter($configuration))) {
+                    if (\file_exists($configuration = $container->parameter(\substr($configuration, 6, -1)))) {
                         (include $configuration)($configLoader);
                     }
                     $configuration = $configLoader->toArray();
