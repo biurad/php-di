@@ -266,48 +266,44 @@ class Resolver
      */
     public function resolveCallable(callable|array $callback, array $arguments = []): mixed
     {
-        if (\is_callable($callback)) {
-            resolve_callable:
-            $ref = $ref ?? Callback::toReflection($callback);
-            $args = $this->autowireArguments($ref, $arguments);
+        if (\is_array($callback)) {
+            if ((2 === \count($callback) && \array_is_list($callback)) && \is_string($callback[1])) {
+                $callback[0] = $this->resolve($callback[0]);
 
-            if ($ref instanceof \ReflectionFunction) {
-                $resolved = $this->builder?->funcCall($callback, $args) ?? $ref->invokeArgs($args);
-            } elseif ($ref->isStatic()) {
-                $resolved = $this->builder?->staticCall($ref->getDeclaringClass()->getName(), $ref->getName(), $args) ?? $ref->invokeArgs(null, $args);
-            } else {
-                $resolved = $this->builder?->methodCall($this->resolve($ref->getDeclaringClass()->getName()), $ref->getName(), $args) ?? $callback(...$args);
-            }
+                if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
+                    $class = self::getDefinitionClass($this->container->definition($callback[0]->left->dim->value));
 
-            return $resolved;
-        }
-
-        if ([0, 1] === \array_keys($callback) && \is_string($callback[1])) {
-            $callback[0] = $this->resolve($callback[0]);
-
-            if (\is_callable($callback)) {
-                goto resolve_callable;
-            }
-
-            if ($callback[0] instanceof Expr\BinaryOp\Coalesce) {
-                $class = self::getDefinitionClass($this->container->definition($callback[0]->left->dim->value));
-
-                if (null !== $class) {
-                    $ref = Callback::toReflection([$class, $callback[1]]);
-                    goto resolve_callable;
+                    if (null !== $class) {
+                        $type = [$class, $callback[1]];
+                    }
+                } elseif ($callback[0] instanceof Expr\New_) {
+                    $type = [(string) $callback[0]->class, $callback[1]];
                 }
 
-                return $callback;
+                if (isset($type) || \is_callable($callback)) {
+                    goto create_callable;
+                }
             }
 
-            if ($callback[0] instanceof Expr\New_) {
-                $ref = Callback::toReflection([(string) $callback[0]->class, $callback[1]]);
-                goto resolve_callable;
-            }
+            $callback = $this->resolveArguments($callback);
+
+            return $this->builder?->val($callback) ?? $callback;
         }
-        $callback = $this->resolveArguments($callback);
 
-        return $this->builder?->val($callback) ?? $callback;
+        create_callable:
+        $args = $this->autowireArguments($ref = Callback::toReflection($type ?? $callback), $arguments);
+
+        if ($ref instanceof \ReflectionFunction) {
+            return $this->builder?->funcCall($callback, $args) ?? $ref->invokeArgs($args);
+        }
+
+        if ($ref->isStatic()) {
+            $className = \is_array($callback) ? $callback[0] : $ref->getDeclaringClass()->getName();
+
+            return $this->builder?->staticCall($className, $ref->getName(), $args) ?? $ref->invokeArgs(null, $args);
+        }
+
+        return $this->builder?->methodCall($callback[0], $ref->getName(), $args) ?? $callback(...$args);
     }
 
     /**
