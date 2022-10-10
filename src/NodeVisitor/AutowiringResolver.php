@@ -137,17 +137,6 @@ class AutowiringResolver extends NodeVisitorAbstract
             }
 
             if ($expression instanceof Expr\Array_) {
-                if (isset($this->replacement[$parentId][\spl_object_id($expression)]) && $leaveNodes) {
-                    $removeIds = \array_intersect_key(
-                        \array_keys($this->replacement[$parentId]),
-                        \array_map(fn (Expr\ArrayItem $i) => \spl_object_id($i->value), $expression->items)
-                    );
-
-                    foreach ($removeIds as $removeId) {
-                        unset($this->replacement[$parentId][$removeId]);
-                    }
-                }
-
                 $this->resolveStmt($expression->items, $parentId, $leaveNodes);
             }
 
