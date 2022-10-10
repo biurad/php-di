@@ -19,26 +19,15 @@ namespace Rade\DI\Loader;
 
 use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
-use Rade\DI\Definitions\{Parameter, Reference, Statement, TaggedLocator, ValueDefinition};
-
-/**
- * Marks a definition from being interpreted as a service.
- *
- * @param mixed $definition from being evaluated
- */
-function value($definition): ValueDefinition
-{
-    return new ValueDefinition($definition);
-}
+use Rade\DI\Definitions\{Parameter, Reference, Statement, TaggedLocator};
 
 /**
  * Wraps a value as a dynamic typed reference.
  *
- * @param mixed $value
  * @param array<int|string,mixed> $arguments
  * @param bool $closure Resolved value will be wrapped in a closure
  */
-function wrap($value, array $arguments = [], $closure = false): Statement
+function wrap(mixed $value, array $arguments = [], $closure = false): Statement
 {
     return new Statement($value, $arguments, $closure);
 }
@@ -49,7 +38,7 @@ function wrap($value, array $arguments = [], $closure = false): Statement
  * @param mixed $definition being evaluated
  * @param array<int|string,mixed> $args
  */
-function service($definition, array $args = []): Definition
+function service(mixed $definition, array $args = []): Definition
 {
     return new Definition($definition, $args);
 }
@@ -69,9 +58,9 @@ function reference(string $id): Reference
  *
  * @param string $id parameter identifier
  */
-function param(string $id): Parameter
+function param(string $id, bool $resolve = false): Parameter
 {
-    return new Parameter($id);
+    return new Parameter($id, $resolve);
 }
 
 /**
