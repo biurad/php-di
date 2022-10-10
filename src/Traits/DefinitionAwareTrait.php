@@ -265,7 +265,7 @@ trait DefinitionAwareTrait
         }
 
         if ($this->isShared()) {
-            $createdDef = new p\Node\Expr\Assign(
+            $createdVar = new p\Node\Expr\Assign(
                 new p\Node\Expr\ArrayDimFetch(
                     $builder->propertyFetch($builder->var('this'), $this->isPublic() ? 'services' : 'privates'),
                     new p\Node\Scalar\String_($this->id)
