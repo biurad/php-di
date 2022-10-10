@@ -435,7 +435,7 @@ class Resolver
         $invalidBehavior = $this->container::EXCEPTION_ON_MULTIPLE_SERVICE;
 
         if ('?' === $reference[0]) {
-            $invalidBehavior = $this->container::NULL_ON_INVALID_SERVICE;
+            $invalidBehavior |= $this->container::NULL_ON_INVALID_SERVICE;
             $reference = \substr($reference, 1);
         }
 
