@@ -134,7 +134,7 @@ class Definition
      */
     public function hasArgument(int|string|null $key = null): bool
     {
-        return !empty($key) ? isset($this->arguments[$key]) : !empty($this->arguments);
+        return null !== $key ? isset($this->arguments[$key]) : !empty($this->arguments);
     }
 
     /**
@@ -142,7 +142,7 @@ class Definition
      */
     public function getArgument(int|string|null $key = null): mixed
     {
-        return !empty($key) ? ($this->arguments[$key] ?? null) : $this->arguments;
+        return null !== $key ? ($this->arguments[$key] ?? null) : $this->arguments;
     }
 
     /**
