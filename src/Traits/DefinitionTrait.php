@@ -185,6 +185,6 @@ trait DefinitionTrait
             }
         }
 
-        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . $suggest ?? '', $id), 0, $e);
+        return new NotFoundServiceException(\sprintf('The "%s" requested service is not defined in container.' . ($suggest ?? ''), $id), 0, $e);
     }
 }
