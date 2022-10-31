@@ -200,13 +200,14 @@ class Resolver
             }
 
             if (null === $this->builder) {
-                return $this->cache[$callback] ??= $callback->setContainer($this->container, 'anonymous', true)();
+                return $this->cache[$callback] ??= $callback->setContainer($this->container, 'anonymous', true)->resolve($this);
             }
 
             if (!isset($this->cache[$callback])) {
+                $callback->setContainer($this->container, 'anonymous', true);
                 $service = \array_map(
                     fn (\PhpParser\Node $v) => ($v instanceof Stmt\Return_ && $v->expr instanceof Expr\Assign) ? new Stmt\Return_($v->expr->expr) : $v,
-                    $callback(true)->stmts
+                    $callback->resolve($this, true)->stmts
                 );
                 $this->cache[$callback] = 1 === \count($service) ? $service[0]->expr : new Expr\FuncCall(new Expr\Closure(['stmts' => $service]));
             }
