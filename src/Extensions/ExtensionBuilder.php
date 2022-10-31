@@ -175,12 +175,11 @@ class ExtensionBuilder
     public function load(array $extensions): void
     {
         $this->container->runScope([ExtensionInterface::BUILDER => $this], function () use ($extensions): void {
-            /** @var array<int,BootExtensionInterface> */
-            $afterLoading = [];
+            /** @var \SplStack<int,BootExtensionInterface> */
+            $afterLoading = new \SplStack();
+            $this->bootExtensions($this->sortExtensions($extensions), $afterLoading);
 
-            $this->bootExtensions($extensions, $afterLoading);
-
-            foreach (\array_reverse($afterLoading) as $bootable) {
+            foreach ($afterLoading as $bootable) {
                 $bootable->boot($this->container);
             }
         });
@@ -190,13 +189,15 @@ class ExtensionBuilder
      * Resolve extensions and register them.
      *
      * @param mixed[]                           $extensions
-     * @param array<int,BootExtensionInterface> $afterLoading
+     * @param \SplStack<int,BootExtensionInterface> $afterLoading
      */
-    private function bootExtensions(array $extensions, array &$afterLoading, string $extraKey = null): void
+    private function bootExtensions(array $extensions, \SplStack &$afterLoading, string $extraKey = null): void
     {
         $container = $this->container;
 
-        foreach ($this->sortExtensions($extensions) as $resolved) {
+        foreach ($extensions as $resolved) {
+            [$resolved, $dependencies] = \is_array($resolved) ? $resolved : [$resolved, null];
+
             if ($resolved instanceof DebugExtensionInterface && $resolved->inDevelopment() !== $container->parameters['debug']) {
                 continue;
             }
@@ -210,8 +211,8 @@ class ExtensionBuilder
                 $this->ensureRequiredPackagesAvailable($resolved);
             }
 
-            if ($resolved instanceof DependenciesInterface) {
-                $this->bootExtensions($resolved->dependencies(), $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
+            if ($dependencies) {
+                $this->bootExtensions($dependencies, $afterLoading, \method_exists($resolved, 'dependOnConfigKey') ? $resolved->dependOnConfigKey() : $extraKey);
             }
             $configuration = $this->getConfig($id = \get_class($resolved), $extraKey);
 
@@ -280,7 +281,9 @@ class ExtensionBuilder
                 }
                 $this->aliases[$aliasedId] = $extension;
             }
-            $passes[$index][] = $this->extensions[$extension] = $resolved;
+
+            $this->extensions[$extension] = $resolved;
+            $passes[$index][] = $resolved instanceof DependenciesInterface ? [$resolved, $this->sortExtensions($resolved->dependencies())] : $resolved;
         }
         \krsort($passes);
 
