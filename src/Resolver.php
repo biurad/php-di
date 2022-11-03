@@ -340,7 +340,7 @@ class Resolver
                 $services += $this->resolveServiceSubscriber($name, $service);
             }
 
-            return $this->builder?->new('\\' . Services\ServiceLocator::class, [$services]) ?? new Services\ServiceLocator($services);
+            return $this->builder?->new($class, [$this->builder->new(Services\ServiceLocator::class, [$services])]) ?? new $class(new Services\ServiceLocator($services));
         }
 
         if (\method_exists($class, '__construct')) {
