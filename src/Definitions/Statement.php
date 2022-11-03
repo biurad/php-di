@@ -24,20 +24,34 @@ namespace Rade\DI\Definitions;
  */
 class Statement
 {
+    private mixed $rawValue = null;
+
     /**
      * Statement constructor.
      *
-     * @param mixed                   $value
      * @param array<int|string,mixed> $args
      * @param bool $closure Resolved value will be wrapped in a closure
      */
-    public function __construct(private $value, private array $args = [], private bool $closure = false)
+    public function __construct(private mixed $value, private array $args = [], private bool $closure = false)
     {
+    }
+
+    public static function rawValue(mixed $value, bool $closure = false)
+    {
+        $statement = new self('', [], $closure);
+        $statement->rawValue = $value;
+
+        return $statement;
     }
 
     public function getValue(): mixed
     {
         return $this->value;
+    }
+
+    public function getRawValue(): mixed
+    {
+        return $this->rawValue;
     }
 
     /**

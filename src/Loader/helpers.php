@@ -21,6 +21,17 @@ use Rade\DI\Builder\PhpLiteral;
 use Rade\DI\Definition;
 use Rade\DI\Definitions\{Parameter, Reference, Statement, TaggedLocator};
 
+
+/**
+ * Wraps a raw value as a definition.
+ *
+ * @param bool $closure Resolved value will be wrapped in a closure
+ */
+function value(mixed $value, $closure = false): Statement
+{
+    return Statement::rawValue($value, $closure);
+}
+
 /**
  * Wraps a value as a dynamic typed reference.
  *

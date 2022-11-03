@@ -180,7 +180,13 @@ class Resolver
             $resolved = $this->cache[$callback] ??= $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
         } elseif ($callback instanceof Definitions\Statement) {
             if (!isset($this->cache[$callback])) {
-                $resolved = fn () => $this->resolve($callback->getValue(), $callback->getArguments() + $args);
+                $resolved = function () use ($callback, $args) {
+                    if ($raw = $callback->getRawValue()) {
+                        return \is_string($raw) ? ($this->builder?->val($raw) ?? $raw) : $this->resolve($raw);
+                    }
+
+                    return $this->resolve($callback->getValue(), $callback->getArguments() + $args);
+                };
                 $this->cache[$callback] = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
             }
             $resolved = $this->cache[$callback];
