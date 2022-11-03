@@ -34,7 +34,7 @@ trait DefinitionTrait
     protected array $definitions = [];
 
     /** @var array<string,mixed> */
-    protected array $services = [], $privates = [];
+    protected array $loading = [], $services = [], $privates = [];
 
     /** @var array<string,string> service name => method name */
     protected array $methodsMap = [];
