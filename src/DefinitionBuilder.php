@@ -18,7 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Nette\Utils\{FileSystem, Validators};
-use Symfony\Component\Config\Resource\{ClassExistenceResource, FileExistenceResource, FileResource, ResourceInterface};
+use Symfony\Component\Config\Resource\{FileExistenceResource, FileResource, ResourceInterface};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -500,7 +500,6 @@ class DefinitionBuilder implements ResetInterface
         }
 
         if ($container instanceof ContainerBuilder && \interface_exists(ResourceInterface::class)) {
-            $container->addResource(new ClassExistenceResource($class, false));
             $container->addResource(new FileExistenceResource($rPath = $r->getFileName()));
             $container->addResource(new FileResource($rPath));
         }
