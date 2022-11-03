@@ -106,7 +106,6 @@ trait TypesTrait
                 $this->types[$typed][] = $id;
             }
         }
-        $this->typed = [];
     }
 
     /**
