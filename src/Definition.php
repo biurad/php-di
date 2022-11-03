@@ -90,6 +90,11 @@ class Definition
         }
         $this->entity = $entity;
 
+        if (isset($this->options['can_be_typed'])) {
+            $this->typed();
+            unset($this->options['can_be_typed']);
+        }
+
         return $this;
     }
 
@@ -331,6 +336,10 @@ class Definition
             $this->options['typed'] = true;
 
             return $this;
+        }
+
+        if (empty($to)) {
+            $this->options['can_be_typed'] = true;
         }
 
         foreach ($to as $typed) {
