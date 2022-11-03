@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 namespace Rade\DI\Attribute;
 
-use Rade\DI\AbstractContainer;
+use Rade\DI\Container;
 use Rade\DI\Definitions\TaggedLocator;
 
 /**
@@ -41,7 +41,7 @@ final class Tagged
         $this->value = new TaggedLocator($tag, $indexAttribute, $needsIndexes, $exclude);
     }
 
-    public function getValues(AbstractContainer $container): array
+    public function getValues(Container $container): array
     {
         return $this->value->resolve($container);
     }
