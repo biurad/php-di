@@ -265,9 +265,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      */
     protected function doLoad(string $id, int $invalidBehavior): mixed
     {
-        $definition = $this->definitions[$id] ?? null;
-
-        if (null === $definition) {
+        if (null == ($definition = $this->definitions[$id] ?? null)) {
             if (\array_key_exists($id, $this->types)) {
                 return $this->autowired($id, 1 === ($invalidBehavior & self::EXCEPTION_ON_MULTIPLE_SERVICE));
             }

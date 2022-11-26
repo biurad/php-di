@@ -54,7 +54,7 @@ trait DefinitionAwareTrait
         }
 
         if (null === $builder = $resolver->getBuilder()) {
-            if (!empty($this->deprecation)) {
+            if ([] !== $this->deprecation) {
                 $deprecation = $this->getDeprecation();
                 \trigger_deprecation($deprecation['package'], $deprecation['version'], $deprecation['message']);
             }
@@ -67,7 +67,7 @@ trait DefinitionAwareTrait
                 $entity = $resolver->resolve($entity, $this->arguments);
             }
 
-            if (!empty($this->calls)) {
+            if ([] !== $this->calls) {
                 foreach ($this->calls['a'] ?? [] as $property => $propertyValue) {
                     $propertyValue = $resolver->resolve($propertyValue);
 
