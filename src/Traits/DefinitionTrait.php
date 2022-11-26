@@ -117,9 +117,7 @@ trait DefinitionTrait
      */
     public function set(string $id, mixed $definition = null): Definition
     {
-        unset($this->aliases[$id]); // remove alias
-
-        if (null !== ($this->services[$id] ?? $this->privates[$id] ?? $this->methodsMap[$id] ?? null)) {
+        if (isset($this->methodsMap[$id]) || isset($this->services[$id]) || isset($this->privates[$id])) {
             throw new FrozenServiceException(\sprintf('The "%s" service is already initialized, and cannot be replaced.', $id));
         }
 
@@ -130,9 +128,14 @@ trait DefinitionTrait
         } elseif (!$definition instanceof Definition) {
             $definition = new Definition($definition ?? $id);
         }
-        $this->definitions[$id] = $definition;
 
-        return $definition->setContainer($this, $id);
+        try {
+            $this->definitions[$id] = $definition;
+
+           return $definition->setContainer($this, $id);
+        } finally {
+            unset($this->aliases[$id]); // remove alias
+        }
     }
 
     /**
