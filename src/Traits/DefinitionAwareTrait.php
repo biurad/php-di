@@ -61,6 +61,8 @@ trait DefinitionAwareTrait
 
             if (\is_callable($entity = $this->entity)) {
                 $entity = $resolver->resolveCallable($entity, $this->arguments);
+            } elseif (\is_string($entity)) {
+                $entity = $resolver->resolveClass(!\str_contains($entity, '%') ? $entity : $this->container->parameter($entity), $this->arguments);
             } elseif (!\is_object($entity)) {
                 $entity = $resolver->resolve($entity, $this->arguments);
             }
