@@ -166,17 +166,17 @@ class ContainerBuilder extends Container
                 $constructorNode->addStmt($b->staticCall(new Name('parent'), '__construct'));
             }
 
+            if (\count($processedData[1]) > 1) {
+                unset($processedData[1][$s]);
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'methodsMap'), $b->val($processedData[1])));
+            }
+
             if (!empty($parameters)) {
                 $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'parameters'), $b->val($parameters)));
             }
 
             if (!empty($processedData[0])) {
                 $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'aliases'), $b->val($processedData[0])));
-            }
-
-            if (\count($processedData[1]) > 1) {
-                unset($processedData[1][$s]);
-                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'methodsMap'), $b->val($processedData[1])));
             }
 
             if (!empty($processedData[4])) {

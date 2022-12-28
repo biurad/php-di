@@ -31,10 +31,16 @@ class MethodsResolver extends \PhpParser\NodeVisitorAbstract
      */
     public function enterNode(\PhpParser\Node $node)
     {
-        if ($node instanceof \PhpParser\Node\Stmt\PropertyProperty && 'methodsMap' === $node->name->name) {
+        if (!$node instanceof \PhpParser\Node\Stmt\ClassMethod) {
+            return parent::enterNode($node);
+        }
+
+        if (\array_key_exists($node->name->name, $this->replacement)) {
+            $node->name->name = \array_shift($this->replacement[$node->name->name]);
+        } elseif ($node->name->name === '__construct') {
             $sameNaming = [];
 
-            foreach ($node->default->items as $item) {
+            foreach ($node->stmts[1]->expr->expr->items as $item) {
                 $lcName = \strtolower($item->key->value);
 
                 if (\array_key_exists($lcName, $sameNaming)) {
@@ -43,8 +49,6 @@ class MethodsResolver extends \PhpParser\NodeVisitorAbstract
                     $sameNaming[$lcName] = 0;
                 }
             }
-        } elseif ($node instanceof \PhpParser\Node\Stmt\ClassMethod && \array_key_exists($node->name->name, $this->replacement)) {
-            $node->name->name = \array_shift($this->replacement[$node->name->name]);
         }
 
         return parent::enterNode($node);
