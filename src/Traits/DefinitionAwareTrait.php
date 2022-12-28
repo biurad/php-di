@@ -182,7 +182,7 @@ trait DefinitionAwareTrait
             if (!\is_string($entity = $this->entity)) {
                 $entity = $resolver->resolve($entity);
             }
-            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolver', [$entity, $resolver->resolveArguments($this->arguments)]);
+            $createdDef = $builder->methodCall($builder->propertyFetch($builder->var('this'), 'resolver'), 'resolve', [$entity, $resolver->resolveArguments($this->arguments)]);
         } else {
             $createdDef = $resolver->resolve($this->entity, $this->arguments);
 
