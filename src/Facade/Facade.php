@@ -34,7 +34,7 @@ class Facade
      */
     public static array $proxies = [];
 
-    protected static ContainerInterface $container;
+    protected static ?ContainerInterface $container;
 
     /**
      * Sets the Container that will be used to retrieve the Proxies.
@@ -55,7 +55,7 @@ class Facade
     {
         $id = self::$proxies[$name] ?? null;
 
-        if (null === $id || !self::$container->has($id)) {
+        if (null === $id || null === self::$container || !self::$container->has($id)) {
             throw new NotFoundServiceException(\sprintf('Proxy service "%" not found' . ($id ? ' and non-existence in container' : ''), $name));
         }
 
