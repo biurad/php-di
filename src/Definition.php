@@ -84,6 +84,11 @@ class Definition
         if ($entity instanceof Definitions\Statement) {
             $this->args($entity->getArguments());
             $this->lazy($entity->isClosureWrappable());
+
+            if ($entity->getRawValue()) {
+                throw new Exceptions\ContainerResolutionException('Service definition accepts only resolvable entities. Use containe\'s parameters property.');
+            }
+
             $entity = $entity->getValue();
         } elseif ($entity instanceof self) {
             throw new Exceptions\ContainerResolutionException('Service definition cannot be nested');
