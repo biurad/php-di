@@ -182,14 +182,17 @@ class Resolver
             if (!isset($this->cache[$callback])) {
                 $resolved = function () use ($callback, $args) {
                     if ($raw = $callback->getRawValue()) {
-                        return \is_string($raw) ? ($this->builder?->val($raw) ?? $raw) : $this->resolve($raw);
+                        return !\is_array($raw) ? ($this->builder?->val($raw) ?? $raw) : $this->resolveArguments($raw);
                     }
 
                     return $this->resolve($callback->getValue(), $callback->getArguments() + $args);
                 };
                 $this->cache[$callback] = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
             }
-            $resolved = $this->cache[$callback];
+
+            if (\is_callable($resolved = $this->cache[$callback]) && !empty($args)) {
+                $resolved = $this->resolveCallable($resolved, $args);
+            }
         } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->cache[$callback] ??= $this->resolveReference((string) $callback);
 
