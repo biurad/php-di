@@ -289,6 +289,10 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             return 2 === ($invalidBehavior & self::NULL_ON_INVALID_SERVICE) ? null : throw $this->createNotFound($id, $e ?? null);
         }
 
+        if ($definition->isAbstract()) {
+            throw new ContainerResolutionException(\sprintf('Abstract definition "%s" cannot be instantiated.', $id));
+        }
+
         try {
             $this->loading[$id] = !isset($this->loading[$id]) ? true : throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
             $service = $definition->resolve($this->resolver);
