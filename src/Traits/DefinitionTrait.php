@@ -19,7 +19,7 @@ namespace Rade\DI\Traits;
 
 use Nette\Utils\Helpers;
 use Rade\DI\{ContainerBuilder, Definition, Definitions};
-use Rade\DI\Exceptions\{FrozenServiceException, NotFoundServiceException};
+use Rade\DI\Exceptions\{ContainerResolutionException, FrozenServiceException, NotFoundServiceException};
 
 /**
  * This trait adds definition's functionality to container.
@@ -122,9 +122,12 @@ trait DefinitionTrait
         }
 
         if ($definition instanceof Definitions\Reference) {
-            $parent = (string) $definition;
-            $child = $this->definitions[$this->aliases[$parent] ?? $parent] ?? throw $this->createNotFound($parent);
-            $definition = clone $child->abstract(false);
+            $child = $this->definitions[$this->aliases[$parent = (string) $definition] ?? $parent] ?? throw $this->createNotFound($parent);
+            ($definition = clone $child)->abstract(false);
+
+            if (!$child->isAbstract()) {
+                throw new ContainerResolutionException(\sprintf('Cannot inherit "%s" from a non-abstract service "%s".', $id, $parent));
+            }
         } elseif (!$definition instanceof Definition) {
             $definition = new Definition($definition ?? $id);
         }
