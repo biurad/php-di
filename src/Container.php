@@ -208,38 +208,44 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      *
      * Example:
      * ```php
+     * $container->autowire('movie', new Movie('Baby Driver 2023'));
      * $container->runScope(
-     *    ['actor' => \Rade\DI\Loader\service(Actor::class)->autowire()],
-     *    function (ContainerInterface $container, Actor $actor) {
-     *        \assert($container->get('actor') instanceof $actor);
+     *    ['actor', 'director'],
+     *    function (ContainerInterface $container, Movie $movie) {
+     *        $container->set('director', new Director('Edgar Wright'));
+     *        $container->set('actor', new Actor('John Doe'));
      *
-     *        return $actor;
+     *        $movie->addActor($container->get('actor'));
+     *        $movie->setDirector($container->get('director'));
+     *
+     *        return $movie;
      *    }
      * );
      * ```
      *
      * This makes the service private and cannot be use elsewhere in codebase.
      *
-     * @param array<string,mixed> $services
+     * @param array<int,string> $services
      *
      * @throws ContainerResolutionException if a service id exists
      */
     public function runScope(array $services, callable $scope): mixed
     {
-        $cleanup = [];
         $ref = new \ReflectionFunction(\Closure::fromCallable($scope));
 
-        foreach ($services as $serviceId => $definition) {
+        foreach ($services as $serviceId) {
             if ($this->has($serviceId)) {
                 throw new ContainerResolutionException(\sprintf('Service with id "%s" exist in container and cannot be redeclared.', $serviceId));
             }
-            $this->set($cleanup[] = $serviceId, $definition);
         }
 
         try {
-            return $ref->invokeArgs($this->resolver->autowireArguments($ref));
+            return 0 === $ref->getNumberOfParameters() ? $ref->invoke() : $ref->invokeArgs($this->resolver->autowireArguments($ref));
         } finally {
-            foreach ($cleanup as $alias) {
+            foreach ($services as $alias) {
+                if (!$this->has($alias)) {
+                    throw new NotFoundServiceException(\sprintf('Service with id "%s" was not found, cannot remove it.', $alias));
+                }
                 $this->removeDefinition($alias);
             }
         }
