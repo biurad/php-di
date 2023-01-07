@@ -30,7 +30,8 @@ class Statement
      * Statement constructor.
      *
      * @param array<int|string,mixed> $args
-     * @param bool $closure Resolved value will be wrapped in a closure
+     * @param bool $closure Resolved value will be wrapped in a closure.
+     *                      But if passed into a definition's class, it's resolved as lazy.
      */
     public function __construct(private mixed $value, private array $args = [], private bool $closure = false)
     {
