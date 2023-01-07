@@ -327,7 +327,7 @@ class Resolver
     public function resolveClass(string $class, array $args = []): object
     {
         if (\is_subclass_of($class, ServiceProviderInterface::class)) {
-            static $services = [];
+            $services = [];
 
             foreach ($args as $name => $service) {
                 $services += $this->resolveServiceSubscriber($name, (string) $service);
@@ -337,7 +337,7 @@ class Resolver
         }
 
         if (\is_subclass_of($class, ServiceSubscriberInterface::class)) {
-            static $services = [];
+            $services = [];
 
             foreach ($class::getSubscribedServices() as $name => $service) {
                 $services += $this->resolveServiceSubscriber($name, $service);
