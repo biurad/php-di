@@ -79,14 +79,14 @@ class Definition
      *
      * @return $this
      */
-    public function replace(mixed $entity)
+    public function replace(mixed $entity, bool $preserveTypes = false)
     {
         if ($entity instanceof Definitions\Statement) {
             $this->args($entity->getArguments());
             $this->lazy($entity->isClosureWrappable());
 
             if ($entity->getRawValue()) {
-                throw new Exceptions\ContainerResolutionException('Service definition accepts only resolvable entities. Use containe\'s parameters property.');
+                throw new Exceptions\ContainerResolutionException('Service definition accepts only resolvable entities. Use container\'s parameters property.');
             }
 
             $entity = $entity->getValue();
@@ -95,9 +95,11 @@ class Definition
         }
         $this->entity = $entity;
 
-        if (isset($this->options['can_be_typed'])) {
-            $this->typed();
-            unset($this->options['can_be_typed']);
+        if (isset($this->options['typed'])) {
+            if (!$preserveTypes && null !== $this->container) {
+                $this->removeType();
+            }
+            $this->{$preserveTypes ? 'typed' : 'types'}();
         }
 
         return $this;
@@ -222,9 +224,13 @@ class Definition
      *
      * @param string|null $propertyOrMethod A property name prefixed with a $, or a method name
      */
-    public function hasBinding(string $propertyOrMethod = null): bool
+    public function hasBinding(int|string $propertyOrMethod = null): bool
     {
         if (!empty($propertyOrMethod)) {
+            if (\is_int($propertyOrMethod)) {
+                return isset($this->calls['c'][$propertyOrMethod]);
+            }
+
             return isset($this->calls['b'][$propertyOrMethod]) || isset($this->calls['a'][\substr($propertyOrMethod, 1)]);
         }
 
@@ -236,13 +242,27 @@ class Definition
      *
      * @return array<int|string,mixed>
      */
-    public function getBinding(string $propertyOrMethod = null): mixed
+    public function getBinding(int|string $propertyOrMethod = null): mixed
     {
         if (!empty($propertyOrMethod)) {
-            return $this->calls['b'][$propertyOrMethod] ?? $this->calls['a'][\substr($propertyOrMethod, 1)] ?? null;
+            if (\is_int($propertyOrMethod)) {
+                return $this->calls['c'][$propertyOrMethod] ?? null;
+            }
+
+            if (\str_contains($propertyOrMethod, '.')) {
+                [$propertyOrMethod, $offset] = \explode('.', $propertyOrMethod, 2);
+            }
+
+            $value = $this->calls['b'][$propertyOrMethod] ?? $this->calls['a'][\substr($propertyOrMethod, 1)] ?? [];
+
+            return isset($offset) ? ($value[$offset] ?? null) : ($value ?: null);
         }
 
-        return \array_merge(...$this->calls);
+        return [
+            'properties' => $this->calls['a'] ?? [],
+            'methods' => $this->calls['b'] ?? [],
+            'calls' => $this->calls['c'] ?? [],
+        ];
     }
 
     /**
@@ -330,28 +350,52 @@ class Definition
      *
      * @return $this
      */
+    public function types(string ...$to)
+    {
+        $this->options['typed'] = true;
+
+        if ([] === $to) {
+            $to = Resolver::autowireService($this->entity, false);
+        }
+
+        if (isset($this->options['excludes'])) {
+            $to = \array_keys(\array_diff_key(\array_fill_keys($to, true), $this->options['excludes']));
+        }
+
+        if (null !== $this->container) {
+            $this->container->type($this->id, ...$to);
+        } else {
+            $this->options['types'] = $to;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add/Replace the PHP type-hint(s) for this definition.
+     *
+     * @return $this
+     */
     public function typed(string ...$to)
     {
+        $this->options['typed'] = true;
+
         if ([] === $to) {
             $to = Resolver::autowireService($this->entity, false);
         }
 
         if (null !== $this->container) {
-            $this->container->type($this->id, ...$to);
-            $this->options['typed'] = true;
-
-            return $this;
-        }
-
-        if (empty($to)) {
-            $this->options['can_be_typed'] = true;
-        }
-
-        foreach ($to as $typed) {
-            if (isset($this->options['excludes'][$typed])) {
-                continue;
+            if (isset($this->options['excludes'])) {
+                $to = \array_keys(\array_diff_key(\array_fill_keys($to, true), $this->options['excludes']));
             }
-            $this->options['types'][$typed] = true;
+
+            $this->container->type($this->id, ...$to);
+        } else {
+            foreach ($to as $typed) {
+                if (!isset($this->options['excludes'][$typed])) {
+                    $this->options['types'][$typed] = true;
+                }
+            }
         }
 
         return $this;
@@ -359,18 +403,16 @@ class Definition
 
     /**
      * Set the not expected PHP type-hint(s) for this definition.
+     *
+     * @return $this
      */
-    public function excludeType(string ...$type): void
+    public function excludeType(string ...$type)
     {
-        if (null !== $this->container) {
-            $this->container->excludeType(...$type);
-
-            return;
-        }
-
         foreach ($type as $typed) {
             $this->options['excludes'][$typed] = true;
         }
+
+        return $this;
     }
 
     /**
@@ -386,14 +428,19 @@ class Definition
      */
     public function getTypes(): array
     {
-        return $this->container?->typed($this->id, true) ?? \array_keys($this->options['types']);
+        return $this->container?->typed($this->id, true) ?? \array_keys($this->options['types'] ?? []);
     }
 
     /**
      * Remove a PHP type-hint(s) from this definition.
+     * If no type is provided, all types are removed.
      */
     public function removeType(string ...$type): void
     {
+        if (empty($type)) {
+            $type = $this->getTypes();
+        }
+
         foreach ($type as $t) {
             if (null !== $this->container) {
                 $this->container->removeType($t, $this->id);

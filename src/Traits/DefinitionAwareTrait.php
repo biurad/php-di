@@ -134,11 +134,6 @@ trait DefinitionAwareTrait
                 unset($this->options['aliases']);
             }
 
-            if (isset($this->options['excludes'])) {
-                $this->container->excludeType(...\array_keys($this->options['excludes']));
-                unset($this->options['excludes']);
-            }
-
             if (isset($this->options['types'])) {
                 $this->container->type($this->id, ...\array_keys($this->options['types']));
                 unset($this->options['types']);
