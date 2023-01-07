@@ -196,7 +196,7 @@ class Resolver
         } elseif ($callback instanceof Definitions\Reference) {
             $resolved = $this->cache[$callback] ??= $this->resolveReference((string) $callback);
 
-            if (\is_callable($resolved) || \is_array($callback)) {
+            if (!$resolved instanceof Container && (\is_callable($resolved) || \is_array($callback))) {
                 $resolved = $this->resolveCallable($resolved, $args);
             } elseif (null === $resolved) {
                 $callback = $resolved;
