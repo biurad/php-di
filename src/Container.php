@@ -297,13 +297,13 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             $this->loading[$id] = !isset($this->loading[$id]) ? true : throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
             $service = $definition->resolve($this->resolver);
 
-            if (!$definition->isPublic() && !$this instanceof ContainerBuilder) {
-                $this->removeDefinition($id);
-            }
-
             return !$definition->isShared() ? $service : $this->services[$id] = $service;
         } finally {
             unset($this->loading[$id]);
+
+            if (!$definition->isPublic() && !$this instanceof ContainerBuilder) {
+                $this->removeDefinition($id);
+            }
         }
     }
 }
