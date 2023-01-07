@@ -133,7 +133,23 @@ trait TypesTrait
      */
     public function typed(string $id, bool $ids = false): array|bool
     {
-        return $ids ? $this->types[$id] ?? [] : \array_key_exists($id, $this->types);
+        if (!$this->has($id)) {
+            return $ids ? $this->types[$id] ?? [] : !empty($this->types[$id] ?? []);
+        }
+
+        $types = [];
+
+        foreach ($this->types as $type => $idx) {
+            if (\in_array($id, $idx, true)) {
+                if (!$ids) {
+                    return true;
+                }
+
+                $types[] = $type;
+            }
+        }
+
+        return $ids ? $types : false;
     }
 
     /**
