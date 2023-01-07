@@ -132,13 +132,18 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
             $this->removeDefinition($id);
         }
 
-        foreach ($this->containers as $container => $true) {
+        foreach ($this->containers ?? [] as $container => $true) {
             if ($container instanceof ResetInterface) {
                 $container->reset(); // A container such as Symfony DI support reset
             }
         }
 
+        $c = $this->services[self::SERVICE_CONTAINER];
+        $t = $this->typed(self::SERVICE_CONTAINER, true);
         $this->services = $this->types = $this->tags = $this->aliases = [];
+
+        $this->services[self::SERVICE_CONTAINER] = $c;
+        $this->type(self::SERVICE_CONTAINER, ...$t);
     }
 
     /**
