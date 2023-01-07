@@ -18,12 +18,7 @@ declare(strict_types=1);
 namespace Rade\DI;
 
 use Psr\Container\{ContainerInterface, NotFoundExceptionInterface};
-use Rade\DI\Exceptions\{
-    CircularReferenceException,
-    ContainerResolutionException,
-    FrozenServiceException,
-    NotFoundServiceException
-};
+use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**

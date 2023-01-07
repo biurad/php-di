@@ -19,7 +19,6 @@ namespace Rade\DI;
 
 use PhpParser\Node\{Expr, Name, Scalar\String_};
 use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Nop};
-use Rade\DI\Exceptions\{ContainerResolutionException, NotFoundServiceException};
 use Symfony\Component\Config\Resource\ResourceInterface;
 
 /**
