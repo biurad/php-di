@@ -54,30 +54,6 @@ class ContainerBuilder extends Container
     /**
      * {@inheritdoc}
      */
-    public function autowired(string $id, bool $single = false): mixed
-    {
-        $autowired = [];
-
-        foreach ($this->types[$id] ?? [] as $typed) {
-            $autowired[] = $this->services[$typed] ?? $this->get($typed);
-
-            if ($single && \array_key_exists(1, $autowired)) {
-                $c = \count($t = $this->types[$id]) <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t);
-
-                throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c));
-            }
-        }
-
-        if (empty($autowired)) {
-            throw new NotFoundServiceException(\sprintf('Typed service "%s" not found. Check class name because it cannot be found.', $id));
-        }
-
-        return $single ? $autowired[0] : $autowired;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function reset(): void
     {
         parent::reset();

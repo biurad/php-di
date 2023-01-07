@@ -180,25 +180,21 @@ trait TypesTrait
      */
     public function autowired(string $id, bool $single = false): mixed
     {
-        static $autowired = [];
-
-        if (!\array_key_exists($id, $autowired)) {
-            foreach ($this->types[$id] ?? [] as $typed) {
-                $autowired[$id][] = $this->services[$typed] ?? $this->get($typed);
-
-                if ($single && \array_key_exists(1, $autowired[$id])) {
-                    $c = \count($t = $this->types[$id]) <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t);
-
-                    throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c));
-                }
-            }
-
-            if (empty($autowired[$id] ?? [])) {
-                throw new NotFoundServiceException(\sprintf('Typed service "%s" not found. Check class name because it cannot be found.', $id));
-            }
+        if (empty($autowired = $this->types[$id] ?? [])) {
+            throw new NotFoundServiceException(\sprintf('Typed service "%s" not found. Check class name because it cannot be found.', $id));
         }
 
-        return $single ? $autowired[$id][0] : $autowired[$id];
+        if ($single) {
+            if (\count($autowired) > 1) {
+                $c = \count($t = $this->types[$id]) <= 3 ? \implode(', ', $t) : \current($t) . ', ...' . \end($t);
+
+                throw new ContainerResolutionException(\sprintf('Multiple typed services %s found: %s.', $id, $c));
+            }
+
+            return $this->get(\current($autowired));
+        }
+
+        return \array_map(fn (string $id) => $this->get($id), $autowired);
     }
 
     /**
