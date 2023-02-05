@@ -30,7 +30,7 @@ trait ExtensionTrait
     /**
      * Get the extension builder extensions.
      *
-     * @return array<int,Extensions\ExtensionInterface>
+     * @return array<int,\Rade\DI\Extensions\ExtensionInterface>
      */
     public function getExtensions(): array
     {

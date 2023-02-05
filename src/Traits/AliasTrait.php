@@ -44,26 +44,28 @@ trait AliasTrait
      * @param string                       $id      The alias id
      * @param Reference|string $service The registered service id
      *
-     * @throws NotFoundServiceException Service id is not found in container
+     * @throws \Rade\DI\Exceptions\NotFoundServiceException Service id is not found in container
      */
     public function alias(string $id, Reference|string $service): void
     {
-        if ($id === $service = (string) $service) {
+        $service = \explode('@', (string) $service, 2);
+
+        if ($id === $service[0]) {
             throw new ContainerResolutionException(\sprintf('Cannot alias "%s" to itself.', $id));
         }
 
-        if (isset($this->types) && $typed = $this->typed($service, true)) {
+        if ($this->has($service[0])) {
+            $this->aliases[$id] = $this->aliases[$service[0]] ?? $service[0];
+        } elseif ($typed = $this->typed($service[0], true)) {
             if (\count($typed) > 1) {
-                throw new ContainerResolutionException(\sprintf('Aliasing an alias of "%s" on a multiple defined type "%s" is not allowed.', $id, $service));
+                throw new ContainerResolutionException(\sprintf('Aliasing an alias of "%s" on a multiple defined type "%s" is not allowed.', $id, $service[0]));
             }
-            $service = $typed[0];
-        }
 
-        if (!$this->has($service)) {
-            throw $this->createNotFound($service);
+            $service = $typed[(int) $service[1] ?? 0] ?? throw new ContainerResolutionException(\sprintf('Missing types for "%s" alias "%s"', $service[0], $id));
+            $this->aliases[$id] = $this->aliases[$service] ?? $service;
+        } else {
+            throw $this->createNotFound($service[0]);
         }
-
-        $this->aliases[$id] = $this->aliases[$service] ?? $service;
     }
 
     /**
