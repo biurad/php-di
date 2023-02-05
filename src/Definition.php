@@ -96,10 +96,10 @@ class Definition
         $this->entity = $entity;
 
         if (isset($this->options['typed'])) {
-            if (!$preserveTypes && null !== $this->container) {
+            if (!$preserveTypes) {
                 $this->removeType();
             }
-            $this->{$preserveTypes ? 'typed' : 'types'}();
+            $this->typed();
         }
 
         return $this;
