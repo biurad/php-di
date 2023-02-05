@@ -174,9 +174,10 @@ class ExtensionBuilder
      */
     public function load(array $extensions): void
     {
-        $this->container->runScope([ExtensionInterface::BUILDER => $this], function () use ($extensions): void {
+        $this->container->runScope([ExtensionInterface::BUILDER], function () use ($extensions): void {
             /** @var \SplStack<int,BootExtensionInterface> */
             $afterLoading = new \SplStack();
+            $this->container->set(ExtensionInterface::BUILDER, $this);
             $this->bootExtensions($this->sortExtensions($extensions), $afterLoading);
 
             foreach ($afterLoading as $bootable) {

@@ -77,7 +77,7 @@ class Container implements \ArrayAccess, ContainerInterface, ResetInterface
      * @param string $offset The unique identifier for the parameter or object
      * @param mixed  $value  The value of the service assign to the $offset
      *
-     * @throws FrozenServiceException Prevent override of a frozen service
+     * @throws Exceptions\FrozenServiceException Prevent override of a frozen service
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
