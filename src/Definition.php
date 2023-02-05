@@ -346,32 +346,6 @@ class Definition
     }
 
     /**
-     * Set the PHP type-hint(s) for this definition.
-     *
-     * @return $this
-     */
-    public function types(string ...$to)
-    {
-        $this->options['typed'] = true;
-
-        if ([] === $to) {
-            $to = Resolver::autowireService($this->entity, false);
-        }
-
-        if (isset($this->options['excludes'])) {
-            $to = \array_keys(\array_diff_key(\array_fill_keys($to, true), $this->options['excludes']));
-        }
-
-        if (null !== $this->container) {
-            $this->container->type($this->id, ...$to);
-        } else {
-            $this->options['types'] = $to;
-        }
-
-        return $this;
-    }
-
-    /**
      * Add/Replace the PHP type-hint(s) for this definition.
      *
      * @return $this
