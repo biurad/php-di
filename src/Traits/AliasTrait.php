@@ -61,7 +61,7 @@ trait AliasTrait
                 throw new ContainerResolutionException(\sprintf('Aliasing an alias of "%s" on a multiple defined type "%s" is not allowed.', $id, $service[0]));
             }
 
-            $service = $typed[(int) $service[1] ?? 0] ?? throw new ContainerResolutionException(\sprintf('Missing types for "%s" alias "%s"', $service[0], $id));
+            $service = $typed[\intval($service[1] ?? 0)] ?? throw new ContainerResolutionException(\sprintf('Missing types for "%s" alias "%s"', $service[0], $id));
             $this->aliases[$id] = $this->aliases[$service] ?? $service;
         } else {
             throw $this->createNotFound($service[0]);

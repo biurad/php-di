@@ -472,7 +472,7 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('Parameter "tags" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $definition->tags($this->parseDefinitionTags("in \"{$name}\"", $tags, $file));
+            $definition->tags($this->parseDefinitionTags('in "{$name}"', $tags, $file));
         }
 
         if (null !== $bindings = $defaults['bind'] ?? $defaults['calls'] ?? null) {
