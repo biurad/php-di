@@ -169,50 +169,44 @@ class Resolver
      */
     public function resolve($callback, array $args = []): mixed
     {
+        if (\is_object($callback) && isset($this->cache[$callback])) {
+            return $this->cache[$callback];
+        }
+
         if ($callback instanceof Definitions\Parameter) {
-            if (!\array_key_exists($param = (string) $callback, $this->container->parameters)) {
-                if (!$callback->isResolvable()) {
-                    throw new ContainerResolutionException(\sprintf('The parameter "%s" is not defined.', $param));
+            if (isset($this->container->parameters[$param = (string) $callback])) {
+                $v = $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
+            } elseif (!$callback->isResolvable()) {
+                throw new ContainerResolutionException(\sprintf('The parameter "%s" is not defined.', $param));
+            }
+            $this->cache[$callback] = $v ?? $this->builder?->methodCall(new Expr\Variable('this'), 'parameter', [$param]) ?? $this->container->parameter($param);
+        } elseif ($callback instanceof Definitions\Statement) {
+            $value = function () use ($callback, $args) {
+                if ($raw = $callback->getRawValue()) {
+                    return !\is_array($raw) ? ($this->builder?->val($raw) ?? $raw) : $this->resolveArguments($raw);
                 }
 
-                return $this->cache[$callback] ??= $this->builder?->methodCall(new Expr\Variable('this'), 'parameter', [$param]) ?? $this->container->parameter($param);
-            }
-            $resolved = $this->cache[$callback] ??= $this->builder?->val(new Expr\ArrayDimFetch($this->builder->propertyFetch(new Expr\Variable('this'), 'parameters'), new String_($param))) ?? $this->container->parameters[$param];
-        } elseif ($callback instanceof Definitions\Statement) {
-            if (!isset($this->cache[$callback])) {
-                $resolved = function () use ($callback, $args) {
-                    if ($raw = $callback->getRawValue()) {
-                        return !\is_array($raw) ? ($this->builder?->val($raw) ?? $raw) : $this->resolveArguments($raw);
-                    }
-
-                    return $this->resolve($callback->getValue(), $callback->getArguments() + $args);
-                };
-                $this->cache[$callback] = !$callback->isClosureWrappable() ? $resolved() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $resolved()])) ?? $resolved;
-            }
-
-            if (\is_callable($resolved = $this->cache[$callback]) && !empty($args)) {
-                $resolved = $this->resolveCallable($resolved, $args);
-            }
+                return $this->resolve($callback->getValue(), $callback->getArguments() + $args);
+            };
+            $this->cache[$callback] = !$callback->isClosureWrappable() ? $value() : $this->builder?->val(new Expr\ArrowFunction(['expr' => $value()])) ?? $value;
         } elseif ($callback instanceof Definitions\Reference) {
-            $resolved = $this->cache[$callback] ??= $this->resolveReference((string) $callback);
+            $value = $this->resolveReference((string) $callback);
 
-            if (!$resolved instanceof Container && (\is_callable($resolved) || \is_array($callback))) {
-                $resolved = $this->resolveCallable($resolved, $args);
-            } elseif (null === $resolved) {
-                $callback = $resolved;
+            if ((\is_callable($value) || \is_array($callback)) && !$value instanceof Container) {
+                $resolved = $this->resolveCallable($value, $args);
+            } else {
+                $this->cache[$callback] = $value ?? $this->builder?->val(null) ?? null;
             }
         } elseif ($callback instanceof Definitions\TaggedLocator) {
-            $resolved = $this->cache[$callback] ??= $this->resolve($callback->resolve($this->container));
+            $this->cache[$callback] = $this->resolve($callback->resolve($this->container));
         } elseif ($callback instanceof Definition) {
             if ($callback->hasContainer()) {
                 throw new ContainerResolutionException(\sprintf('The definition "%s" has container set and cannot be resolved.', $callback->getId()));
             }
 
             if (null === $this->builder) {
-                return $this->cache[$callback] ??= $callback->setContainer($this->container, 'anonymous', true)->resolve($this);
-            }
-
-            if (!isset($this->cache[$callback])) {
+                $this->cache[$callback] = $callback->setContainer($this->container, 'anonymous', true)->resolve($this);
+            } else {
                 $callback->setContainer($this->container, 'anonymous', true);
                 $service = \array_map(
                     fn (\PhpParser\Node $v) => ($v instanceof Stmt\Return_ && $v->expr instanceof Expr\Assign) ? new Stmt\Return_($v->expr->expr) : $v,
@@ -220,53 +214,52 @@ class Resolver
                 );
                 $this->cache[$callback] = 1 === \count($service) ? $service[0]->expr : new Expr\FuncCall(new Expr\Closure(['stmts' => $service]));
             }
-
-            $resolved = $this->cache[$callback];
         } elseif ($callback instanceof Builder\PhpLiteral) {
-            $expression = $this->cache[$callback] ??= $callback->resolve($this)[0];
-            $resolved = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
+            $expression = $callback->resolve($this)[0];
+            $this->cache[$callback] = $expression instanceof Stmt\Expression ? $expression->expr : $expression;
         } elseif (\is_string($callback)) {
             if (\str_contains($callback, '%')) {
                 $callback = $this->container->parameter($callback);
             }
 
             if (\class_exists($callback)) {
-                return $this->resolveClass($callback, $args);
+                $v = $this->resolveClass($callback, $args);
+            } elseif (\is_callable($callback)) {
+                $v = $this->resolveCallable($callback, $args);
             }
-
-            if (\is_callable($callback)) {
-                $resolved = $this->resolveCallable($callback, $args);
-            }
+            $resolved = $v ?? $this->builder?->val($callback) ?? $callback;
         } elseif (\is_callable($callback) || \is_array($callback)) {
             $resolved = $this->resolveCallable($callback, $args);
         } elseif (\is_object($callback)) {
             if (null === $this->builder) {
-                return $callback;
-            }
-
-            if ($callback instanceof \PhpParser\Node) {
+                $resolved = $callback;
+            } elseif ($callback instanceof \PhpParser\Node) {
                 if (!$callback instanceof Expr\New_) {
-                    $resolved = $callback instanceof Stmt\Expression ? $callback->expr : $callback;
+                    $this->cache[$callback] = $callback instanceof Stmt\Expression ? $callback->expr : $callback;
                 } elseif (\is_subclass_of($class = $callback->class->__toString(), Injector\InjectableInterface::class)) {
-                    $resolved = $this->cache[$callback] ??= Injector\Injectable::getResolved($this, $callback, new \ReflectionClass($class));
+                   $this->cache[$callback] = Injector\Injectable::getResolved($this, $callback, new \ReflectionClass($class));
+                } else {
+                    $this->cache[$callback] = $callback;
                 }
             } elseif ($callback instanceof \stdClass) {
-                $resolved = $this->cache[$callback] ??= new Expr\Cast\Object_($this->builder->val($this->resolveArguments((array) $callback)));
+                $this->cache[$callback] = new Expr\Cast\Object_($this->builder->val($this->resolveArguments((array) $callback)));
             } elseif (($ref = new \ReflectionObject($callback))->hasMethod('__set_state')) {
                 $args = \array_merge(...\array_map(function (\ReflectionProperty $p) use ($callback): mixed {
                     $p->setAccessible(true);
 
                     return $p->getValue($callback);
                 }, $ref->getProperties()));
-                $resolved = $this->builder->staticCall($ref->getName(), '__set_state', [$args]);
+                $this->cache[$callback] = $this->builder->staticCall($ref->getName(), '__set_state', [$args]);
             } elseif (\class_exists(VarExporter::class)) {
-                $resolved = $this->cache[$callback] ??= $this->resolve(new Builder\PhpLiteral(VarExporter::export($callback)));
+                $this->cache[$callback] = $this->resolve(new Builder\PhpLiteral(VarExporter::export($callback)));
             } else {
-                $resolved = $this->cache[$callback] ??= $this->builder->funcCall('\\unserialize', [new String_(\serialize($callback), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
+                $this->cache[$callback] = $this->builder->funcCall('\\unserialize', [new String_(\serialize($callback), ['docLabel' => 'SERIALIZED', 'kind' => String_::KIND_NOWDOC])]);
             }
+        } else {
+            return $this->builder?->val($callback) ?? $callback;
         }
 
-        return $resolved ?? $this->builder?->val($callback) ?? $callback;
+        return $resolved ?? $this->cache[$callback];
     }
 
     /**
