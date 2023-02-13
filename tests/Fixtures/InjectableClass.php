@@ -22,10 +22,9 @@ use Rade\DI\Attribute\Inject;
 /**
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class InjectableClass
+class InjectableClass extends ClassWithInject
 {
-    #[Inject]
-    public Constructor $service;
+    #[Inject] public Service $bar;
 
     private FooClass $foo;
 
@@ -43,5 +42,10 @@ class InjectableClass
     public function getFooClass(): FooClass
     {
         return $this->foo;
+    }
+
+    public function getBarService(): Constructor
+    {
+        return $this->bar;
     }
 }

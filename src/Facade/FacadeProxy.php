@@ -18,17 +18,11 @@ declare(strict_types=1);
 namespace Rade\DI\Facade;
 
 use PhpParser\BuilderFactory;
-use PhpParser\Node\{
-    Expr\StaticPropertyFetch,
-    Name,
-    Stmt\Declare_,
-    Stmt\DeclareDeclare,
-    Stmt\Return_,
-    UnionType
-};
+use PhpParser\Node\{Stmt\Declare_, Stmt\DeclareDeclare, Stmt\Return_, UnionType};
 use Psr\Container\ContainerInterface;
 use Rade\DI\Builder\CodePrinter;
-use Rade\DI\{ContainerBuilder, Definition};
+use Rade\DI\ContainerBuilder;
+use Rade\DI\Resolver;
 
 /**
  * A Proxy manager for implementing laravel like facade system.
@@ -77,7 +71,7 @@ class FacadeProxy
 
         if ([] !== $proxiedServices = $this->proxies) {
             $astNodes = [];
-            $builder = $container->getBuilder();
+            $builder = $container->getResolver()->getBuilder();
             \ksort($proxiedServices);
 
             $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $builder->val(1))]);
@@ -108,20 +102,37 @@ class FacadeProxy
                 continue;
             }
 
-            $definition = $container->service($proxy);
+            $definition = $container->definition($proxy);
             $proxyNode = $builder->method($method)->makePublic()->makeStatic();
 
-            if ($definition instanceof Definition) {
-                if (!$definition->isPublic()) {
-                    continue;
-                }
-
-                if (!empty($type = $definition->getType())) {
-                    $proxyNode->setReturnType(\is_array($type) ? new UnionType(\array_map(fn ($type) => new Name($type), $type)) : $type);
-                }
+            if (!$definition->isPublic() || $definition->isAbstract()) {
+                continue;
             }
 
-            $body = $builder->methodCall(new StaticPropertyFetch(new Name('self'), 'container'), 'get', [$proxy]);
+            if ($definition->isDeprecated()) {
+                $proxyNode->addStmt($builder->funcCall('trigger_deprecation', \array_values($definition->getDeprecation())));
+            }
+
+            if ($definition->isTyped()) {
+                $types = $definition->getTypes() ?: Resolver::autowireService($definition->getEntity(), true, $container);
+                $defTyped = [];
+
+                foreach ($types as $typed) {
+                    foreach ($defTyped as $interface) {
+                        if (\is_subclass_of($typed, $interface) || \is_subclass_of($interface, $typed)) {
+                            continue 2;
+                        }
+                    }
+                    $defTyped[] = $typed;
+                }
+
+                if (\count($defTyped) > 1) {
+                    $defTyped = [new UnionType(\array_map(fn (string $t) => \PhpParser\BuilderHelpers::normalizeType($t), $defTyped))];
+                }
+                $proxyNode->setReturnType($defTyped[0] ?? 'mixed');
+            }
+
+            $body = $builder->methodCall($builder->staticCall('self', 'container'), 'get', [$proxy]);
             $builtProxies[] = $proxyNode->addStmt(new Return_($body));
         }
 

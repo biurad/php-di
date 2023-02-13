@@ -17,16 +17,50 @@ declare(strict_types=1);
 
 namespace Rade\DI\Attribute;
 
+use Rade\DI\Definitions\Parameter;
+use Rade\DI\Definitions\TaggedLocator;
+use Rade\DI\Resolver;
+
 /**
- * "Inject" annotation.
  * Marks a property or method as an injection point.
- *
- * @Annotation
- * @Target({"METHOD","PROPERTY"})
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD)]
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD | \Attribute::TARGET_FUNCTION | \Attribute::TARGET_PARAMETER)]
 final class Inject
 {
+    public const
+        VALUE = 0,
+        REFERENCE = 1,
+        PARAMETER = 2;
+
+    public function __construct(private mixed $value = null, private int $type = self::REFERENCE)
+    {
+    }
+
+    /**
+     * Resolve the value of the injection point.
+     *
+     * @return mixed
+     */
+    public function resolve(Resolver $resolver, string $typeName = null)
+    {
+        if (null === $value = $this->value ?? $typeName) {
+            return null;
+        }
+
+        if ($value instanceof TaggedLocator) {
+            throw new \LogicException(\sprintf('Use the #[%s] attribute instead for lazy loading tags.', Tagged::class));
+        }
+
+        if (self::REFERENCE === $this->type) {
+            return $resolver->resolveReference($value);
+        }
+
+        if (self::PARAMETER === $this->type) {
+            $value = new Parameter($value, true);
+        }
+
+        return $resolver->resolve($value);
+    }
 }

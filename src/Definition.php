@@ -17,285 +17,481 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{
-    Expr\ArrayDimFetch,
-    Expr\Assign,
-    Expr\BinaryOp,
-    Expr\StaticPropertyFetch,
-    Name,
-    Scalar\String_,
-    Stmt\Return_,
-    UnionType
-};
-use Rade\DI\{Builder\Statement, Exceptions\ServiceCreationException};
-use Rade\DI\Resolvers\Resolver;
-
 /**
  * Represents definition of standard service.
- *
- * @method string              getId()          Get the definition's id.
- * @method mixed               getEntity()      Get the definition's entity.
- * @method array<string,mixed> getParameters()  Get the definition's parameters.
- * @method string|string[]     getType()        Get the return types for definition.
- * @method array<string,mixed> getCalls()       Get the bind calls to definition.
- * @method array<int,mixed>    getExtras()      Get the list of extras binds.
- * @method string[]            getDeprecation() Return a non-empty array if definition is deprecated.
- * @method bool                isDeprecated()   Whether this definition is deprecated, that means it should not be used anymore.
- * @method bool                isLazy()         Whether this service is lazy.
- * @method bool                isFactory()      Whether this service is not a shared service.
- * @method bool                isPublic()       Whether this service is a public type.
- * @method bool                isAutowired()    Whether this service is autowired.
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
 class Definition
 {
-    use Traits\ResolveTrait;
+    use Traits\DefinitionAwareTrait;
 
-    /** Marks a definition as being a factory service. */
-    public const FACTORY = 1;
-
-    /** This is useful when you want to autowire a callable or class string lazily. */
-    public const LAZY = 2;
-
-    /** Marks a definition as a private service. */
-    public const PRIVATE = 4;
-
-    /** Use in second parameter of bind method. */
-    public const EXTRA_BIND = '@code@';
-
-    /** supported call in get() method. */
-    private const SUPPORTED_GET = [
-        'id' => 'id',
-        'entity' => 'entity',
-        'parameters' => 'parameters',
-        'type' => 'type',
-        'calls' => 'calls',
-        'extras' => 'extras',
-    ];
-
-    private const IS_TYPE_OF = [
-        'isLazy' => 'lazy',
-        'isFactory' => 'factory',
-        'isPublic' => 'public',
-        'isAutowired' => 'autowired',
-        'isDeprecated' => 'deprecated',
-    ];
-
-    private string $id;
-
-    private bool $factory = false;
-
-    private bool $lazy = false;
-
-    private bool $public = true;
-
-    /** @var array<string,string> */
-    private array $deprecated = [];
-
-    /**
-     * Definition constructor.
-     *
-     * @param mixed                   $entity
-     * @param array<int|string,mixed> $arguments
-     */
-    public function __construct($entity, array $arguments = [])
+    public function __construct(mixed $entity, private array $arguments = [])
     {
-        $this->replace($entity, true);
-        $this->parameters = $arguments;
+        $this->replace($entity);
+    }
+
+    public function hasContainer(): bool
+    {
+        return isset($this->container);
+    }
+
+    public function getId(): ?string
+    {
+        return $this->id;
     }
 
     /**
-     * @param string  $method
-     * @param mixed[] $arguments
-     *
-     * @throws \BadMethodCallException
-     *
-     * @return mixed
-     */
-    public function __call($method, $arguments)
-    {
-        if (isset(self::IS_TYPE_OF[$method])) {
-            return (bool) $this->{self::IS_TYPE_OF[$method]};
-        }
-
-        return $this->get(\strtolower((string) \preg_replace('/^get([A-Z]{1}[a-z]+)$/', '\1', $method, 1)));
-    }
-
-    /**
-     * The method name generated for a service definition.
-     */
-    final public static function createMethod(string $id): string
-    {
-        return 'get' . \str_replace(['.', '_', '\\'], '', \ucwords($id, '._'));
-    }
-
-    /**
-     * Attach the missing id and resolver to this definition.
-     * NB: This method is used internally and should not be used directly.
-     *
-     * @internal
-     */
-    final public function withContainer(string $id, AbstractContainer $container): void
-    {
-        $this->id = $id;
-        $this->container = $container;
-
-        if ($container instanceof ContainerBuilder) {
-            $this->builder = $container->getBuilder();
-        }
-    }
-
-    /**
-     * Get any of (id, entity, parameters, type, calls, extras, deprecation).
-     *
-     * @throws \BadMethodCallException if $name does not exist as property
-     *
-     * @return mixed
-     */
-    final public function get(string $name)
-    {
-        if ('deprecation' === $name) {
-            $deprecation = $this->deprecated;
-
-            if (isset($deprecation['message'])) {
-                $deprecation['message'] = \sprintf($deprecation['message'], $this->id);
-            }
-
-            return $deprecation;
-        }
-
-        if (!isset(self::SUPPORTED_GET[$name])) {
-            throw new \BadMethodCallException(\sprintf('Property call for %s invalid, %s::get(\'%1$s\') not supported.', $name, __CLASS__));
-        }
-
-        return $this->{$name};
-    }
-
-    /**
-     * Replace existing entity to a new entity.
-     *
-     * NB: Using this method must be done before autowiring
-     * else autowire manually.
-     *
-     * @param mixed $entity
-     * @param bool  $if     rule matched
+     * Register a service definition into the container.
      *
      * @return $this
      */
-    final public function replace($entity, bool $if): self
+    public function set(string $id, mixed $definition = null)
     {
-        if ($entity instanceof RawDefinition) {
-            throw new ServiceCreationException(\sprintf('An instance of %s is not a valid definition entity.', RawDefinition::class));
-        }
-
-        if ($if /* Replace if matches a rule */) {
-            $this->entity = $entity;
-        }
-
-        return $this;
+        return $this->container?->set($id, $definition) ?? throw new Exceptions\ContainerResolutionException(\sprintf('Cannot set "%s" definition as container is not set.', $id));
     }
 
     /**
-     * Sets the arguments to pass to the service constructor/factory method.
+     * Alias this service to another service id.
      *
-     * @param array<int|string,mixed> $arguments
-     *
-     * @return $this
-     */
-    final public function args(array $arguments): self
-    {
-        $this->parameters = $arguments;
-
-        return $this;
-    }
-
-    /**
-     * Sets/Replace one argument to pass to the service constructor/factory method.
-     *
-     * @param int|string $key
-     * @param mixed      $value
+     * @param bool $clone If true, the alias will be cloned and returned
      *
      * @return $this
      */
-    final public function arg($key, $value): self
+    public function alias(string $id, bool $clone = false)
     {
-        $this->parameters[$key] = $value;
-
-        return $this;
-    }
-
-    /**
-     * Sets method, property, Class|@Ref::Method or php code bindings.
-     *
-     * Binding map method name, property name, mixed type or php code that should be
-     * injected in the definition's entity as assigned property, method or extra code added in running that entity.
-     *
-     * @param string $nameOrMethod A parameter name, a method name, or self::EXTRA_BIND
-     * @param mixed  $valueOrRef   The value, reference or statement to bind
-     *
-     * @return $this
-     */
-    final public function bind(string $nameOrMethod, $valueOrRef): self
-    {
-        if (self::EXTRA_BIND === $nameOrMethod) {
-            $this->extras[] = $valueOrRef;
+        if (!$clone) {
+            null === $this->container ? $this->options['aliases'][$id] = true : $this->container->alias($id, $this->id);
 
             return $this;
         }
 
-        $this->calls[$nameOrMethod] = $valueOrRef;
+        return $this->set($id, clone $this);
+    }
+
+    public function getEntity(): mixed
+    {
+        return $this->entity;
+    }
+
+    /**
+     * Set the service entity.
+     *
+     * @return $this
+     */
+    public function replace(mixed $entity, bool $preserveTypes = false)
+    {
+        if ($entity instanceof Definitions\Statement) {
+            $this->args($entity->getArguments());
+            $this->lazy($entity->isClosureWrappable());
+
+            if ($entity->getRawValue()) {
+                throw new Exceptions\ContainerResolutionException('Service definition accepts only resolvable entities. Use container\'s parameters property.');
+            }
+
+            $entity = $entity->getValue();
+        } elseif ($entity instanceof self) {
+            throw new Exceptions\ContainerResolutionException('Service definition cannot be nested');
+        }
+        $this->entity = $entity;
+
+        if (isset($this->options['typed'])) {
+            if (!$preserveTypes) {
+                $this->removeType();
+            }
+            $this->typed();
+        }
 
         return $this;
     }
 
     /**
-     * Enables autowiring.
-     *
-     * @param array<int,string> $types
+     * Sets/Replace an argument for a service constructor/factory method.
      *
      * @return $this
      */
-    final public function autowire(array $types = []): self
+    public function arg(int|string $name, mixed $value)
     {
-        $this->autowired = true;
-        $service = $this->entity;
+        $this->arguments[$name] = $value;
 
-        if ($service instanceof Statement) {
-            $service = $service->value;
-        }
-
-        if ([] === $types && null !== $service) {
-            $types = Resolver::autowireService($service);
-        }
-
-        $this->container->type($this->id, $types);
-
-        return $this->typeOf($types);
+        return $this;
     }
 
     /**
-     * Represents a PHP type-hinted for this definition.
+     * Sets/Replaces arguments for service constructor/factory method.
      *
-     * @param string[]|string $types
+     * @param array<int|string,mixed> $arguments
      *
      * @return $this
      */
-    final public function typeOf($types): self
+    public function args(array $arguments)
     {
-        if (\is_array($types) && (1 === \count($types) || \PHP_VERSION_ID < 80000)) {
-            foreach ($types as $type) {
-                if (\class_exists($type)) {
-                    $types = $type;
+        foreach ($arguments as $name => $value) {
+            $this->arg($name, $value);
+        }
 
-                    break;
+        return $this;
+    }
+
+    /**
+     * Removes an argument.
+     */
+    public function removeArgument(int|string $key): void
+    {
+        unset($this->arguments[$key]);
+    }
+
+    /**
+     * Returns true if the definition has an argument.
+     */
+    public function hasArgument(int|string|null $key = null): bool
+    {
+        return null !== $key ? isset($this->arguments[$key]) : !empty($this->arguments);
+    }
+
+    /**
+     * Get the definition's arguments.
+     */
+    public function getArgument(int|string|null $key = null): mixed
+    {
+        return null !== $key ? ($this->arguments[$key] ?? null) : $this->arguments;
+    }
+
+    /**
+     * Set/Replace a method/property binding to service definition.
+     *
+     * @param string $propertyOrMethod A property name prefixed with a $, or a method name
+     * @param mixed  $valueOrRef       The value, reference or statement to bind
+     *
+     * @return $this
+     */
+    public function bind(string $propertyOrMethod, mixed $value = null)
+    {
+        if ('$' === $propertyOrMethod[0]) {
+            $this->calls['a'][\substr($propertyOrMethod, 1)] = $value;
+        } else {
+            $this->calls['b'][$propertyOrMethod][] = $value;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Sets a configurator to call after the service is fully initialized.
+     *
+     * @param mixed $configurator A PHP function, reference or an array containing a class/Reference and a method to call
+     * @param bool  $extend       If true, this service is passed as first argument into $configurator
+     *
+     * @return $this
+     */
+    public function call(mixed $configurator, bool $extend = false)
+    {
+        $this->calls['c'][] = [$configurator, $extend];
+
+        return $this;
+    }
+
+    /**
+     * Removes a method/property/configurator binding.
+     *
+     * @param int|string $propertyOrMethod A property name prefixed with a $, a method name,
+     *                                     or configurator index
+     */
+    public function removeBinding(int|string $propertyOrMethod): void
+    {
+        if (\is_string($propertyOrMethod)) {
+            $type = 'b';
+
+            if ('$' === $propertyOrMethod[0]) {
+                $type = 'a';
+                $propertyOrMethod = \substr($propertyOrMethod, 1);
+            }
+
+            if (\str_contains($propertyOrMethod, '.')) {
+                [$method, $offset] = \explode('.', $propertyOrMethod, 2);
+
+                unset($this->calls[$type][$method][(int) $offset]);
+            } else {
+                unset($this->calls[$type][$propertyOrMethod]);
+            }
+        } else {
+            unset($this->calls['c'][$propertyOrMethod]);
+        }
+    }
+
+    /**
+     * Returns true if the definition has a method/property binding.\.
+     *
+     * @param string|null $propertyOrMethod A property name prefixed with a $, or a method name
+     */
+    public function hasBinding(int|string $propertyOrMethod = null): bool
+    {
+        if (!empty($propertyOrMethod)) {
+            if (\is_int($propertyOrMethod)) {
+                return isset($this->calls['c'][$propertyOrMethod]);
+            }
+
+            return isset($this->calls['b'][$propertyOrMethod]) || isset($this->calls['a'][\substr($propertyOrMethod, 1)]);
+        }
+
+        return !empty($this->calls);
+    }
+
+    /**
+     * @param string|null $propertyOrMethod A property name prefixed with a $, or a method name
+     *
+     * @return array<int|string,mixed>
+     */
+    public function getBinding(int|string $propertyOrMethod = null): mixed
+    {
+        if (!empty($propertyOrMethod)) {
+            if (\is_int($propertyOrMethod)) {
+                return $this->calls['c'][$propertyOrMethod] ?? null;
+            }
+
+            if (\str_contains($propertyOrMethod, '.')) {
+                [$propertyOrMethod, $offset] = \explode('.', $propertyOrMethod, 2);
+            }
+
+            $value = $this->calls['b'][$propertyOrMethod] ?? $this->calls['a'][\substr($propertyOrMethod, 1)] ?? [];
+
+            return isset($offset) ? ($value[$offset] ?? null) : ($value ?: null);
+        }
+
+        return [
+            'properties' => $this->calls['a'] ?? [],
+            'methods' => $this->calls['b'] ?? [],
+            'calls' => $this->calls['c'] ?? [],
+        ];
+    }
+
+    /**
+     * Set the service to be abstract.
+     *
+     * @return $this
+     */
+    public function abstract(bool $boolean = true)
+    {
+        $this->options['abstract'] = $boolean;
+
+        return $this;
+    }
+
+    /**
+     * Returns true if the service is abstract.
+     */
+    public function isAbstract(): bool
+    {
+        return $this->options['abstract'] ?? false;
+    }
+
+    /**
+     * Sets the service to be shared.
+     *
+     * @return $this
+     */
+    public function shared(bool $boolean = true)
+    {
+        $this->options['shared'] = $boolean;
+
+        return $this;
+    }
+
+    /**
+     * Returns true if the service is shareable.
+     */
+    public function isShared(): bool
+    {
+        return $this->options['shared'] ??= true;
+    }
+
+    /**
+     * Sets the service to be public.
+     *
+     * @return $this
+     */
+    public function public(bool $boolean = true)
+    {
+        $this->options['public'] = $boolean;
+
+        return $this;
+    }
+
+    /**
+     * Returns true if the service is public.
+     */
+    public function isPublic(): bool
+    {
+        return $this->options['public'] ??= true;
+    }
+
+    /**
+     * Sets the service to be lazy.
+     *
+     * @return $this
+     */
+    public function lazy(bool $boolean = true)
+    {
+        $this->options['lazy'] = $boolean;
+
+        return $this;
+    }
+
+    /**
+     * Sets the service to be lazy.
+     */
+    public function isLazy(): bool
+    {
+        return $this->options['lazy'] ??= false;
+    }
+
+    /**
+     * Add/Replace the PHP type-hint(s) for this definition.
+     *
+     * @return $this
+     */
+    public function typed(string ...$to)
+    {
+        $this->options['typed'] = true;
+
+        if ([] === $to) {
+            $to = Resolver::autowireService($this->entity, false);
+        }
+
+        if (null !== $this->container) {
+            if (isset($this->options['excludes'])) {
+                $to = \array_keys(\array_diff_key(\array_fill_keys($to, true), $this->options['excludes']));
+            }
+
+            $this->container->type($this->id, ...$to);
+        } else {
+            foreach ($to as $typed) {
+                if (!isset($this->options['excludes'][$typed])) {
+                    $this->options['types'][$typed] = true;
                 }
             }
         }
 
-        $this->type = $types;
+        return $this;
+    }
+
+    /**
+     * Set the not expected PHP type-hint(s) for this definition.
+     *
+     * @return $this
+     */
+    public function excludeType(string ...$type)
+    {
+        foreach ($type as $typed) {
+            $this->options['excludes'][$typed] = true;
+        }
 
         return $this;
+    }
+
+    /**
+     * Returns true if the definition is type-hinted.
+     */
+    public function isTyped(): bool
+    {
+        return $this->options['typed'] ?? isset($this->options['types']);
+    }
+
+    /**
+     * @return array<int,string> The list of PHP type-hints for this definition
+     */
+    public function getTypes(): array
+    {
+        return $this->container?->typed($this->id, true) ?? \array_keys($this->options['types'] ?? []);
+    }
+
+    /**
+     * Remove a PHP type-hint(s) from this definition.
+     * If no type is provided, all types are removed.
+     */
+    public function removeType(string ...$type): void
+    {
+        if (empty($type)) {
+            $type = $this->getTypes();
+        }
+
+        foreach ($type as $t) {
+            if (null !== $this->container) {
+                $this->container->removeType($t, $this->id);
+            } elseif (isset($this->options['types'][$t])) {
+                unset($this->options['types'][$t]);
+            }
+        }
+    }
+
+    /**
+     * Adds a tag for this definition.
+     *
+     * @return $this
+     */
+    public function tag(string $name, mixed $value = true)
+    {
+        null !== $this->container ? $this->container->tag($this->id, $name, $value) : $this->options['tags'][$name] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Sets tags for this definition.
+     *
+     * @return $this
+     */
+    public function tags(array $tags)
+    {
+        foreach ($tags as $tag => $value) {
+            $this->tag(\is_int($tag) ? $value : $tag, \is_int($tag) ? true : $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * If definition has tag, a value will be returned else null.
+     */
+    public function tagged(string $name): mixed
+    {
+        return $this->container?->tagged($name, $this->id) ?? $this->options['tags'][$name] ?? null;
+    }
+
+    /**
+     * Removes service tag(s).
+     */
+    public function removeTag(string ...$tag): void
+    {
+        foreach ($tag as $t) {
+            if (null !== $this->container) {
+                $this->container->removeTag($t, $this->id);
+            } elseif (isset($this->options['tags'][$t])) {
+                unset($this->options['tags'][$t]);
+            }
+        }
+    }
+
+    /**
+     * Returns all tags.
+     *
+     * @return array<string,mixed>
+     */
+    public function getTags(): array
+    {
+        if (null !== $this->container) {
+            $tags = [];
+
+            foreach ($this->container->getTags() as $tag => $values) {
+                if (isset($values[$this->id])) {
+                    $tags[$tag] = $values[$this->id];
+                }
+            }
+
+            return $tags;
+        }
+
+        return $this->options['tags'] ?? [];
     }
 
     /**
@@ -307,129 +503,40 @@ class Definition
      *
      * @return $this
      */
-    final public function deprecate(string $package = '', float $version = null, string $message = null): self
+    public function deprecate(string $package = '', float $version = null, string $message = null)
     {
-        $this->deprecated['package'] = $package;
-        $this->deprecated['version'] = $version ?? '';
-        $this->deprecated['message'] = $message ?? 'The "%s" service is deprecated. You should stop using it, as it will be removed in the future.';
+        $this->deprecation['package'] = $package;
+        $this->deprecation['version'] = $version ?? '';
+
+        if (!empty($message) && !\str_contains($message, '%service_id%')) {
+            throw new \InvalidArgumentException('The deprecation template must contain the "%service_id%" placeholder.');
+        }
+        $this->deprecation['message'] = $message ?? 'The "%service_id%" service is deprecated. avoid using it, as it will be removed in the future.';
 
         return $this;
     }
 
     /**
-     * Assign a set of tags to the definition.
-     *
-     * @param array<int|string,mixed> $tags
+     * Whether this definition is deprecated, that means it should not be called anymore.
      */
-    public function tag(array $tags): self
+    public function isDeprecated(): bool
     {
-        $this->container->tag($this->id, $tags);
-
-        return $this;
+        return !empty($this->deprecation);
     }
 
     /**
-     * Should the this definition be a type of
-     * self::FACTORY|self::PRIVATE|self::LAZY, then set enabled or not.
+     * Return a non-empty array if definition is deprecated.
      *
-     * @return $this
-     */
-    public function should(int $be = self::FACTORY, bool $enabled = true): self
-    {
-        switch ($be) {
-            case self::FACTORY:
-                $this->factory = $enabled;
-
-                break;
-
-            case self::LAZY:
-                $this->lazy = $enabled;
-
-                break;
-
-            case self::PRIVATE:
-                $this->public = !$enabled;
-
-                break;
-
-            case self::PRIVATE | self::FACTORY:
-                $this->public = !$enabled;
-                $this->factory = $enabled;
-
-                break;
-
-            case self::PRIVATE | self::LAZY:
-                $this->public = !$enabled;
-                $this->lazy = $enabled;
-
-                break;
-
-            case self::FACTORY | self::LAZY:
-                $this->factory = $enabled;
-                $this->lazy = $enabled;
-
-                break;
-
-            case self::FACTORY | self::LAZY | self::PRIVATE:
-                $this->public = !$enabled;
-                $this->factory = $enabled;
-                $this->lazy = $enabled;
-
-                break;
-        }
-
-        return $this;
-    }
-
-    /**
-     * Resolves the Definition when in use in ContainerBuilder.
-     */
-    public function resolve(): \PhpParser\Node\Expr
-    {
-        $resolved = $this->builder->methodCall($this->builder->var('this'), self::createMethod($this->id));
-
-        if ($this->factory) {
-            return $resolved;
-        }
-
-        return new BinaryOp\Coalesce(
-            new ArrayDimFetch(
-                new StaticPropertyFetch(new Name('self'), $this->public ? 'services' : 'privates'),
-                new String_($this->id)
-            ),
-            $resolved
-        );
-    }
-
-    /**
-     * Build the definition service.
+     * @param string|null $id Service id relying on this definition
      *
-     * @throws \ReflectionException
+     * @return array<string,string>
      */
-    public function build(): \PhpParser\Builder\Method
+    public function getDeprecation(string $id = null): array
     {
-        $node = $this->builder->method(self::createMethod($this->id))->makeProtected();
-        $factory = $this->resolveEntity($this->entity, $this->parameters);
-
-        if ([] !== $deprecation = $this->deprecated) {
-            $deprecation[] = $this->id;
-            $node->addStmt($this->builder->funcCall('\trigger_deprecation', \array_values($deprecation)));
+        if (isset($this->deprecation['message'])) {
+            $this->deprecation['message'] = \str_replace('%service_id%', $id ?? $this->id ?? 'definition', $this->deprecation['message']);
         }
 
-        if (!empty($this->calls + $this->extras)) {
-            $node->addStmt(new Assign($resolved = $this->builder->var($this->public ? 'service' : 'private'), $factory));
-            $node = $this->resolveCalls($resolved, $factory, $node);
-        }
-
-        if (!empty($types = $this->type)) {
-            $node->setReturnType(\is_array($types) ? new UnionType(\array_map(fn ($type) => new Name($type), $types)) : $types);
-        }
-
-        if (!$this->factory) {
-            $cached = new StaticPropertyFetch(new Name('self'), $this->public ? 'services' : 'privates');
-            $resolved = new Assign(new ArrayDimFetch($cached, new String_($this->id)), $resolved ?? $factory);
-        }
-
-        return $node->addStmt(new Return_($resolved ?? $factory));
+        return $this->deprecation;
     }
 }

@@ -1,7 +1,7 @@
 services:
     foo: { entity: FooClass }
     baz: { entity: FooClass }
-    not_shared: { entity: FooClass, factory: true }
+    not_shared: { entity: FooClass, shared: false }
     arguments: { entity: FooClass, arguments: ['foo', '@foo', [true, false]] }
     method_call1:
         entity: FooClass

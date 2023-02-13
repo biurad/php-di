@@ -18,29 +18,29 @@
         "source": "https://github.com/divineniiquaye/rade-di"
     },
     "require": {
-        "php": "^7.4 || ^8.0",
+        "php": "^8.0",
         "nette/utils": "^3.2",
         "psr/container": "^1.1 || ^2.0",
         "symfony/deprecation-contracts": "^2.4",
         "symfony/polyfill-php80": "^1.23",
+        "symfony/polyfill-php81": "^1.23",
         "symfony/service-contracts": "^2.4"
     },
     "require-dev": {
-        "composer/package-versions-deprecated": "^1.11",
         "divineniiquaye/php-invoker": "^0.9",
-        "nikic/php-parser": "^4.11",
-        "phpstan/phpstan": "^0.12",
-        "phpstan/phpstan-strict-rules": "^0.12",
-        "phpunit/phpunit": "^8.5 || ^9.5",
+        "nikic/php-parser": "^4.13",
+        "phpstan/phpstan": "^1.0",
+        "phpunit/phpunit": "^9.5",
         "squizlabs/php_codesniffer": "^3.6",
-        "symfony/config": "^5.3",
-        "symfony/yaml": "^5.3",
-        "vimeo/psalm": "^4.9"
+        "symfony/config": "^5.3 || ^6.0",
+        "symfony/yaml": "^5.3 || ^6.0",
+        "vimeo/psalm": "^4.21"
     },
     "autoload": {
         "psr-4": {
             "Rade\\DI\\": "src/"
-        }
+        },
+        "files": ["src/Loader/helpers.php"]
     },
     "autoload-dev": {
         "psr-4": {
@@ -51,6 +51,11 @@
         "symfony/config": "For using configurations in service providers and service builders",
         "symfony/yaml": "For loading service definition from yaml files with the help of symfony/config",
         "nikic/php-parser": "For using container builder class with service builders"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        }
     },
     "scripts": {
         "phpcs": "phpcs -q",
@@ -63,6 +68,11 @@
             "@psalm",
             "@phpunit"
         ]
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/package-versions-deprecated": false
+        }
     },
     "minimum-stability": "dev",
     "prefer-stable": true

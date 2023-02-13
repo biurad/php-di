@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace Rade\DI\Tests\Loader;
 
 use PHPUnit\Framework\TestCase;
-use Rade\DI\AbstractContainer;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
 
@@ -33,13 +32,5 @@ abstract class LoaderTestCase extends TestCase
             'Optimize Container' => [new Container()],
             'Compilable Container' => [new ContainerBuilder()],
         ];
-    }
-
-    protected function getServices(AbstractContainer $container): array
-    {
-        $r = new \ReflectionProperty($container, $container instanceof ContainerBuilder ? 'definitions' : 'values');
-        $r->setAccessible(true);
-
-        return $r->getValue($container);
     }
 }

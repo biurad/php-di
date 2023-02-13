@@ -24,6 +24,9 @@ use Rade\DI\Tests\Fixtures\GlobFileLoaderWithoutImport;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Resource\GlobResource;
 
+/**
+ * @group required
+ */
 class GlobFileLoaderTest extends LoaderTestCase
 {
     /**

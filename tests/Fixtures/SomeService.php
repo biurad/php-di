@@ -19,13 +19,12 @@ namespace Rade\DI\Tests\Fixtures;
 
 use Psr\Container\ContainerInterface;
 use Symfony\Contracts\Service\ResetInterface;
-use Symfony\Contracts\Service\ServiceProviderInterface;
 
 class SomeService implements ResetInterface
 {
     public ?ContainerInterface $container;
 
-    public function __construct(ServiceProviderInterface $provider = null)
+    public function __construct(ContainerInterface $provider = null)
     {
         $this->container = $provider;
     }

@@ -19,26 +19,34 @@ namespace Rade\DI\Tests\Fixtures;
 
 use Rade\DI\AbstractContainer;
 use Rade\DI\Container;
-use Rade\DI\Services\ServiceProviderInterface;
+use Rade\DI\Extensions\ExtensionInterface;
 
-class ProjectServiceProvider implements ServiceProviderInterface
+use function Rade\DI\Loader\service;
+
+class ProjectServiceProvider implements ExtensionInterface
 {
+    private array $values = [];
+
+    public function addData(string $value): void
+    {
+        $this->values[] = $value;
+    }
     /**
      * {@inheritdoc}
      */
     public function register(AbstractContainer $container, array $configs = []): void
     {
-        $container->parameters['project.configs'] = $configs;
+        $container->parameters['project.configs'] = $configs + ['values' => $this->values];
         $config = \array_filter($configs);
 
         if ($container instanceof Container) {
             $entity = $container->definition('FooClass');
         }
 
-        $container->set('project.service.bar', $entity ?? 'FooClass');
+        $container->set('project.service.bar', service($entity ?? FooClass::class));
         $container->parameters['project.parameter.bar'] = $config['foo'] ?? 'foobar';
 
-        $container->set('project.service.foo', $entity ?? 'FooClass');
+        $container->set('project.service.foo', service($entity ?? FooClass::class));
         $container->parameters['project.parameter.foo'] = $config['foo'] ?? 'foobar';
     }
 }

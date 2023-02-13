@@ -7,11 +7,10 @@ declare (strict_types=1);
  */
 class EmptyContainer extends Rade\DI\Container
 {
-    public array $parameters = [];
-
-    protected array $methodsMap = [];
-
-    protected array $types = [Psr\Container\ContainerInterface::class => ['container'], Rade\DI\AbstractContainer::class => ['container'], Rade\DI\Container::class => ['container']];
-
-    protected array $aliases = [];
+    protected array $types = [
+        Psr\Container\ContainerInterface::class => ['container'],
+        Rade\DI\AbstractContainer::class => ['container'],
+        Rade\DI\Container::class => ['container'],
+        Rade\DI\ContainerInterface::class => ['container'],
+    ];
 }

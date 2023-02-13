@@ -63,7 +63,7 @@ return (new PhpCsFixer\Config())
         'no_short_bool_cast' => true,
         'no_unset_cast' => true,
         'short_scalar_cast' => true,
-        'class_attributes_separation' => true,
+        //'class_attributes_separation' => true,
         'protected_to_private' => false,
         'no_empty_comment' => true,
         'single_line_comment_style' => true,
@@ -82,7 +82,7 @@ return (new PhpCsFixer\Config())
         'lambda_not_used_import' => true,
         'native_function_invocation' => [
             'include' => ['@compiler_optimized', '@all'],
-            'scope' => 'namespaced',
+            //'scope' => 'namespaced',
             'strict' => true,
         ],
         //'single_line_throw' => true,
@@ -163,7 +163,7 @@ return (new PhpCsFixer\Config())
         'blank_line_before_statement' => [
             'statements' => [
                 'break',
-                'continue',
+                //'continue',
                 'declare',
                 'do',
                 'for',

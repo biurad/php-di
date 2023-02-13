@@ -17,197 +17,48 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use PhpParser\Node\{Name, Expr\ArrayItem, Expr\Assign, Expr\New_, Expr\Variable, Expr\StaticPropertyFetch};
-use PhpParser\Node\Stmt\{Declare_, DeclareDeclare};
-use Psr\Container\ContainerInterface;
-use Rade\DI\{
-    Builder\Statement,
-    Exceptions\CircularReferenceException,
-    Exceptions\NotFoundServiceException,
-    Exceptions\ServiceCreationException
-};
-use Symfony\Component\Config\{
-    Resource\ClassExistenceResource,
-    Resource\FileResource,
-    Resource\FileExistenceResource,
-    Resource\ResourceInterface
-};
+use PhpParser\Node\{Expr, Name, Scalar\String_};
+use PhpParser\Node\Stmt\{ClassMethod, Declare_, DeclareDeclare, Nop};
+use Symfony\Component\Config\Resource\ResourceInterface;
 
-class ContainerBuilder extends AbstractContainer
+/**
+ * A compilable container to build services easily.
+ *
+ * Generates a compiled container. This means that there is no runtime performance impact.
+ *
+ * @author Divine Niiquaye Ibok <divineibok@gmail.com>
+ */
+class ContainerBuilder extends Container
 {
-    private bool $trackResources;
-
-    private int $hasPrivateServices = 0;
-
-    /** @var ResourceInterface[] */
+    /** @var array<string,ResourceInterface> */
     private array $resources = [];
 
-    /** @var Definition[]|RawDefinition[] */
-    private array $definitions = [];
-
-    /** Name of the compiled container parent class. */
-    private string $containerParentClass;
-
-    private \PhpParser\BuilderFactory $builder;
+    private ?\PhpParser\NodeTraverser $nodeTraverser = null;
 
     /**
      * Compile the container for optimum performances.
      *
      * @param string $containerParentClass Name of the compiled container parent class. Customize only if necessary.
      */
-    public function __construct(string $containerParentClass = Container::class)
+    public function __construct(private string $containerParentClass = Container::class)
     {
-        $this->containerParentClass = $containerParentClass;
-        $this->trackResources = \interface_exists(ResourceInterface::class);
+        if (!\class_exists(\PhpParser\BuilderFactory::class)) {
+            throw new \RuntimeException('ContainerBuilder uses "nikic/php-parser" v4, do composer require the nikic/php-parser package.');
+        }
 
-        $this->builder = new \PhpParser\BuilderFactory();
-        $this->resolver = new Resolvers\Resolver($this);
-
-        self::$services = ['container' => new Variable('this')];
-        $this->type('container', [ContainerInterface::class, $containerParentClass]);
+        $this->resolver = new Resolver($this, new \PhpParser\BuilderFactory());
+        $this->services[self::SERVICE_CONTAINER] = new Expr\Variable('this');
+        $this->type(self::SERVICE_CONTAINER, ...\array_keys((\class_implements($c = $containerParentClass) ?: []) + (\class_parents($c) ?: []) + [$c => $c]));
     }
 
     /**
      * {@inheritdoc}
      */
-    public function __call(string $name, array $args)
+    public function reset(): void
     {
-        if ('call' === $name) {
-            throw new ServiceCreationException(\sprintf('Refactor your code to use %s class instead.', Statement::class));
-        }
-
-        if ('resolveClass' === $name) {
-            $class = new \ReflectionClass($service = $args[0]);
-
-            if ($class->isAbstract() || !$class->isInstantiable()) {
-                throw new ServiceCreationException(\sprintf('Class entity %s is an abstract type or instantiable.', $service));
-            }
-
-            return $this->doResolveClass($class, $class->getConstructor(), $args);
-        }
-
-        return parent::__call($name, $args);
-    }
-
-    /**
-     * Extends an object definition.
-     *
-     * @param string $id The unique identifier for the definition
-     *
-     * @throws NotFoundServiceException If the identifier is not defined
-     * @throws ServiceCreationException if the definition is a raw type
-     */
-    public function extend(string $id): Definition
-    {
-        $extended = $this->definitions[$id] ?? $this->createNotFound($id, true);
-
-        if ($extended instanceof RawDefinition) {
-            throw new ServiceCreationException(\sprintf('Extending a raw definition for "%s" is not supported.', $id));
-        }
-
-        // Incase service has been cached, remove it.
-        unset(self::$services[$id]);
-
-        return $this->definitions[$id] = $extended;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function service(string $id)
-    {
-        return $this->definitions[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
-    }
-
-    /**
-     * Sets a autowired service definition.
-     *
-     * @param string|array|Definition|Statement $definition
-     *
-     * @throws ServiceCreationException If $definition instanceof RawDefinition
-     */
-    public function autowire(string $id, $definition): Definition
-    {
-        if ($definition instanceof RawDefinition) {
-            throw new ServiceCreationException(
-                \sprintf('Service "%s" using "%s" instance is not supported for autowiring.', $id, RawDefinition::class)
-            );
-        }
-
-        return $this->set($id, $definition)->autowire();
-    }
-
-    /**
-     * Sets a service definition.
-     *
-     * @param string|array|Definition|Statement|RawDefinition $definition
-     *
-     * @return Definition|RawDefinition the service definition
-     */
-    public function set(string $id, $definition)
-    {
-        unset($this->aliases[$id]);
-
-        if (!$definition instanceof RawDefinition) {
-            if (!$definition instanceof Definition) {
-                $definition = new Definition($definition);
-            }
-
-            $definition->withContainer($id, $this);
-        }
-
-        return $this->definitions[$id] = $definition;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
-    {
-        switch (true) {
-            case isset(self::$services[$id]):
-                return self::$services[$id];
-
-            case isset($this->definitions[$id]):
-                return self::$services[$id] = $this->doCreate($id, $this->definitions[$id]);
-
-            case $this->typed($id):
-                return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-
-            case isset($this->aliases[$id]):
-                return $this->get($this->aliases[$id]);
-
-            default:
-                throw $this->createNotFound($id);
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function has(string $id): bool
-    {
-        return isset($this->definitions[$id]) || ($this->typed($id) || isset($this->aliases[$id]));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function remove(string $id): void
-    {
-        if (isset($this->definitions[$id])) {
-            unset($this->definitions[$id]);
-        }
-
-        parent::remove($id);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function keys(): array
-    {
-        return \array_keys($this->definitions);
+        parent::reset();
+        $this->nodeTraverser = null;
+        $this->resources = [];
     }
 
     /**
@@ -217,39 +68,35 @@ class ContainerBuilder extends AbstractContainer
      */
     public function getResources(): array
     {
-        return \array_values($this->resources);
+        return \array_values($this->resources ?? []);
     }
 
     /**
-     * Add a resource to to allow re-build of container.
+     * Add a resource to allow re-build of container.
      *
      * @return $this
      */
-    public function addResource(ResourceInterface $resource): self
+    public function addResource(ResourceInterface $resource)
     {
-        if ($this->trackResources) {
-            $this->resources[(string) $resource] = $resource;
-        }
+        $this->resources[(string) $resource] = $resource;
 
         return $this;
     }
 
     /**
-     * Return all service definitions.
+     * Add a node visitor to traverse the generated ast.
      *
-     * @return Definition[]|RawDefinition[]
+     * @return $this
      */
-    public function getDefinitions(): array
+    public function addNodeVisitor(\PhpParser\NodeVisitor $nodeVisitor)
     {
-        return $this->definitions;
-    }
+        if (null === $this->nodeTraverser) {
+            $this->nodeTraverser = new \PhpParser\NodeTraverser();
+        }
 
-    /**
-     * Get the builder use to compiler container.
-     */
-    public function getBuilder(): \PhpParser\BuilderFactory
-    {
-        return $this->builder;
+        $this->nodeTraverser->addVisitor($nodeVisitor);
+
+        return $this;
     }
 
     /**
@@ -260,7 +107,7 @@ class ContainerBuilder extends AbstractContainer
      * - strictType => true,
      * - printToString => true,
      * - shortArraySyntax => true,
-     * - spacingLevel => 8,
+     * - maxLineLength => 200,
      * - containerClass => CompiledContainer,
      *
      * @throws \ReflectionException
@@ -270,28 +117,63 @@ class ContainerBuilder extends AbstractContainer
     public function compile(array $options = [])
     {
         $options += ['strictType' => true, 'printToString' => true, 'containerClass' => 'CompiledContainer'];
-        $astNodes = [];
+        $astNodes = $options['strictType'] ? [new Declare_([new DeclareDeclare('strict_types', $this->resolver->getBuilder()->val(1))])] : [];
+        $processedData = $this->doAnalyse($this->definitions);
+        $containerNode = $this->resolver->getBuilder()->class($options['containerClass'])->extend($this->containerParentClass)->setDocComment(Builder\CodePrinter::COMMENT);
 
-        foreach ($this->providers as $name => $builder) {
-            if ($this->trackResources) {
-                $this->addResource(new ClassExistenceResource($name, false));
-                $this->addResource(new FileExistenceResource($rPath = (new \ReflectionClass($name))->getFileName()));
-                $this->addResource(new FileResource($rPath));
-            }
-
-            if ($builder instanceof Builder\PrependInterface) {
-                $builder->before($this);
-            }
+        if (!empty($parameters = $this->parameters)) {
+            \ksort($parameters);
+            $parameters = $this->resolver->resolveArguments($parameters);
         }
 
-        if ($options['strictType']) {
-            $astNodes[] = new Declare_([new DeclareDeclare('strict_types', $this->builder->val(1))]);
+        if (!empty($processedData[3])) {
+            $containerNode->addStmt($this->resolver->getBuilder()->property('types')->makeProtected()->setType('array')->setDefault($processedData[3]));
         }
 
-        $parameters = \array_map(fn ($value) => $this->builder->val($value), $this->parameters);
-        $astNodes[] = $this->doCompile($this->definitions, $parameters, $options['containerClass'])->getNode();
+        [$resolver, $c, $s] = [$this->resolver, $this->containerParentClass, self::SERVICE_CONTAINER];
+        $containerNode = \Closure::bind(function (\PhpParser\Builder\Class_ $node) use ($c, $s, $resolver, $parameters, $processedData) {
+            $endMethod = \array_pop($node->methods);
+            $constructorNode = ($b = $resolver->getBuilder())->method('__construct');
+
+            if ($endMethod instanceof ClassMethod && '__construct' === $endMethod->name->name) {
+                $constructorNode->addStmts([...$endMethod->stmts, new Nop()]);
+            } elseif (\method_exists($c, '__construct')) {
+                $constructorNode->addStmt($b->staticCall(new Name('parent'), '__construct'));
+            }
+
+            if (\count($processedData[1]) > 1) {
+                unset($processedData[1][$s]);
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'methodsMap'), $b->val($processedData[1])));
+            }
+
+            if (!empty($parameters)) {
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'parameters'), $b->val($parameters)));
+            }
+
+            if (!empty($processedData[0])) {
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'aliases'), $b->val($processedData[0])));
+            }
+
+            if (!empty($processedData[4])) {
+                $constructorNode->addStmt(new Expr\Assign($b->propertyFetch($b->var('this'), 'tags'), $b->val($processedData[4])));
+            }
+
+            return $node->addStmt($constructorNode->makePublic());
+        }, $containerNode, $containerNode::class)($containerNode);
+
+        if (!empty($processedData[2])) {
+            $containerNode->addStmts($processedData[2]);
+        }
+
+        $astNodes[] = $containerNode->getNode(); // Build the container class
+
+        if (null !== $this->nodeTraverser) {
+            $astNodes = $this->nodeTraverser->traverse($astNodes);
+        }
 
         if ($options['printToString']) {
+            unset($options['strictType'], $options['printToString'], $options['containerClass']);
+
             return Builder\CodePrinter::print($astNodes, $options);
         }
 
@@ -299,146 +181,62 @@ class ContainerBuilder extends AbstractContainer
     }
 
     /**
-     * {@inheritdoc}
-     *
-     * @param Definition|RawDefinition $service
-     */
-    protected function doCreate(string $id, $service, bool $build = false)
-    {
-        if (isset($this->loading[$id])) {
-            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
-        }
-
-        try {
-            $this->loading[$id] = true;
-
-            if ($service instanceof RawDefinition) {
-                return $build ? $service->build($id, $this->builder) : $this->builder->val($service());
-            }
-
-            // Strict circular reference check ...
-            $compiled = $service->build();
-
-            return $build ? $compiled : $service->resolve();
-        } finally {
-            unset($this->loading[$id]);
-        }
-    }
-
-    /**
-     * @param Definition[]|RawDefinition[] $definitions
-     */
-    protected function doCompile(array $definitions, array $parameters, string $containerClass): \PhpParser\Builder\Class_
-    {
-        [$methodsMap, $serviceMethods, $wiredTypes] = $this->doAnalyse($definitions);
-        $compiledContainerNode = $this->builder->class($containerClass)->extend($this->containerParentClass);
-
-        if ($this->hasPrivateServices > 0) {
-            $compiledContainerNode
-                ->addStmt($this->builder->property('privates')->makeProtected()->setType('array')->makeStatic())
-                ->addStmt($this->builder->method('__construct')->makePublic()
-                    ->addStmt($this->builder->staticCall($this->builder->constFetch('parent'), '__construct'))
-                    ->addStmt(new Assign(new StaticPropertyFetch(new Name('self'), 'privates'), $this->builder->val([]))))
-            ;
-        }
-
-        return $compiledContainerNode
-            ->setDocComment(Builder\CodePrinter::COMMENT)
-            ->addStmts($serviceMethods)
-            ->addStmt($this->builder->property('parameters')
-                ->makePublic()->setType('array')
-                ->setDefault($parameters))
-            ->addStmt($this->builder->property('methodsMap')
-                ->makeProtected()->setType('array')
-                ->setDefault($methodsMap))
-            ->addStmt($this->builder->property('types')
-                ->makeProtected()->setType('array')
-                ->setDefault($wiredTypes))
-            ->addStmt($this->builder->property('aliases')
-                ->makeProtected()->setType('array')
-                ->setDefault($this->aliases))
-        ;
-    }
-
-    /**
      * Analyse all definitions, build definitions and return results.
      *
-     * @param Definition[]|RawDefinition[] $definitions
+     * @param array<string,Definition> $definitions
      */
-    protected function doAnalyse(array $definitions): array
+    protected function doAnalyse(array $definitions, bool $onlyDefinitions = false): array
     {
         $methodsMap = $serviceMethods = $wiredTypes = [];
-        \ksort($definitions);
+
+        if (!isset($methodsMap[self::SERVICE_CONTAINER])) {
+            $methodsMap[self::SERVICE_CONTAINER] = true;
+        }
 
         foreach ($definitions as $id => $definition) {
-            $serviceMethods[] = $this->doCreate($id, $definition, true);
-
-            if ($this->ignoredDefinition($definition)) {
-                ++$this->hasPrivateServices;
-
+            if ($this->tagged('container.remove_services', $id)) {
                 continue;
             }
+            $methodsMap[$id] = $this->resolver::createMethod($id);
 
-            $methodsMap[$id] = Definition::createMethod($id);
-        }
-
-        // Remove private aliases
-        foreach ($this->aliases as $aliased => $service) {
-            if ($this->ignoredDefinition($definitions[$service] ?? null)) {
-                unset($this->aliases[$aliased]);
+            if (!$definition->isPublic()) {
+                unset($methodsMap[$id]);
             }
+
+            if ($definition->isAbstract()) {
+                unset($methodsMap[$id]);
+                continue;
+            }
+            $serviceMethods[] = $definition->resolve($this->resolver, true);
         }
+
+        if ($onlyDefinitions) {
+            return [$methodsMap, $serviceMethods];
+        }
+
+        if ($newDefinitions = \array_diff_key($this->definitions, $definitions)) {
+            $processedData = $this->doAnalyse($newDefinitions, true);
+            $methodsMap = \array_merge($methodsMap, $processedData[0]);
+            $serviceMethods = [...$serviceMethods, ...$processedData[1]];
+        }
+        $aliases = \array_filter($this->aliases, static fn (string $aliased): bool => isset($methodsMap[$aliased]));
+        $tags = \array_filter($this->tags, static fn (array $tagged): bool => isset($methodsMap[\key($tagged)]));
 
         // Prevent autowired private services from be exported.
         foreach ($this->types as $type => $ids) {
-            if (1 === \count($ids) && $this->ignoredDefinition($definitions[\reset($ids)] ?? null)) {
-                continue;
-            }
+            $ids = \array_filter($ids, static fn (string $id): bool => isset($methodsMap[$id]));
 
-            $ids = \array_filter($ids, fn (string $id): bool => !$this->ignoredDefinition($definitions[$id] ?? null));
-            $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
-
-            $wiredTypes[] = new ArrayItem($this->builder->val($ids), $this->builder->constFetch($type . '::class'));
-        }
-
-        return [$methodsMap, $serviceMethods, $wiredTypes];
-    }
-
-    /**
-     * @param RawDefinition|Definition|null $def
-     */
-    private function ignoredDefinition($def): bool
-    {
-        return $def instanceof Definition && !$def->isPublic();
-    }
-
-    /**
-     * @param array<int,mixed> $args
-     */
-    private function doResolveClass(\ReflectionClass $class, ?\ReflectionMethod $constructor, array $args): New_
-    {
-        if (null !== $constructor && $constructor->isPublic()) {
-            $service = $this->builder->new($class->name, $this->resolver->autowireArguments($constructor, $args[1] ?? []));
-        } else {
-            if (!empty($args[1] ?? [])) {
-                throw new ServiceCreationException("Unable to pass arguments, class {$class->name} has no constructor or constructor is not public.");
-            }
-
-            $service = $this->builder->new($class->name);
-        }
-
-        foreach (Resolvers\Resolver::getInjectProperties($this, $class->getProperties(\ReflectionProperty::IS_PUBLIC)) as $property => $value) {
-            if (isset($args[2])) {
-                $this->definitions[$args[2]]->bind($property, $value);
+            if ([] !== $ids) {
+                $ids = \array_values($ids); // If $ids are filtered, keys should not be preserved.
+                $wiredTypes[] = new Expr\ArrayItem($this->resolver->getBuilder()->val($ids), new String_($type));
             }
         }
+        \natsort($aliases);
+        \ksort($methodsMap);
+        \ksort($tags, \SORT_NATURAL);
+        \usort($serviceMethods, fn (ClassMethod $a, ClassMethod $b): int => \strnatcmp($a->name->toString(), $b->name->toString()));
+        \usort($wiredTypes, fn (Expr\ArrayItem $a, Expr\ArrayItem $b): int => \strnatcmp($a->key->value, $b->key->value));
 
-        foreach ($class->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (\PHP_VERSION_ID >= 80000 && (!empty($method->getAttributes(Attribute\Inject::class)) && isset($args[2]))) {
-                $this->definitions[$args[2]]->bind($method->name, []);
-            }
-        }
-
-        return $service;
+        return [$aliases, $methodsMap, $serviceMethods, $wiredTypes, $tags];
     }
 }

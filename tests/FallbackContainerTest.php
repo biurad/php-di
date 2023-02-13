@@ -20,93 +20,127 @@ namespace Rade\DI\Tests;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Rade\DI\Container;
+use Rade\DI\ContextContainer;
 use Rade\DI\Definition;
-use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
-use Rade\DI\FallbackContainer;
 use Rade\DI\Tests\Fixtures\AppContainer;
 
+use function Rade\DI\Loader\value;
+
+/**
+ * @group required
+ */
 class FallbackContainerTest extends TestCase
 {
-    public function testFallbackContainerNameConflict(): void
+    public function testContextContainerSequence(): void
     {
-        $rade = new FallbackContainer();
+        $context = new ContextContainer();
 
-        // Service before fallback
-        $rade[AppContainer::class] = $rade->raw('something');
-        $rade->fallback($fallback = new AppContainer());
+        $rade1 = new Container();
+        $rade1->set('foo', value('Hello'));
+        $context->attach($rade1);
 
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
-        $this->assertSame($fallback, $rade[AppContainer::class]);
+        $rade2 = new Container();
+        $rade2->set('bar', value('Hello'));
+        $context->attach($rade2);
 
-        // Unset to check if fallback will still exist.
-        unset($rade[AppContainer::class]);
+        $this->assertEquals($context->get('foo'), $context->get('bar'));
+        $this->expectExceptionMessage('Requested service "foo" was not found in any container. Did you forget to set it?');
+        $this->expectException(NotFoundServiceException::class);
 
-        $this->assertSame($fallback, $rade[AppContainer::class]);
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
+        $context->detach($rade1);
+        $context->get('foo');
+    }
 
-        $rade->reset();
+    public function testContextContainersNameConflict(): void
+    {
+        $context = new ContextContainer();
 
-        // Fallback before service
-        $rade->fallback($fallback = new AppContainer());
-        $rade[AppContainer::class] = $rade->raw('something');
+        $rade1 = new Container();
+        $rade1->set(AppContainer::class, value('Hello'));
+        $context->attach($rade1);
 
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
-        unset($rade[AppContainer::class]);
+        $rade2 = new AppContainer();
+        $context->attach($rade2);
 
-        $this->assertSame($fallback, $rade[AppContainer::class]);
-        $this->assertInstanceOf(AppContainer::class, $rade[AppContainer::class]);
+        $this->assertEquals('Hello', $context->get(AppContainer::class));
+
+        $context->reset();
+
+        $rade3 = new AppContainer();
+        $context->attach($rade3);
+
+        $rade4 = new Container();
+        $rade4->set(AppContainer::class, value('Hello'));
+        $context->attach($rade4);
+
+        $this->assertSame($rade3, $context->get(AppContainer::class));
     }
 
     public function testFallbackContainerErrors(): void
     {
-        $rade = new FallbackContainer();
-        $rade->fallback(new AppContainer());
+        $rade = new AppContainer();
+        $rade->autowire('service', new Definition(Fixtures\Service::class));
+        $rade->autowire(Fixtures\Constructor::class);
+
+        $context = new ContextContainer();
+        $context->attach($rade);
 
         try {
-            $rade->get('broken');
-        } catch (NotFoundServiceException $e) {
-            $this->assertEquals('Identifier "broken" is not defined.', $e->getMessage());
+            $context->get('throws_exception_on_service_configuration');
+        } catch (\Exception $e) {
+            $this->assertEquals('Something was terribly wrong while trying to configure the service!', $e->getMessage());
         }
 
-        $this->expectExceptionObject(new ContainerResolutionException('Service id \'nothing\' is not found in container'));
-        $rade->alias('oops', 'nothing');
-
         $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "nothing" is not defined.');
+        $this->expectExceptionMessage('Requested service "nothing" was not found in any container. Did you forget to set it?');
 
-        $rade->has('nothing');
+        $context->get('nothing');
     }
 
     public function testServicesFallback(): void
     {
-        $fallback = new Container();
-        $fallback->set('foo', new Fixtures\Constructor($fallback));
-        $fallback->type('foo', Fixtures\Constructor::class);
+        $rade1 = new Container();
+        $rade1->set('foo', new Fixtures\Constructor($rade1));
+        $rade1->type('foo', Fixtures\Constructor::class);
 
-        $rade = new FallbackContainer();
-        $rade->fallback($fallback);
-        $rade->set('bar', new Fixtures\Service());
-        $rade->type('bar', Fixtures\Service::class);
+        $rade2 = new Container();
+        $rade2->set('bar', new Fixtures\Service());
+        $rade2->type('bar', Fixtures\Service::class);
+
+        $rade = new ContextContainer();
+        $rade->attach($rade1);
+        $rade->attach($rade2);
+        $rade->attach(new AppContainer());
 
         $this->assertInstanceOf(Fixtures\Service::class, $foo = $rade->get(Fixtures\Constructor::class));
         $this->assertNotSame($foo, $bar = $rade->get(Fixtures\Service::class));
 
-        $rade->remove(Fixtures\Service::class);
+        $rade2->removeType(Fixtures\Service::class);
 
         $this->assertSame($foo, $rade->get('foo'));
         $this->assertTrue($rade->has('bar'));
-        $this->assertFalse($rade->typed(Fixtures\Service::class));
-        $this->assertNotSame($bar, $rade->get(Fixtures\Service::class));
+        $this->assertFalse($rade2->typed(Fixtures\Service::class));
+        $this->assertNotSame($bar, $rade2->get(Fixtures\Service::class));
+        $this->assertSame($rade->get('foo_baz'), $rade->get(Fixtures\BarInterface::class));
     }
 
     public function testNotFoundService(): void
     {
-        $rade = new FallbackContainer();
-        $this->assertInstanceOf(Fixtures\Service::class, $rade->get(Fixtures\Service::class));
+        $container = new AppContainer();
+        $container->autowire('foo_bar_baz', new Fixtures\Bar('Hi Rade DI'));
+
+        $rade = new ContextContainer();
+        $rade->attach($container);
+
+        try {
+            $rade->get(Fixtures\BarInterface::class);
+        } catch (NotFoundServiceException $e) {
+            $this->assertEquals('Requested service "Rade\DI\Tests\Fixtures\BarInterface" was not found in any container. Did you forget to set it?', $e->getMessage());
+        }
 
         $this->expectException(NotFoundServiceException::class);
-        $this->expectExceptionMessage('Identifier "Rade\DI\Tests\Fixtures\ConstructNotExists" is not defined.');
+        $this->expectExceptionMessage('Requested service "Rade\DI\Tests\Fixtures\ConstructNotExists" was not found in any container. Did you forget to set it?');
 
         $rade->get(Fixtures\ConstructNotExists::class);
     }
@@ -114,38 +148,16 @@ class FallbackContainerTest extends TestCase
     public function testFallbackContainer(): void
     {
         $fallback = new AppContainer();
-        $rade = new FallbackContainer();
-        $rade->fallback($fallback);
 
-        $this->assertTrue(isset($rade[AppContainer::class]));
-        $this->assertSame($fallback, $rade[AppContainer::class]);
+        $rade = new ContextContainer();
+        $rade->attach($fallback);
+
+        $this->assertFalse($rade->has(AppContainer::class));
         $this->assertSame($fallback, $rade->get(AppContainer::class));
-        $this->assertSame($rade, $rade->get(FallbackContainer::class));
-        $this->assertSame($rade, $rade->get(Container::class));
+        $this->assertSame($rade, $rade->get(ContextContainer::class));
+        $this->assertSame($fallback, $rade->get(Container::class));
         $this->assertSame($rade, $rade->get(ContainerInterface::class));
 
-        $rade->alias('aliased', 'scoped');
-        $this->assertSame($fallback->get('scoped'), $rade->get('aliased'));
-    }
-
-    public function testThatAFallbackContainerSupportAutowiring(): void
-    {
-        $fallback = new AppContainer();
-        $rade = new FallbackContainer();
-        $rade->fallback($fallback);
-        $rade['t_call'] = fn (AppContainer $app) => $app['scoped'];
-
-        $this->assertInstanceOf(Definition::class, $one = $rade['scoped']);
-        $this->assertSame($one, $rade['t_call']);
-        $this->assertSame($rade, $rade->get(ContainerInterface::class));
-        $this->assertNotSame($rade[AppContainer::class], $rade->get(ContainerInterface::class));
-
-        $this->assertTrue(isset($rade['scoped']));
-        $this->assertInstanceOf(Definition::class, $def = $rade['scoped']);
-        $this->assertSame($def, $rade->get(Definition::class));
-
-        $this->assertInstanceOf(Definition::class, $rade->call(fn (Definition $def) => $def));
-        $this->assertSame($def, $rade->call(fn (Definition $def) => $def));
-        $this->assertSame($fallback, $rade->call(fn (AppContainer $app) => $app));
+        $this->assertSame($fallback->get('bar'), $rade->get('alias'));
     }
 }

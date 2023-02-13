@@ -17,18 +17,16 @@ declare(strict_types=1);
 
 namespace Rade\DI\Loader;
 
-use Rade\DI\Builder\Reference;
-use Rade\DI\Builder\Statement;
-use Rade\DI\Container;
-use Rade\DI\ContainerBuilder;
-use Rade\DI\Definition;
+use Rade\DI\Definitions\{Reference, Statement};
+use Rade\DI\{ContainerBuilder, Definition, DefinitionBuilder};
+use Rade\DI\Builder\PhpLiteral;
 use Symfony\Component\Config\Exception\LoaderLoadException;
-use Symfony\Component\Config\Resource\FileExistenceResource;
-use Symfony\Component\Config\Resource\FileResource;
+use Symfony\Component\Config\Resource\{FileExistenceResource, FileResource};
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Parser as YamlParser;
 use Symfony\Component\Yaml\Tag\TaggedValue;
 use Symfony\Component\Yaml\Yaml;
+use Rade\DI\Definitions\TaggedLocator;
 
 /**
  * YamlFileLoader loads YAML files service definitions.
@@ -40,27 +38,33 @@ use Symfony\Component\Yaml\Yaml;
 class YamlFileLoader extends FileLoader
 {
     private const DEFAULTS_KEYWORDS = [
-        'private' => 'private',
-        'tags' => 'tags',
-        'autowire' => 'autowire',
+        'shared' => 'shared',
+        'lazy' => 'lazy',
+        'public' => 'public',
         'bind' => 'bind',
         'calls' => 'bind',
+        'configure' => 'configure',
+        'tags' => 'tags',
+        'autowire' => 'autowire',
     ];
 
     private const SERVICE_KEYWORDS = [
         'alias' => 'alias',
+        'parent' => 'parent',
         'entity' => 'entity',
-        'class' => 'entity', // backward compatibility for symfony devs, will be dropped in 2.0
+        'class' => 'entity',
+        'abstract' => 'abstract',
         'arguments' => 'arguments',
         'lazy' => 'lazy',
-        'private' => 'private',
+        'public' => 'public',
         'deprecated' => 'deprecated',
-        'factory' => 'factory',
+        'shared' => 'shared',
         'tags' => 'tags',
         'decorates' => 'decorates',
         'autowire' => 'autowire',
         'bind' => 'bind',
         'calls' => 'bind',
+        'configure' => 'configure',
     ];
 
     private const PROTOTYPE_KEYWORDS = [
@@ -68,14 +72,15 @@ class YamlFileLoader extends FileLoader
         'namespace' => 'namespace',
         'exclude' => 'exclude',
         'lazy' => 'lazy',
-        'private' => 'private',
+        'public' => 'public',
         'deprecated' => 'deprecated',
-        'factory' => 'factory',
+        'shared' => 'shared',
         'tags' => 'tags',
         'autowire' => 'autowire',
         'arguments' => 'arguments',
         'bind' => 'bind',
         'calls' => 'bind',
+        'configure' => 'configure',
     ];
 
     private ?YamlParser $yamlParser = null;
@@ -87,10 +92,11 @@ class YamlFileLoader extends FileLoader
     {
         $path = $this->locator->locate($resource);
         $content = $this->loadFile($path);
+        $container = $this->builder->getContainer();
 
-        if ($this->container instanceof ContainerBuilder) {
-            $this->container->addResource(new FileExistenceResource($path));
-            $this->container->addResource(new FileResource($path));
+        if ($container instanceof ContainerBuilder) {
+            $container->addResource(new FileExistenceResource($path));
+            $container->addResource(new FileResource($path));
         }
 
         if (!empty($content)) {
@@ -127,10 +133,6 @@ class YamlFileLoader extends FileLoader
             throw new \RuntimeException('Unable to load YAML config files as the Symfony Yaml Component is not installed.');
         }
 
-        if (!\is_file($file)) {
-            throw new \InvalidArgumentException(\sprintf(\stream_is_local($file) ? 'The file "%s" does not exist.' : 'This is not a local file "%s".', $file));
-        }
-
         if (null === $this->yamlParser) {
             $this->yamlParser = new YamlParser();
         }
@@ -165,7 +167,7 @@ class YamlFileLoader extends FileLoader
             throw new \InvalidArgumentException(\sprintf('The "imports" key should contain an array in "%s". Check your YAML syntax.', $file));
         }
 
-        $defaultDirectory = \dirname($file);
+        $this->builder->directory($defaultDirectory = \dirname($file));
 
         foreach ($content['imports'] as $import) {
             if (!\is_array($import)) {
@@ -209,58 +211,18 @@ class YamlFileLoader extends FileLoader
             }
 
             foreach ($content['parameters'] as $key => $value) {
-                $this->container->parameters[$key] = $this->resolveServices($value, $path, true);
+                $this->builder->parameter($key, $this->resolveServices($value, $path, true));
             }
 
             unset($content['parameters']);
         }
 
-        // service providers
-        $this->loadServiceProviders($content, $path);
-
-        $this->setCurrentDir(\dirname($path));
+        $this->setCurrentDir($dir = \dirname($path));
+        $this->builder->directory($dir);
 
         // load definitions
         $this->parseDefinitions($content, $path);
-    }
-
-    /**
-     * Loads Service Providers.
-     *
-     * @param array<string,mixed> $content
-     */
-    private function loadServiceProviders(array $content, string $path): void
-    {
-        foreach ($content['service_providers'] ?? [] as $k => $provider) {
-            if (\is_string($k)) {
-                throw new \InvalidArgumentException(\sprintf('Invalid service provider key %s, only list sequence is supported "service_providers: ..." in "%s".', $k, $path));
-            }
-
-            if ($provider instanceof TaggedValue && 'provider' === $provider->getTag()) {
-                $value = $provider->getValue();
-
-                $provider = $value['id'] ?? null;
-                $args = $this->resolveServices($value['args'] ?? [], $path);
-                $config = $this->resolveServices($value['config'] ?? [], $path);
-            } elseif (\is_array($provider)) {
-                $provider = \key($value = $provider);
-                $config = $this->resolveServices($value[\method_exists($provider, 'getId') ? $provider::getId() : $provider] ?? [], $path);
-            }
-
-            if (!\is_string($provider)) {
-                continue;
-            }
-
-            if ($this->container instanceof Container) {
-                $extension = $this->container->resolveClass($provider, $args ?? []);
-            } else {
-                $extension = (new \ReflectionClass($provider))->newInstanceArgs($args ?? []);
-            }
-
-            $this->container->register($extension, $config ?? $content[$provider] ?? []);
-        }
-
-        unset($content['service_providers']);
+        $this->builder->load();
     }
 
     /**
@@ -284,28 +246,50 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException(\sprintf('"!reference" tag only accepts string value in "%s".', $file));
                 }
 
-                if (!$this->container->has($argument)) {
+                if (!$this->builder->getContainer()->has($argument)) {
                     throw new \InvalidArgumentException(\sprintf('Creating an alias using the tag "!reference" is not allowed in "%s".', $file));
                 }
 
-                return $this->container instanceof Container ? $this->container->get($argument) : new Reference($argument);
+                return new Reference($argument);
             }
 
             if ('tagged' === $value->getTag()) {
                 if (\is_string($argument) && '' !== $argument) {
-                    return $this->container->tagged($argument);
+                    return $this->builder->getContainer()->tagged($argument);
                 }
 
                 if (\is_array($argument) && (isset($argument['tag']) && '' !== $argument['tag'])) {
-                    return $this->container->tagged($argument['tag'], $argument['resolve'] ?? true);
+                    $taggedIds = $this->builder->getContainer()->tagged($argument['tag'], $argument['id'] ?? null);
+
+                    if (true === $argument['resolve'] ?? false) {
+                        $tagged = [];
+
+                        foreach ($taggedIds as $serviceId => $value) {
+                            $tagged[] = [new Reference($serviceId), $value];
+                        }
+
+                        return $tagged;
+                    }
+
+                    return $taggedIds;
                 }
 
                 throw new \InvalidArgumentException(\sprintf('"!%s" tags only accept a non empty string or an array with a key "tag" in "%s".', $value->getTag(), $file));
             }
 
+            if ('tagged_locator' === $value->getTag()) {
+                if (\is_string($argument) && '' !== $argument) {
+                    $argument = ['tag' => $argument];
+                } elseif (!\is_array($argument)) {
+                    throw new \InvalidArgumentException(\sprintf('"!%s" tags only accept a non empty string or an array with a key "tag" in "%s".', $value->getTag(), $file));
+                }
+
+                return new TaggedLocator($argument['tag'], $argument['indexAttribute'] ?? null, $argument['needsIndexes'] ?? false, $argument['exlude'] ?? []);
+            }
+
             if ('statement' === $value->getTag()) {
                 if (\is_string($argument)) {
-                    return $this->container instanceof Container ? $this->container->call($argument) : new Statement($argument);
+                    return new Statement($argument);
                 }
 
                 if (!\is_array($argument)) {
@@ -316,13 +300,23 @@ class YamlFileLoader extends FileLoader
                     throw new \InvalidArgumentException('"!statement" tag only accepts array keys of "value" and "args"');
                 }
 
-                $argument = $this->resolveServices($argument, $file, $isParameter);
+                return new Statement($argument['value'], $this->resolveServices($argument['args'] ?? [], $file, $isParameter), $argument['closure'] ?? false);
+            }
 
-                if ($this->container instanceof Container) {
-                    return $this->container->call($argument['value'], $argument['args'] ?? []);
+            if ('php_literal' === $value->getTag()) {
+                if (\is_string($argument)) {
+                    return new PhpLiteral($argument);
                 }
 
-                return new Statement($argument['value'], $argument['args'] ?? []);
+                if (!\is_array($argument)) {
+                    throw new \InvalidArgumentException(\sprintf('"!php_literal" tag only accepts list sequences in "%s".', $file));
+                }
+
+                if (!\is_string($code = $argument['code'] ?? \key($argument))) {
+                    throw new \InvalidArgumentException(\sprintf('"!%s" tag only accepts a one count map array in "%s", key as the string, and value as array.', $value->getTag(), $file));
+                }
+
+                return new PhpLiteral($code, $this->resolveServices($argument['args'] ?? \current($argument), $file, $isParameter));
             }
 
             throw new \InvalidArgumentException(\sprintf('Unsupported tag "!%s".', $value->getTag()));
@@ -330,6 +324,9 @@ class YamlFileLoader extends FileLoader
 
         if (\is_array($value)) {
             foreach ($value as $k => $v) {
+                if ('deprecated' === $k) {
+                    continue;
+                }
                 $value[$k] = $this->resolveServices($v, $file, $isParameter);
             }
         } elseif (\is_string($value) && '@' === $value[0]) {
@@ -344,19 +341,23 @@ class YamlFileLoader extends FileLoader
             if ('?' === $value[0]) {
                 $value = \substr($value, 1);
 
-                if (!$this->container->has($value)) {
+                if (!($this->builder->getContainer()->has($value) || $this->builder->getContainer()->typed($value))) {
                     return null;
                 }
             }
 
-            return $this->container instanceof Container ? $this->container->get($value) : new Reference($value);
+            if ($isParameter && !$this->builder->getContainer() instanceof ContainerBuilder) {
+                return $this->builder->getContainer()->getResolver()->resolveReference($value);
+            }
+
+            return new Reference($value);
         }
 
-        if (!\is_string($value)) {
+        if (!\is_string($value) || !\str_contains($value, '%')) {
             return $value;
         }
 
-        return $this->resolveParameters($value);
+        return $this->builder->getContainer()->parameter($value);
     }
 
     /**
@@ -372,7 +373,8 @@ class YamlFileLoader extends FileLoader
             throw new \InvalidArgumentException(\sprintf('The "services" key should contain an array in "%s". Check your YAML syntax.', $file));
         }
 
-        $defaults = $this->parseDefaults($content, $file);
+        $hasInstance = $this->parseDefaults($content, $file, '_instanceof');
+        $hasDefaults = $this->parseDefaults($content, $file);
 
         foreach ($content['services'] as $id => $service) {
             if (\preg_match('/^_[a-zA-Z0-9_]*$/', $id)) {
@@ -382,25 +384,17 @@ class YamlFileLoader extends FileLoader
             $service = $this->resolveServices($service, $file);
 
             if ($service instanceof Reference) {
-                $this->container->alias($id, (string) $service);
+                $this->builder->alias($id, (string) $service);
 
                 continue;
             }
 
             if ($service instanceof Statement) {
-                $this->container->autowire($id, $service);
-
-                continue;
-            }
-
-            if (\is_object($service)) {
-                $this->container->set($id, $service, true);
-
-                continue;
+                $service = ['entity' => new Statement($service->getValue(), $this->resolveServices($service->getArguments(), $file), $service->isClosureWrappable())];
             }
 
             if (empty($service)) {
-                if ([] === $defaults) {
+                if (!$hasDefaults || !$hasInstance) {
                     continue;
                 }
 
@@ -411,206 +405,237 @@ class YamlFileLoader extends FileLoader
                 throw new \InvalidArgumentException(\sprintf('A service definition must be an array, a tagged "!statement" or a string starting with "@", but "%s" found for service "%s" in "%s". Check your YAML syntax.', \get_debug_type($service), $id, $file));
             }
 
-            if ($this->container->has($id) && $this->container instanceof Container) {
-                $this->container->extend($id, function (Definition $definition) use ($id, $service, $file, $defaults): Definition {
-                    $this->parseDefinition($id, $service, $file, $defaults, $definition);
-
-                    return $definition;
-                });
-
-                continue;
-            }
-
-            $this->parseDefinition($id, $service, $file, $defaults);
+            $this->parseDefinition($id, $service, $file);
         }
     }
 
     /**
+     * @param array<string,mixed> $defaults
+     *
      * @throws \InvalidArgumentException
      */
-    private function parseDefaults(array &$content, string $file): array
+    private function parseDefaults(array &$content, string $file, $name = '_defaults', $defaults = []): bool
     {
-        if (!\array_key_exists('_defaults', $content['services'])) {
-            return [];
+        $instanceof = true;
+
+        if (empty($defaults) && !\array_key_exists($name, $content['services'])) {
+            return false;
         }
-        $defaults = $content['services']['_defaults'];
-        unset($content['services']['_defaults']);
+
+        if (empty($defaults)) {
+            $defaults = $content['services'][$name];
+            unset($content['services'][$name]);
+        }
 
         if (!\is_array($defaults)) {
-            throw new \InvalidArgumentException(\sprintf('Service "_defaults" key must be an array, "%s" given in "%s".', \get_debug_type($defaults), $file));
+            throw new \InvalidArgumentException(\sprintf('Service "%s" key must be an array, "%s" given in "%s".', $name, \get_debug_type($defaults), $file));
         }
 
-        foreach ($defaults as $key => $default) {
-            if (!isset(self::DEFAULTS_KEYWORDS[$key])) {
-                throw new \InvalidArgumentException(\sprintf('The configuration key "%s" cannot be used to define a default value in "%s". Allowed keys are "%s".', $key, $file, \implode('", "', self::DEFAULTS_KEYWORDS)));
+        if ('_defaults' === $name) {
+            $instanceof = false;
+        } elseif ('_instanceof' === $name) {
+            foreach ($defaults as $key => $default) {
+                $key = $this->builder->getContainer()->parameter($key);
+                $this->parseDefaults($content, $file, $key, $default);
             }
+
+            return true;
+        }
+
+        $this->checkDefinition($name, $defaults, $file, true);
+        $definition = $instanceof ? $this->builder->instanceOf($name) : $this->builder->defaults();
+
+        if (isset($defaults['public'])) {
+            $definition->public($defaults['public']);
+        }
+
+        if (isset($defaults['lazy'])) {
+            $definition->lazy($defaults['lazy']);
+        }
+
+        if (isset($defaults['shared'])) {
+            $definition->shared($defaults['shared']);
+        }
+
+        if (\array_key_exists('autowire', $defaults)) {
+            if (\in_array($autowired = $defaults['autowire'] ?? [], [true, null], true)) {
+                $autowired = [];
+            } elseif (!\is_array($autowired)) {
+                throw new \InvalidArgumentException(\sprintf('Parameter "autowire" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
+            }
+
+            $definition->typed(...$autowired);
         }
 
         if (isset($defaults['tags'])) {
             if (!\is_array($tags = $defaults['tags'])) {
-                throw new \InvalidArgumentException(\sprintf('Parameter "tags" in "_defaults" must be an array in "%s". Check your YAML syntax.', $file));
+                throw new \InvalidArgumentException(\sprintf('Parameter "tags" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            $defaults['tags'] = $this->parseDefinitionTags('in "_defaults"', $tags, $file);
+            $definition->tags($this->parseDefinitionTags('in "{$name}"', $tags, $file));
         }
 
-        if (null !== $bindings = $defaults['bind'] ?? $default['calls'] ?? null) {
+        if (null !== $bindings = $defaults['bind'] ?? $defaults['calls'] ?? null) {
             if (!\is_array($bindings)) {
-                throw new \InvalidArgumentException(\sprintf('Parameter "bind" in "_defaults" must be an array in "%s". Check your YAML syntax.', $file));
+                throw new \InvalidArgumentException(\sprintf('Parameter "bind" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
             }
 
-            unset($default['calls']); // To avoid conflicts, will be dropped in 1.3
-
-            $defaults['bind'] = $this->parseDefinitionBinds('in "_defaults"', $bindings, $file);
+            $this->parseDefinitionBinds("in \"{$name}\"", $bindings, $file, $definition);
         }
 
-        return $defaults;
+        if (isset($defaults['configure'])) {
+            if (!\is_array($configures = $defaults['configure'])) {
+                throw new \InvalidArgumentException(\sprintf('Parameter "configure" in "%s" must be an array in "%s". Check your YAML syntax.', $name, $file));
+            }
+
+            $this->parseDefinitionBinds("in \"{$name}\"", $configures, $file, $definition, true);
+        }
+
+        return true;
     }
 
     /**
      * Parses a definition.
      *
      * @param array<string,mixed> $service
-     * @param array<string,mixed> $defaults
      *
      * @throws \InvalidArgumentException
      */
-    private function parseDefinition(string $id, array $service, string $file, array $defaults, Definition $definition = null): void
+    private function parseDefinition(string $id, array $service, string $file): void
     {
-        $this->checkDefinition($id, $service, $file);
+        $this->checkDefinition($id, $service, $file, false);
+        $entity = $service['entity'] ?? $service['class'] ?? null;
 
-        if ($this->container->has($id) && $this->container instanceof ContainerBuilder) {
-            $definition = \array_key_exists($id, $this->container->keys()) ? $this->container->extend($id) : null;
-        }
-
-        // Non existing entity
-        if (!isset($service['entity'])) {
-            $service['entity'] = $service['class'] ?? (\class_exists($id) ? $id : null);
-        }
-
-        $arguments = $this->resolveServices($service['arguments'] ?? [], $file);
-
-        if ($definition instanceof Definition) {
-            $hasDefinition = true;
-
-            $definition->replace($service['entity'], null !== $service['entity'])
-                ->args(\array_merge($definition->get('parameters'), $arguments));
-        } else {
-            $definition = new Definition($service['entity'], $arguments);
-        }
-
-        if ($this->container instanceof ContainerBuilder) {
-            $definition->should(Definition::PRIVATE, $service['private'] ?? $defaults['private'] ?? false);
-        }
-
-        $definition->should(Definition::LAZY, $service['lazy'] ?? false);
-        $definition->should(Definition::FACTORY, $service['factory'] ?? false);
-        $this->autowired[$id] = $autowired = $service['autowire'] ?? $defaults['autowire'] ?? false;
-
-        if (isset($service['deprecated'])) {
-            $deprecation = \is_array($service['deprecated']) ? $service['deprecated'] : ['message' => $service['deprecated']];
-            $deprecation = [$deprecation['package'] ?? '', $deprecation['version'] ?? '', $deprecation['message'] ?? null];
-        }
-
-        if (!\is_array($bindings = $service['bind'] ?? $service['calls'] ?? [])) {
-            throw new \InvalidArgumentException(\sprintf('Parameter "bind" must be an array for service "%s" in "%s". Check your YAML syntax.', $id, $file));
-        }
-        $bindings = \array_merge($defaults['bind'] ?? [], $bindings);
-
-        if ([] !== $bindings) {
-            $this->parseDefinitionBinds($id, $bindings, $file, $definition);
-        }
-
-        if (!\is_array($tags = $service['tags'] ?? [])) {
-            throw new \InvalidArgumentException(\sprintf('Parameter "tags" must be an array for service "%s" in "%s". Check your YAML syntax.', $id, $file));
-        }
-
-        if (isset($defaults['tags'])) {
-            $tags = \array_merge($defaults['tags'], $tags);
-        }
-
-        if (\array_key_exists('namespace', $service) && !\array_key_exists('resource', $service)) {
-            throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be set when the "namespace" attribute is set for service "%s" in "%s". Check your YAML syntax.', $id, $file));
-        }
-
-        if (\array_key_exists('resource', $service)) {
-            if (!\is_string($service['resource'])) {
+        if (\array_key_exists('namespace', $service) || isset($service['resource'])) {
+            if (isset($service['resource']) && !\is_string($service['resource'])) {
                 throw new \InvalidArgumentException(\sprintf('A "resource" attribute must be of type string for service "%s" in "%s". Check your YAML syntax.', $id, $file));
             }
 
-            $namespace = $service['namespace'] ?? $id;
+            $definition = $this->builder->namespaced($service['namespace'] ?? $id, $service['resource'] ?? null, $service['exclude'] ?? []);
+        } elseif (isset($service['parent'])) {
+            $definition = $this->builder->set($id, new Reference($service['parent']));
 
-            $this->autowired[$namespace] = $autowired;
-            $this->deprecations[$namespace] = $deprecation ?? null;
+            if (null !== $entity) {
+                $definition->replace($entity, null !== $entity);
+            }
+        } elseif ($this->builder->getContainer()->has($id)) {
+            $definition = $this->builder->extend($id)->replace($entity, isset($entity) && $id !== $entity);
+        } elseif (\is_string($entity) && '@' === $entity[0]) {
+            $definition = $this->builder->decorate(\substr($id, 1), new Definition(\ltrim($entity, '@')));
+        } else {
+            $definition = $this->builder->set($id, \is_object($entity) ? $entity : new Definition($entity ?? $id));
+        }
 
-            if ([] !== $tags) {
-                $this->tags[$namespace] = $this->parseDefinitionTags($id, $tags, $file);
+        if (isset($service['arguments'])) {
+            $definition->args($this->resolveServices($service['arguments'], $file));
+        }
+
+        if (isset($service['public'])) {
+            $definition->public($service['public']);
+        }
+
+        if (isset($service['lazy'])) {
+            $definition->lazy($service['lazy']);
+        }
+
+        if (isset($service['shared'])) {
+            $definition->shared($service['shared']);
+        }
+
+        if (isset($service['abstract'])) {
+            $definition->abstract($service['abstract']);
+        }
+
+        if (\array_key_exists('autowire', $service) && false !== $service['autowire']) {
+            $definition->typed(...(\is_array($a = $service['autowire'] ?? []) ? $a : []));
+        }
+
+        if (isset($service['deprecated'])) {
+            $deprecation = \is_array($service['deprecated']) ? $service['deprecated'] : ['message' => $service['deprecated']];
+            $deprecatedVersion = isset($deprecation['version']) ? (float) $deprecation['version'] : null;
+
+            $definition->deprecate($deprecation['package'] ?? '', $deprecatedVersion, $deprecation['message'] ?? null);
+        }
+
+        if (!empty($bindings = $service['bind'] ?? $service['calls'] ?? [])) {
+            if (!\is_array($bindings)) {
+                throw new \InvalidArgumentException(\sprintf('Parameter "bind" must be an array for service "%s" in "%s". Check your YAML syntax.', $id, $file));
             }
 
-            $this->registerClasses($definition, $namespace, $service['resource'], $service['exclude'] ?? []);
-
-            return;
+            $this->parseDefinitionBinds($id, $bindings, $file, $definition);
         }
 
-        if (!isset($hasDefinition)) {
-            $definition = $this->container->set($id, $definition);
+        if (!empty($configures = $service['configure'] ?? [])) {
+            if (!\is_array($configures)) {
+                throw new \InvalidArgumentException(\sprintf('Parameter "configure" in "%s" must be an array in "%s". Check your YAML syntax.', $id, $file));
+            }
+
+            $this->parseDefinitionBinds($id, $configures, $file, $this->builder, true);
         }
 
-        if (false !== $autowired) {
-            $definition->autowire(\is_array($autowired) ? $autowired : []);
-        }
+        if (!empty($tags = $service['tags'] ?? [])) {
+            if (!\is_array($tags)) {
+                throw new \InvalidArgumentException(\sprintf('Parameter "tags" must be an array for service "%s" in "%s". Check your YAML syntax.', $id, $file));
+            }
 
-        if (isset($deprecation)) {
-            [$package, $version, $message] = $deprecation;
-
-            $definition->deprecate($package, $version, $message);
-        }
-
-        if ([] !== $tags) {
-            $this->container->tag($id, $this->parseDefinitionTags($id, $tags, $file));
+            $definition->tags($this->parseDefinitionTags($id, $tags, $file));
         }
     }
 
     /**
      * @param array<int,string[]|TaggedValue[]> $bindings
+     * @param Definition|DefinitionBuilder      $definition
      *
      * @return array<int,mixed>
      */
-    private function parseDefinitionBinds(string $id, array $bindings, string $file, Definition $definition = null): array
+    private function parseDefinitionBinds(string $id, array $bindings, string $file, $definition, bool $configure = false): void
     {
         if ('in "_defaults"' !== $id) {
             $id = \sprintf('for service "%s"', $id);
         }
 
         foreach ($bindings as $k => $call) {
-            if (!($call instanceof TaggedValue || \is_array($call))) {
-                throw new \InvalidArgumentException(\sprintf('Invalid bind call %s: expected map or array, "%s" given in "%s".', $id, $call instanceof TaggedValue ? '!' . $call->getTag() : \get_debug_type($call), $file));
-            }
-
             if (\is_string($k)) {
                 throw new \InvalidArgumentException(\sprintf('Invalid bind call %s, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
             }
 
-            if (1 === \count($call) && \is_string(\key($call))) {
-                $method = \key($call);
-                $args = $this->resolveServices($call[$method], $file);
-            } elseif (empty($call)) {
-                throw new \InvalidArgumentException(\sprintf('Invalid call %s: the bind must be defined as the first index of an array or as the only key of a map in "%s".', $id, $file));
-            } else {
-                $method = $call[0];
-                $args = $this->resolveServices($call[1] ?? null, $file);
-            }
-
-            if ($definition instanceof Definition) {
-                $definition->bind($method, $args);
-
+            if ((\is_string($call) || \is_object($call)) && $configure) {
+                $definition->call($call, false);
                 continue;
             }
 
-            $bindings[$k] = [$method, $args];
-        }
+            if (!\is_array($call)) {
+                throw new \InvalidArgumentException(\sprintf('Invalid bind call %s: expected map or array, "%s" given in "%s".', $id, $call instanceof TaggedValue ? '!' . $call->getTag() : \get_debug_type($call), $file));
+            }
 
-        return $bindings;
+            if (1 === \count($call) && \is_string(\key($call))) {
+                $args = $call[$method = \key($call)];
+
+                if ($configure && !\is_bool($args)) {
+                    throw new \InvalidArgumentException(\sprintf('Invalid call %s: the configuration bind value must be a bool in "%s".', $id, $file));
+                }
+
+                $args = $configure ? $args : $this->resolveServices($args, $file);
+            } elseif (empty($call)) {
+                throw new \InvalidArgumentException(\sprintf('Invalid call %s: the bind must be defined as the first index of an array or as the only key of a map in "%s".', $id, $file));
+            } elseif ($configure) {
+                if (isset($call[1]) && !\is_bool($call[1])) {
+                    throw new \InvalidArgumentException(\sprintf('Invalid call %s: the configuration bind value must be a bool in "%s".', $id, $file));
+                }
+
+                $method = $this->resolveServices($call[0], $file);
+                $args = $call[1] ?? false;
+            } else {
+                if (!\is_string($call[0])) {
+                    throw new \InvalidArgumentException(\sprintf('Invalid bind call %s: expected string in first index of array, "%s" given in "%s".', $id, \get_debug_type($call), $file));
+                }
+
+                $method = $call[0];
+                $args = isset($call[1]) ? $this->resolveServices($call[1], $file) : null;
+            }
+
+            $definition->{$configure ? 'call' : 'bind'}($method, $args);
+        }
     }
 
     /**
@@ -627,7 +652,7 @@ class YamlFileLoader extends FileLoader
         $serviceTags = [];
 
         foreach ($tags as $k => $tag) {
-            if (\is_string($k)) {
+            if (!(\is_string($tag) || \is_array($tag))) {
                 throw new \InvalidArgumentException(\sprintf('The "tags" entry %s is invalid, did you forgot a leading dash before "%s: ..." in "%s"?', $id, $k, $file));
             }
 
@@ -654,9 +679,11 @@ class YamlFileLoader extends FileLoader
      *
      * @param array<string,mixed> $definition
      */
-    private function checkDefinition(string $id, array $definition, string $file): void
+    private function checkDefinition(string $id, array $definition, string $file, bool $defaults): void
     {
-        if (isset($definition['resource']) || isset($definition['namespace'])) {
+        if ($defaults) {
+            $keywords = self::DEFAULTS_KEYWORDS;
+        } elseif (isset($definition['resource']) || isset($definition['namespace'])) {
             $keywords = self::PROTOTYPE_KEYWORDS;
         } else {
             $keywords = self::SERVICE_KEYWORDS;

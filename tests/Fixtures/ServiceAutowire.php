@@ -35,6 +35,11 @@ class ServiceAutowire
         $this->value = $service;
     }
 
+    public function getInstance(): Service
+    {
+        return $this->value;
+    }
+
     public function missingClass(Servic $service)
     {
         return $service;

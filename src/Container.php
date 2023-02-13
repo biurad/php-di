@@ -17,14 +17,8 @@ declare(strict_types=1);
 
 namespace Rade\DI;
 
-use Rade\DI\{
-    Builder\Statement,
-    Exceptions\CircularReferenceException,
-    Exceptions\FrozenServiceException,
-    Exceptions\NotFoundServiceException,
-    Exceptions\ContainerResolutionException
-};
-use Rade\DI\Resolvers\Resolver;
+use Psr\Container\{ContainerInterface, NotFoundExceptionInterface};
+use Rade\DI\Exceptions\{CircularReferenceException, ContainerResolutionException, NotFoundServiceException};
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -32,32 +26,49 @@ use Symfony\Contracts\Service\ResetInterface;
  *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-class Container extends AbstractContainer implements \ArrayAccess
+class Container implements \ArrayAccess, ContainerInterface, ResetInterface
 {
-    public const IGNORE_FROM_FREEZING = 2;
+    use Traits\ParameterTrait, Traits\DefinitionTrait, Traits\TagsTrait, Traits\TypesTrait, Traits\ExtensionTrait;
 
-    /** @var array<string,string> internal cached services */
-    protected array $methodsMap = [];
+    /** @final The reserved service id for container's instance */
+    public const SERVICE_CONTAINER = 'container';
 
-    /** @var array<string,mixed> service name => instance */
-    private array $values = [];
+    /** Sets the behaviour to ignore exception on types with multiple services */
+    public const IGNORE_MULTIPLE_SERVICE = 0;
 
-    /** @var RawDefinition[] */
-    private array $raw = [];
+    /** Set a strict behaviour to thrown an exception on types with multiple services */
+    public const EXCEPTION_ON_MULTIPLE_SERVICE = 1;
 
-    /** @var array<string,bool> service name => bool */
-    private array $frozen = [];
+    /** Instead of throwing an exception, null will return if service not found */
+    public const NULL_ON_INVALID_SERVICE = 2;
 
-    /** @var array<string,bool> service name => bool */
-    private array $keys = [];
+    /** @var null|\WeakMap<ContainerInterface,true> A list of PSR-11 containers */
+    protected ?\WeakMap $containers = null;
 
-    /**
-     * Instantiates the container.
-     */
     public function __construct()
     {
-        parent::__construct();
-        $this->types += [self::class => ['container']];
+        if (!isset($this->types[$cl = static::class])) {
+            $this->type(self::SERVICE_CONTAINER, ...\array_keys(\class_implements($c = $this) + \class_parents($c) + [$cl => $cl]));
+        }
+        $this->resolver = new Resolver($this->services[self::SERVICE_CONTAINER] = $c ?? $this);
+    }
+
+    /**
+     * Container can not be cloned.
+     */
+    public function __clone()
+    {
+        throw new \LogicException('Container is not cloneable');
+    }
+
+    /**
+     * Alias of the container resolver's resolve method.
+     *
+     * @param array<int|string,mixed> $args
+     */
+    public function __invoke(mixed $value, array $args = []): mixed
+    {
+        return $this->resolver->resolve($value, $args);
     }
 
     /**
@@ -66,11 +77,11 @@ class Container extends AbstractContainer implements \ArrayAccess
      * @param string $offset The unique identifier for the parameter or object
      * @param mixed  $value  The value of the service assign to the $offset
      *
-     * @throws FrozenServiceException Prevent override of a frozen service
+     * @throws Exceptions\FrozenServiceException Prevent override of a frozen service
      */
-    public function offsetSet($offset, $value): void
+    public function offsetSet(mixed $offset, mixed $value): void
     {
-        $this->set($offset, $value, true);
+        $this->autowire($offset, $value);
     }
 
     /**
@@ -82,7 +93,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @return mixed The value of the service
      */
-    public function offsetGet($offset)
+    public function offsetGet(mixed $offset): mixed
     {
         return $this->get($offset);
     }
@@ -92,7 +103,7 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for the service
      */
-    public function offsetExists($offset): bool
+    public function offsetExists(mixed $offset): bool
     {
         return $this->has($offset);
     }
@@ -102,130 +113,58 @@ class Container extends AbstractContainer implements \ArrayAccess
      *
      * @param string $offset The unique identifier for service definition
      */
-    public function offsetUnset($offset): void
+    public function offsetUnset(mixed $offset): void
     {
-        $this->remove($offset);
+        $this->removeDefinition($offset);
     }
 
     /**
-     * A helper method of Statement class for calling a service lazily.
-     *
-     * @param callable|string         $definition A class string or a callable
-     * @param array<int|string,mixed> $args
-     */
-    public function lazy($definition, array $args = []): Statement
-    {
-        return new Statement($definition, $args);
-    }
-
-    /**
-     * Create a definition service.
-     *
-     * @param Definition|object|callable|string $service
-     * @param int|null                          $type    of Definition::FACTORY | Definition::LAZY
-     */
-    public function definition($service, int $type = null): Definition
-    {
-        $definition = new Definition($service);
-
-        return null === $type ? $definition : $definition->should($type);
-    }
-
-    /**
-     * Extends an object definition.
-     *
-     * Useful when you want to extend an existing object definition,
-     * without necessarily loading that object.
-     *
-     * @param string   $id    The unique identifier for the object
-     * @param callable $scope A service definition to extend the original
-     *
-     * @throws NotFoundServiceException   If the identifier is not defined
-     * @throws FrozenServiceException     If the service is frozen
-     * @throws CircularReferenceException If infinite loop among service is detected
-     *
-     * @return mixed The wrapped scope or Definition instance
-     */
-    public function extend(string $id, callable $scope)
-    {
-        if ($this->frozen[$id] ?? isset($this->methodsMap[$id])) {
-            throw new FrozenServiceException($id);
-        }
-
-        $extended = $this->raw[$id] ?? $this->values[$id] ?? $this->createNotFound($id, true);
-
-        if ($extended instanceof RawDefinition) {
-            return $this->raw[$id] = new RawDefinition($scope($extended(), $this));
-        }
-
-        if (\is_callable($extended)) {
-            $extended = $extended instanceof Definition ? $extended : $this->doCreate($id, $extended);
-        }
-
-        return $this->values[$id] = $scope($extended, $this);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function keys(): array
-    {
-        return \array_keys($this->keys + $this->methodsMap);
-    }
-
-    /**
-     * {@inheritdoc}
+     * Resets the container.
      */
     public function reset(): void
     {
-        parent::reset();
-
-        foreach ($this->values as $id => $service) {
-            if (isset(self::$services[$id])) {
-                $service = self::$services[$id];
-                unset(self::$services[$id]);
-            }
+        foreach ($this->definitions as $id => $service) {
+            $service = $this->services[$id] ?? $service;
 
             if ($service instanceof ResetInterface) {
                 $service->reset();
             }
-
-            $this->remove($id);
+            $this->removeDefinition($id);
         }
 
-        self::$services['container'] = $this;
+        foreach ($this->containers ?? [] as $container => $true) {
+            if ($container instanceof ResetInterface) {
+                $container->reset(); // A container such as Symfony DI support reset
+            }
+        }
+
+        $c = $this->services[self::SERVICE_CONTAINER];
+        $t = $this->typed(self::SERVICE_CONTAINER, true);
+        $this->services = $this->types = $this->tags = $this->aliases = [];
+
+        $this->services[self::SERVICE_CONTAINER] = $c;
+        $this->type(self::SERVICE_CONTAINER, ...$t);
     }
 
     /**
-     * {@inheritdoc}
+     * Attach an existing container, useful for migration purposes.
      */
-    public function remove(string $id): void
+    public function attach(ContainerInterface $container): void
     {
-        if (isset($this->keys[$id])) {
-            unset($this->values[$id], $this->raw[$id], $this->keys[$id], $this->frozen[$id]);
+        if (null === $this->containers) {
+            $this->containers = new \WeakMap();
         }
-
-        parent::remove($id);
+        $this->containers[$container] = true;
     }
 
     /**
-     * {@inheritdoc}
+     * Detach an existing container if it's no longer needed.
      */
-    public function service(string $id)
+    public function detach(ContainerInterface $container): void
     {
-        return $this->values[$this->aliases[$id] ?? $id] ?? $this->createNotFound($id, true);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1)
-    {
-        if (isset($this->aliases[$id])) {
-            $id = $this->aliases[$id];
+        if (null !== $this->containers) {
+            unset($this->containers[$container]);
         }
-
-        return self::$services[$id] ?? $this->{$this->methodsMap[$id] ?? 'doGet'}($id, $invalidBehavior);
     }
 
     /**
@@ -233,118 +172,137 @@ class Container extends AbstractContainer implements \ArrayAccess
      */
     public function has(string $id): bool
     {
-        return ($this->keys[$id] ?? isset($this->methodsMap[$id])) || isset($this->aliases[$id]);
-    }
-
-    /**
-     * Set a service definition.
-     *
-     * @param Definition|RawDefinition|Statement|\Closure|object $definition
-     *
-     * @throws FrozenServiceException Prevent override of a frozen service
-     *
-     * @return Definition|RawDefinition|object|\Closure of Definition, RawService, class object or closure
-     */
-    public function set(string $id, object $definition, bool $autowire = false)
-    {
-        if ($this->frozen[$id] ?? isset($this->methodsMap[$id])) {
-            throw new FrozenServiceException($id);
+        if (static::SERVICE_CONTAINER === $id) {
+            return true;
         }
 
-        unset($this->aliases[$id]); // Incase new service definition exists in aliases.
-        $this->keys[$id] = true;
-
-        if ($definition instanceof RawDefinition) {
-            return $this->raw[$id] = $definition;
+        if (false !== ($this->aliases[$id] ?? $this->methodsMap[$id] ?? \array_key_exists($id, $this->definitions))) {
+            return true;
         }
 
-        if ($definition instanceof Definition) {
-            $typed = $definition->get('entity');
-            $definition->withContainer($id, $this);
-        } elseif ($definition instanceof Statement) {
-            $typed = $definition->value;
-            $definition = fn () => $this->resolver->resolve($typed, $definition->args);
-        }
-
-        if ($autowire) {
-            $this->type($id, Resolver::autowireService($typed ?? $definition));
-        }
-
-        return $this->values[$id] = $definition;
-    }
-
-    /**
-     * Build an entry of the container by its name.
-     *
-     * @throws CircularReferenceException|NotFoundServiceException
-     *
-     * @return mixed
-     */
-    protected function doGet(string $id, int $invalidBehavior)
-    {
-        if (isset($this->raw[$id])) {
-            $rawService = $this->raw[$id];
-            unset($this->raw[$id]);
-
-            return self::$services[$id] = $rawService();
-        }
-
-        if (isset($this->values[$id])) {
-            if (\is_callable($definition = $this->values[$id])) {
-                if ($definition instanceof Definition) {
-                    if (!$definition->isPublic()) {
-                        throw new ContainerResolutionException(\sprintf('Using service definition for "%s" as private is not supported.', $id));
-                    }
-
-                    if ($definition->isFactory()) {
-                        return $this->doCreate($id, $definition);
-                    }
-                }
-
-                $definition = $this->doCreate($id, $definition, self::IGNORE_FROM_FREEZING !== $invalidBehavior);
-            } elseif (self::IGNORE_FROM_FREEZING !== $invalidBehavior) {
-                $this->frozen[$id] = true;
-
-                return self::$services[$id] = $definition; // If definition is frozen, cache it ...
-            }
-
-            return $this->values[$id] = $definition;
-        }
-
-        if (isset($this->types[$id])) {
-            return $this->autowired($id, self::EXCEPTION_ON_MULTIPLE_SERVICE === $invalidBehavior);
-        }
-
-        if (\class_exists($id) && !$this instanceof FallbackContainer) {
-            try {
-                return $this->resolver->resolveClass($id);
-            } catch (ContainerResolutionException $e) {
-                // Only resolves class string and not throw it's error.
+        foreach ($this->containers ?? [] as $container => $true) {
+            if ($container->has($id)) {
+                return $true;
             }
         }
 
-        throw $this->createNotFound($id);
+        return false;
     }
 
     /**
      * {@inheritdoc}
+     *
+     * @throws CircularReferenceException When a circular reference is detected
+     * @throws NotFoundServiceException   When the service is not defined
      */
-    protected function doCreate(string $id, $service, bool $freeze = false)
+    public function get(string $id, int $invalidBehavior = /* self::EXCEPTION_ON_MULTIPLE_SERVICE */ 1): mixed
     {
-        // Checking if circular reference exists ...
-        if (isset($this->loading[$id])) {
-            throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+        return $this->services[$id]
+            ?? $this->services[$id = $this->aliases[$id] ?? $id]
+            ?? $this->{$this->methodsMap[$id] ?? 'doLoad'}($id, $invalidBehavior);
+    }
+
+    /**
+     * Invokes given closure or function withing specific container scope.
+     * By default, container is passed into callback arguments.
+     *
+     * Example:
+     * ```php
+     * $container->autowire('movie', new Movie('Baby Driver 2023'));
+     * $container->runScope(
+     *    ['actor', 'director'],
+     *    function (ContainerInterface $container, Movie $movie) {
+     *        $container->set('director', new Director('Edgar Wright'));
+     *        $container->set('actor', new Actor('John Doe'));
+     *
+     *        $movie->addActor($container->get('actor'));
+     *        $movie->setDirector($container->get('director'));
+     *
+     *        return $movie;
+     *    }
+     * );
+     * ```
+     *
+     * This makes the service private and cannot be use elsewhere in codebase.
+     *
+     * @param array<int,string> $services
+     *
+     * @throws ContainerResolutionException if a service id exists
+     */
+    public function runScope(array $services, callable $scope): mixed
+    {
+        $ref = new \ReflectionFunction(\Closure::fromCallable($scope));
+
+        foreach ($services as $serviceId) {
+            if ($this->has($serviceId)) {
+                throw new ContainerResolutionException(\sprintf('Service with id "%s" exist in container and cannot be redeclared.', $serviceId));
+            }
         }
 
-        $this->loading[$id] = true;
+        try {
+            return 0 === $ref->getNumberOfParameters() ? $ref->invoke() : $ref->invokeArgs($this->resolver->autowireArguments($ref));
+        } finally {
+            foreach ($services as $alias) {
+                if (!$this->has($alias)) {
+                    throw new NotFoundServiceException(\sprintf('Service with id "%s" was not found, cannot remove it.', $alias));
+                }
+                $this->removeDefinition($alias);
+            }
+        }
+    }
+
+    /**
+     * Return a list of definitions belonging to a type or tag.
+     *
+     * @return array<int,string> The list of service definitions ids
+     */
+    public function findBy(string $typeOrTag, callable $resolve = null): array
+    {
+        if (\array_key_exists($typeOrTag, $this->tags)) {
+            $tags = \array_keys($this->tags[$typeOrTag]);
+        }
+        $definitions = $tags ?? $this->types[$typeOrTag] ?? [];
+
+        return null === $resolve ? $definitions : \array_map($resolve, $definitions);
+    }
+
+    /**
+     * Load the service definition.
+     */
+    protected function doLoad(string $id, int $invalidBehavior): mixed
+    {
+        if (null == ($definition = $this->definitions[$id] ?? null)) {
+            if (\array_key_exists($id, $this->types)) {
+                return $this->autowired($id, 1 === ($invalidBehavior & self::EXCEPTION_ON_MULTIPLE_SERVICE));
+            }
+
+            foreach ($this->containers ?? [] as $container => $true) {
+                if ($container->has($id)) {
+                    try {
+                        return $container->get($id);
+                    } catch (NotFoundExceptionInterface $e) {
+                        // Skip error ...
+                    }
+                }
+            }
+
+            return 2 === ($invalidBehavior & self::NULL_ON_INVALID_SERVICE) ? null : throw $this->createNotFound($id, $e ?? null);
+        }
+
+        if ($definition->isAbstract()) {
+            throw new ContainerResolutionException(\sprintf('Abstract definition "%s" cannot be instantiated.', $id));
+        }
 
         try {
-            return $this->resolver->resolve($service);
+            $this->loading[$id] = !isset($this->loading[$id]) ? true : throw new CircularReferenceException($id, [...\array_keys($this->loading), $id]);
+            $service = $definition->resolve($this->resolver);
+
+            return !$definition->isShared() ? $service : $this->services[$id] = $service;
         } finally {
             unset($this->loading[$id]);
 
-            if ($freeze) {
-                $this->frozen[$id] = true; // Freeze resolved service ...
+            if (!$definition->isPublic() && !$this instanceof ContainerBuilder) {
+                $this->removeDefinition($id);
             }
         }
     }

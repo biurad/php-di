@@ -25,13 +25,16 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Rade\DI\Builder\Reference;
+use Rade\DI\Definitions\Reference;
 use Rade\DI\Container;
-use Rade\DI\Definition;
 use Rade\DI\Exceptions\CircularReferenceException;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Symfony\Contracts\Service\ServiceProviderInterface;
+
+use function Rade\DI\Loader\service;
+use function Rade\DI\Loader\value;
+use function Rade\DI\Loader\wrap;
 
 class ContainerAutowireTest extends TestCase
 {
@@ -41,7 +44,7 @@ class ContainerAutowireTest extends TestCase
         $rade['service'] = function (): Fixtures\Service {
             return new Fixtures\Service();
         };
-        $rade['construct'] = $rade->lazy(Fixtures\Constructor::class);
+        $rade['construct'] = wrap(Fixtures\Constructor::class);
 
         $this->assertNotSame($rade, $rade['service']);
         $this->assertSame($rade, $rade['construct']->value);
@@ -56,8 +59,8 @@ class ContainerAutowireTest extends TestCase
         $rade->set('logger', new NullLogger(), true);
         $rade->set('service', $service = new Fixtures\Service(), true);
         $rade->set('non_array', new Fixtures\ServiceAutowire($service, null));
-        $rade['service_one'] = $rade->lazy(Fixtures\Constructor::class);
-        $rade['foo'] = $rade->lazy(Fixtures\SomeServiceSubscriber::class);
+        $rade['service_one'] = wrap(Fixtures\Constructor::class);
+        $rade['foo'] = wrap(Fixtures\SomeServiceSubscriber::class);
 
         $this->assertInstanceOf(ServiceProviderInterface::class, $rade['foo']->container);
         $this->assertInstanceOf(LoggerInterface::class, $rade['foo']->container->get('logger'));
@@ -84,7 +87,7 @@ class ContainerAutowireTest extends TestCase
         );
         $this->expectException(ContainerResolutionException::class);
 
-        $rade['foo'] = $rade->lazy(Fixtures\SomeService::class);
+        $rade['foo'] = wrap(Fixtures\SomeService::class);
         $rade['foo'];
     }
 
@@ -151,10 +154,10 @@ class ContainerAutowireTest extends TestCase
         $rade = new Container();
 
         $rade['foo'] = $bound = new Fixtures\Service();
-        $rade->exclude(Fixtures\Service::class);
+        $rade->excludeType(Fixtures\Service::class);
 
-        $rade['bar'] = $rade->lazy(Fixtures\Constructor::class);
-        $rade['baz'] = $rade->lazy(Fixtures\ServiceAutowire::class);
+        $rade['bar'] = wrap(Fixtures\Constructor::class);
+        $rade['baz'] = wrap(Fixtures\ServiceAutowire::class);
 
         $this->assertSame($bound, $rade->get(Fixtures\Service::class));
         $this->assertSame($bound, $rade['baz']->value);
@@ -164,8 +167,8 @@ class ContainerAutowireTest extends TestCase
     {
         $rade = new Container();
 
-        $rade['construct'] = $rade->lazy(Fixtures\Constructor::class);
-        $rade->exclude(Fixtures\Service::class);
+        $rade['construct'] = wrap(Fixtures\Constructor::class);
+        $rade->excludeType(Fixtures\Service::class);
         $rade['service'] = static fn (Fixtures\Service $container) => $container;
 
         $this->assertInstanceOf(Fixtures\Constructor::class, $one = $rade['service']);
@@ -173,7 +176,7 @@ class ContainerAutowireTest extends TestCase
 
         $rade->reset();
 
-        $rade['string'] = new \Rade\DI\Builder\Reference('scoped');
+        $rade['string'] = new \Rade\DI\Definitions\Reference('scoped');
         $rade['service'] = static fn (\Stringable $string) => $string;
 
         $this->expectExceptionMessage(
@@ -190,7 +193,7 @@ class ContainerAutowireTest extends TestCase
     {
         $rade = new Container();
         $rade['foo'] = new Fixtures\Service();
-        $rade['bar'] = $rade->lazy(Fixtures\Constructor::class);
+        $rade['bar'] = wrap(Fixtures\Constructor::class);
 
         $services = $rade->get(Fixtures\Service::class, $rade::IGNORE_MULTIPLE_SERVICE);
         $this->assertIsArray($services);
@@ -207,7 +210,7 @@ class ContainerAutowireTest extends TestCase
         $this->expectException(ContainerResolutionException::class);
 
         // On Autowiring parameters
-        $rade['baz'] = $rade->lazy(Fixtures\ServiceAutowire::class);
+        $rade['baz'] = wrap(Fixtures\ServiceAutowire::class);
         $rade['baz'];
     }
 
@@ -216,8 +219,8 @@ class ContainerAutowireTest extends TestCase
         $rade = new Container();
         $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
 
-        $rade['name.value'] = $rade->lazy(NamedValueResolver::class);
-        $rade['type.value'] = $rade->lazy(TypeHintValueResolver::class);
+        $rade['name.value'] = wrap(NamedValueResolver::class);
+        $rade['type.value'] = wrap(TypeHintValueResolver::class);
 
         $this->expectExceptionMessage(
             'Multiple services of type DivineNii\Invoker\Interfaces\ArgumentValueResolverInterface ' .
@@ -234,8 +237,8 @@ class ContainerAutowireTest extends TestCase
         $rade = new Container();
         $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
 
-        $rade['name.value'] = $rade->lazy(NamedValueResolver::class);
-        $rade['type.value'] = $rade->lazy(TypeHintValueResolver::class);
+        $rade['name.value'] = wrap(NamedValueResolver::class);
+        $rade['type.value'] = wrap(TypeHintValueResolver::class);
 
         $namedResolver = $rade->call([$rade['autowire'], 'multipleAutowireTypesFound']);
 
@@ -256,9 +259,9 @@ class ContainerAutowireTest extends TestCase
         $rade = new Container();
         $rade['autowire'] = new Fixtures\ServiceAutowire(new Fixtures\Service(), null);
 
-        $rade['name.value'] = $rade->lazy(NamedValueResolver::class);
-        $rade['type.value'] = $rade->lazy(TypeHintValueResolver::class);
-        $rade['default.value'] = $rade->lazy(DefaultValueResolver::class);
+        $rade['name.value'] = wrap(NamedValueResolver::class);
+        $rade['type.value'] = wrap(TypeHintValueResolver::class);
+        $rade['default.value'] = wrap(DefaultValueResolver::class);
 
         $resolvers = $rade->call([$rade['autowire'], 'autowireTypesArray']);
 
@@ -272,7 +275,7 @@ class ContainerAutowireTest extends TestCase
     public function testShouldPassOnTypeOnParameter(): void
     {
         $rade = new Container();
-        $rade['cl_container'] = $rade->lazy(Fixtures\Constructor::class);
+        $rade['cl_container'] = wrap(Fixtures\Constructor::class);
         $rade['fn_container'] = function (ContainerInterface $container) {
             return $container;
         };
@@ -290,9 +293,9 @@ class ContainerAutowireTest extends TestCase
         };
 
         $rade['foo'] = $objeActual = new Fixtures\SomeService();
-        $rade['service1'] = $rade->lazy(Fixtures\Service::class);
-        $rade['service2'] = $rade->lazy(Fixtures\Constructor::class);
-        $rade['protected'] = $rade->raw($service);
+        $rade['service1'] = wrap(Fixtures\Service::class);
+        $rade['service2'] = wrap(Fixtures\Constructor::class);
+        $rade['protected'] = value($service);
 
         [$obj, $services] = $rade->call($rade['protected'], [1 => $arguments]);
         $this->assertInstanceOf(Fixtures\SomeService::class, $obj);
@@ -313,8 +316,8 @@ class ContainerAutowireTest extends TestCase
         };
 
         $rade['foo'] = $objeActual = new Fixtures\SomeService();
-        $rade['service1'] = $rade->lazy(Fixtures\Service::class);
-        $rade['service2'] = $rade->lazy(Fixtures\Constructor::class);
+        $rade['service1'] = wrap(Fixtures\Service::class);
+        $rade['service2'] = wrap(Fixtures\Constructor::class);
         $rade['variadic'] = $service;
 
         [$obj, $services] = $rade['variadic'];
@@ -378,8 +381,8 @@ class ContainerAutowireTest extends TestCase
 
         $callable = [$rade->call(Fixtures\ServiceAutowire::class), 'missingService'];
 
-        $rade['factory'] = $factory = $rade->definition($callable, Definition::FACTORY);
-        $rade['protect'] = $protect = $rade->raw($callable);
+        $rade['factory'] = $factory = service($callable)->shared(false);
+        $rade['protect'] = $protect = value($callable);
 
         $this->assertNotSame($factory, $rade['factory']);
         $this->assertSame($protect(), $rade['protect']);
@@ -388,7 +391,7 @@ class ContainerAutowireTest extends TestCase
     public function testContainerAutowireMethod(): void
     {
         $rade = new Container();
-        $rade->set('service', $rade->lazy(Fixtures\Constructor::class));
+        $rade->set('service', wrap(Fixtures\Constructor::class));
         $rade->type('service', [Fixtures\Service::class]);
         $service = fn (Fixtures\Service $service) => $service;
 
@@ -426,18 +429,18 @@ class ContainerAutowireTest extends TestCase
     public function testResolverMethods(): void
     {
         $rade = new Container();
-        $rade['service'] = $class = $rade->resolveClass(Fixtures\Constructor::class);
+        $rade['service'] = $class = $rade->call(Fixtures\Constructor::class);
         $callable = $rade->call(fn (Fixtures\Constructor $service) => $service);
 
         $this->assertInstanceOf(Fixtures\Service::class, $class);
         $this->assertInstanceOf(Fixtures\Constructor::class, $callable);
         $this->assertSame($class, $callable);
 
-        $rade['autowire'] = $autowireClass = $rade->resolveClass(Fixtures\ServiceAutowire::class);
+        $rade['autowire'] = $autowireClass = $rade->call(Fixtures\ServiceAutowire::class);
         $autowired = $rade->call([new Reference('autowire'), 'missingService']);
         $this->assertInstanceOf(Fixtures\Constructor::class, $autowired);
 
-        $rade['callable_autowire'] = $rade->raw(fn () => $autowireClass);
+        $rade['callable_autowire'] = value(fn () => $autowireClass);
         $autowired = $rade->call([new Reference('callable_autowire'), 'missingService']);
         $this->assertInstanceOf(Fixtures\Constructor::class, $autowired);
 
@@ -476,7 +479,7 @@ class ContainerAutowireTest extends TestCase
         $this->assertInstanceOf(Fixtures\CollisionA::class, $rade->call($unionFunction, [new Fixtures\CollisionA()]));
         $this->assertInstanceOf(Fixtures\CollisionB::class, $rade->call($unionFunction));
 
-        $rade['foo'] = $rade->lazy(Fixtures\UnionClasses::class);
+        $rade['foo'] = wrap(Fixtures\UnionClasses::class);
         $this->assertInstanceOf(
             Fixtures\UnionClasses::class,
             $rade->call(Fixtures\UnionClasses::class)
@@ -494,7 +497,7 @@ class ContainerAutowireTest extends TestCase
         $this->expectException(ContainerResolutionException::class);
 
         unset($rade['collision'], $rade['foo']);
-        $rade['foo'] = $rade->lazy(Fixtures\UnionClasses::class);
+        $rade['foo'] = wrap(Fixtures\UnionClasses::class);
         $rade['foo']; // Lazy service definition
     }
 }

@@ -1,2 +1,2 @@
 services:
-    Foo: !statement { value: FooClass, args: [!statement Bar] }
+    Foo: !statement { value: FooClass, args: [!statement Bar, !tagged_locator foo] }

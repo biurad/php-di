@@ -24,6 +24,9 @@ use Rade\DI\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Loader\LoaderResolver;
 
+/**
+ * @group required
+ */
 class DirectoryLoaderTest extends LoaderTestCase
 {
     private static $fixturesPath;

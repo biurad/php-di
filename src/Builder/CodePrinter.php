@@ -35,21 +35,15 @@ COMMENT;
     /**
      * Pretty print nodes.
      *
-     * @param \PhpParser\Node[] $stmts
+     * @param \PhpParser\Node[]   $stmts
      * @param array<string,mixed> $options
      */
     public static function print(array $stmts, array $options = []): string
     {
-        $printer = new self(['shortArraySyntax' => $options['shortArraySyntax'] ??= true]);
-        $spacing = "{\n" . $nl = str_repeat(' ', $options['spacingLevel'] ?? 8) . "\n"; // Replace tabs with spacing
+        $printer = new self($options + ['maxLineLength' => 200, 'shortArraySyntax' => true]);
+        $printerCode = $printer->prettyPrintFile($stmts);
 
-        // Resolve whitespace ...
-        return \str_replace([$spacing, "\n\n}", $nl], ["{\n", "\n}\n", "\n"], $printer->prettyPrintFile($stmts));
-    }
-
-    protected function pStmt_Return(\PhpParser\Node\Stmt\Return_ $node): string
-    {
-        return $this->nl . parent::pStmt_Return($node);
+        return \str_replace("\n\n\n", "\n\n", $printerCode);
     }
 
     protected function pStmt_Declare(\PhpParser\Node\Stmt\Declare_ $node): string
@@ -57,8 +51,30 @@ COMMENT;
         return parent::pStmt_Declare($node) . $this->nl;
     }
 
+    protected function pStmt_TraitUse(\PhpParser\Node\Stmt\TraitUse $node): string
+    {
+        if (\count($node->traits) > 5) {
+            return 'use ' . $this->pImplode($node->traits, ',' . $this->nl . '    ')
+             . (empty($node->adaptations)
+                ? ';'
+                : ' {' . $this->pStmts($node->adaptations) . $this->nl . '}') . "\n";
+        }
+
+        return parent::pStmt_TraitUse($node) . "\n";
+    }
+
     protected function pStmt_Property(\PhpParser\Node\Stmt\Property $node): string
     {
+        if ('tags' === $node->props[0]->name->name) {
+            $item = $node->props[0]->default;
+
+            if (isset($item->items)) {
+                foreach ($item->items as $item) {
+                    $item->setAttribute('multiline', true);
+                }
+            }
+        }
+
         return parent::pStmt_Property($node) . "\n";
     }
 
@@ -70,6 +86,40 @@ COMMENT;
             $classMethod = \str_replace(') :', '):', $classMethod);
         }
 
+        $this->indent();
+        $classMethod = \str_replace(["{\n" . ($nl = \strrev($this->nl)), $nl], ["{\n", "\n"], $classMethod);
+        $this->outdent();
+
         return $classMethod . "\n"; // prefer spaces instead of tab
+    }
+
+    protected function pStmt_Class(\PhpParser\Node\Stmt\Class_ $node): string
+    {
+        return \str_replace("\n" . \strrev($this->nl) . '}', "\n}", parent::pStmt_Class($node));
+    }
+
+    protected function pScalar_String(\PhpParser\Node\Scalar\String_ $node): string
+    {
+        if (\Nette\Utils\Validators::isType($node->value)) {
+            return $this->pExpr_ConstFetch(new \PhpParser\Node\Expr\ConstFetch(new \PhpParser\Node\Name($node->value . '::class')));
+        }
+
+        return parent::pScalar_String($node);
+    }
+
+    protected function pMaybeMultiline(array $nodes, bool $trailingComma = false): string
+    {
+        if (\count($nodes) > 5 || (isset($nodes[0]) && $nodes[0]->getAttribute('multiline'))) {
+            resolve_multiline:
+            return $this->pCommaSeparatedMultiline($nodes, $trailingComma) . $this->nl;
+        }
+
+        $multilineCode = parent::pMaybeMultiline($nodes, $trailingComma);
+
+        if (\strlen($multilineCode) > $this->options['maxLineLength']) {
+            goto resolve_multiline;
+        }
+
+        return $multilineCode;
     }
 }

@@ -1,4 +1,4 @@
 services:
     bar_service:
-        entity:    BarClass
+        entity: Rade\DI\Tests\Fixtures\Bar
         autowire: true

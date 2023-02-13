@@ -22,5 +22,7 @@
     <rule ref="PSR12">
         <exclude name="PSR1.Classes.ClassDeclaration.MultipleClasses"/>
         <exclude name="PSR1.Methods.CamelCapsMethodName.NotCamelCaps"/> <!-- Affects FILE: src\ContainerBuilder.php -->
+        <exclude name="PSR2.Classes.PropertyDeclaration.Multiple"/>
+        <exclude name="PSR12.Traits.UseDeclaration.MultipleImport"/>
     </rule>
 </ruleset>

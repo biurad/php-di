@@ -20,24 +20,30 @@ namespace Rade\DI\Tests;
 use PHPUnit\Framework\TestCase;
 use Rade\DI\Container;
 use Rade\DI\ContainerBuilder;
-use Rade\DI\Definition;
 use Rade\DI\Exceptions\ContainerResolutionException;
 use Rade\DI\Exceptions\NotFoundServiceException;
 use Rade\DI\Facade\Facade;
 use Rade\DI\Facade\FacadeProxy;
 
+use function Rade\DI\Loader\reference;
+use function Rade\DI\Loader\service;
+use function Rade\DI\Loader\value;
+
+/**
+ * @group required
+ */
 class FacadeProxyTest extends TestCase
 {
     public function testWithContainer(): void
     {
         Facade::setContainer($rade = new Container());
 
-        $rade['raw'] = $rade->raw(123);
+        $rade['raw'] = value(123);
         $rade['service'] = new Fixtures\Service();
         $rade['service.invoke'] = new Fixtures\Invokable();
         $rade->set('service_constructor', new Fixtures\Constructor($rade));
-        $rade['service.autowire_test'] = $rade->resolveClass(Fixtures\ServiceAutowire::class);
-        $rade['service_callable'] = $rade->raw(static function (int $num, Fixtures\Service $service) {
+        $rade['service.autowire_test'] = $rade->call(Fixtures\ServiceAutowire::class);
+        $rade['service_callable'] = value(static function (int $num, Fixtures\Service $service) {
             $service->value = $num;
 
             return $service;
@@ -49,14 +55,14 @@ class FacadeProxyTest extends TestCase
         $this->assertEquals($rade['raw'], Facade::raw());
         $this->assertSame($rade['service'], Facade::service());
         $this->assertSame($rade['service.invoke'], Facade::serviceInvoke());
-        $this->assertSame($rade->call('service_callable', [5]), Facade::serviceCallable(5));
+        $this->assertSame($rade->call(reference('service_callable'), [5]), Facade::serviceCallable(5));
         $this->assertSame($rade['service.autowire_test'], Facade::serviceAutowireTest());
         $this->assertNull($facadeProxy->build());
 
         try {
             Facade::serviceConstructor();
         } catch (NotFoundServiceException $e) {
-            $this->assertEquals('Identifier "serviceConstructor" is not defined. Did you mean: "service_constructor" ?', $e->getMessage());
+            $this->assertEquals('The "serviceConstructor" requested service is not defined in container. Did you mean: "service_constructor"?', $e->getMessage());
         }
 
         $this->expectExceptionMessage('Subject "notExist" is not a supported proxy service.');
@@ -69,12 +75,12 @@ class FacadeProxyTest extends TestCase
     {
         $builder = new ContainerBuilder();
 
-        $builder->set('raw', $builder->raw(123));
-        $builder->autowire('service', Fixtures\Service::class);
-        $builder->autowire('service.invoke', Fixtures\Invokable::class);
-        $builder->autowire('service.autowire_test', Fixtures\ServiceAutowire::class);
-        $builder->set('service_constructor', Fixtures\SomeService::class);
-        $builder->set('service_private', Fixtures\Constructor::class)->should(Definition::PRIVATE);
+        $builder->set('raw', value(123));
+        $builder->autowire('service', service(Fixtures\Service::class));
+        $builder->autowire('service.invoke', service(Fixtures\Invokable::class));
+        $builder->autowire('service.autowire_test', service(Fixtures\ServiceAutowire::class));
+        $builder->set('service_constructor', service(Fixtures\SomeService::class));
+        $builder->set('service_private', service(Fixtures\Constructor::class))->public(false);
 
         $facadeProxy = new FacadeProxy($builder);
         $facadeProxy->proxy('raw', 'service', 'service.invoke', 'service_constructor', 'service_private', 'service.autowire_test');
@@ -116,7 +122,6 @@ class Facade extends \Rade\DI\Facade\Facade
         return self::$container->get('service.invoke');
     }
 }
-
 FACADE_PROXY,
             $facadeProxy->build()
         );

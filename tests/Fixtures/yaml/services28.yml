@@ -8,14 +8,14 @@ services:
 
     with_defaults:
         entity: Foo
-        private: true
+        public: false
 
     with_null:
         entity: Foo
         autowire: ~
 
     no_defaults:
-        entity: Foo
+        entity: Rade\DI\Tests\Fixtures\Bar
         autowire: false
         tags: []
 

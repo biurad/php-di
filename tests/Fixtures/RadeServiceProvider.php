@@ -17,20 +17,25 @@ declare(strict_types=1);
 
 namespace Rade\DI\Tests\Fixtures;
 
-use PHPUnit\Framework\Assert;
 use Rade\DI\AbstractContainer;
-use Rade\DI\Builder\PrependInterface;
-use Rade\DI\Container;
-use Rade\DI\ContainerBuilder;
-use Rade\DI\Definition;
-use Rade\DI\Services\ServiceProviderInterface;
-use Rade\DI\Services\DependedInterface;
+use Rade\DI\Extensions\AliasedInterface;
+use Rade\DI\Extensions\BootExtensionInterface;
+use Rade\DI\Extensions\DependenciesInterface;
+use Rade\DI\Extensions\ExtensionInterface;
+use Rade\DI\Extensions\PhpExtension;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
-class RadeServiceProvider implements ConfigurationInterface, DependedInterface, ServiceProviderInterface, PrependInterface
+use function Rade\DI\Loader\reference;
+use function Rade\DI\Loader\service;
+use function Rade\DI\Loader\value;
+
+class RadeServiceProvider implements AliasedInterface, ConfigurationInterface, DependenciesInterface, ExtensionInterface, BootExtensionInterface
 {
-    public static function getId(): string
+    /**
+     * {@inheritdoc}
+     */
+    public function getAlias(): string
     {
         return 'rade_provider';
     }
@@ -40,7 +45,7 @@ class RadeServiceProvider implements ConfigurationInterface, DependedInterface, 
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder(self::getId());
+        $treeBuilder = new TreeBuilder($this->getAlias());
 
         $treeBuilder->getRootNode()
             ->children()
@@ -65,28 +70,25 @@ class RadeServiceProvider implements ConfigurationInterface, DependedInterface, 
     public function register(AbstractContainer $container, array $configs = []): void
     {
         $container->parameters['rade_di'] = $configs;
+        $container->getExtensionBuilder()->modifyConfig(OtherServiceProvider::class, ['others' => 'extension']);
 
-        if ($container instanceof Container) {
-            $container['param'] = $container->raw('value');
-            $container['factory'] = $container->definition(Service::class, Definition::FACTORY);
-            $container['service'] = function () use ($container) {
-                $service = new Service();
-                $service->value = $container['other'];
-
-                return $service;
-            };
-        } elseif ($container instanceof ContainerBuilder) {
-            $container->set('param', $container->raw('value'));
-            $container->autowire('service', Service::class);
-            $container->autowire('factory', Service::class)->should(Definition::FACTORY);
+        if ($container->hasExtension(ProjectServiceProvider::class)) {
+            $container->getExtension(ProjectServiceProvider::class)->addData('hello World');
         }
+
+        $container->set('param', value('value'));
+        $container->autowire('service', service(Service::class))->bind('$value', reference('other'));
+        $container->autowire('factory', service(Service::class))->shared(false);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function before(ContainerBuilder $builder): void
+    public function boot(AbstractContainer $builder): void
     {
-        $builder->extend('service')->bind('value', $builder->get('other'));
+        if ($builder->hasExtension(PhpExtension::class)) {
+            $builder->getExtensionBuilder()->modifyConfig(PhpExtension::class, ['date.timezone' => 'Africa/Ghana']);
+        }
+        $builder->definition('service')->bind('value', $builder->get('other'));
     }
 }

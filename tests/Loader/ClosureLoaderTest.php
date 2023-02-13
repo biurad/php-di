@@ -20,6 +20,9 @@ namespace Rade\DI\Tests\Loader;
 use Rade\DI\AbstractContainer;
 use Rade\DI\Loader\ClosureLoader;
 
+/**
+ * @group required
+ */
 class ClosureLoaderTest extends LoaderTestCase
 {
     /**

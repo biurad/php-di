@@ -1,0 +1,2 @@
+parameters:
+    foo: !tagged bar

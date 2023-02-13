@@ -17,21 +17,15 @@ declare(strict_types=1);
 
 namespace Rade\DI\Services;
 
-use Rade\DI\AbstractContainer;
+use Rade\DI\Extensions\ExtensionInterface;
 
 /**
  * The interface implemented for building services into container.
  *
+ * @deprecated use the ExtensionInterface instead, will be removed in the future.
+ *
  * @author Divine Niiquaye Ibok <divineibok@gmail.com>
  */
-interface ServiceProviderInterface
+interface ServiceProviderInterface extends ExtensionInterface
 {
-    /**
-     * Registers services on the given container.
-     *
-     * This method should only be used to configure services and parameters.
-     *
-     * @param array<string,mixed> $configs
-     */
-    public function register(AbstractContainer $container, array $configs = []): void;
 }
